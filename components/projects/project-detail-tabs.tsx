@@ -47,6 +47,8 @@ import { cn, formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 
 type TabKey = "overview" | "review" | "minutes" | "finance" | "files";
 
+type ReviewFilter = "all" | ExtractionSuggestion["status"];
+
 type EditableSuggestion = ExtractionSuggestion & {
   draftText: string;
   isEditing: boolean;
@@ -58,6 +60,13 @@ const tabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "minutes", label: "Minutes", icon: UsersRound },
   { key: "finance", label: "Finance", icon: Landmark },
   { key: "files", label: "Files", icon: FolderOpen },
+];
+
+const reviewFilterOptions: { key: ReviewFilter; label: string }[] = [
+  { key: "pending", label: "未処理" },
+  { key: "all", label: "すべて" },
+  { key: "accepted", label: "採用済み" },
+  { key: "rejected", label: "却下済み" },
 ];
 
 export function ProjectDetailTabs({
@@ -77,6 +86,7 @@ export function ProjectDetailTabs({
   const [suggestions, setSuggestions] = useState<EditableSuggestion[]>(
     getEditableSuggestions(getImportById(project, getPreferredReviewImportId(project.imports))),
   );
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("pending");
   const setProjectState = onProjectChange;
 
   useEffect(() => {
@@ -103,7 +113,20 @@ export function ProjectDetailTabs({
   const incompleteTaskCount = getIncompleteTaskCount(tasks);
   const unresolvedAmbiguities = getUnresolvedAmbiguities(ambiguities);
   const latestDecisions = getLatestDecisions(decisions);
-  const suggestionsByType = getSuggestionsByType(suggestions);
+  const suggestionStats: Record<ReviewFilter, number> = {
+    all: suggestions.length,
+    pending: suggestions.filter((suggestion) => suggestion.status === "pending").length,
+    accepted: suggestions.filter((suggestion) => suggestion.status === "accepted").length,
+    rejected: suggestions.filter((suggestion) => suggestion.status === "rejected").length,
+  };
+  const filteredSuggestions =
+    reviewFilter === "all"
+      ? suggestions
+      : suggestions.filter((suggestion) => suggestion.status === reviewFilter);
+  const visiblePendingSuggestions = filteredSuggestions.filter(
+    (suggestion) => suggestion.status === "pending",
+  );
+  const suggestionsByType = getSuggestionsByType(filteredSuggestions);
 
   async function handleImportChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -167,10 +190,19 @@ export function ProjectDetailTabs({
     updater: (suggestion: EditableSuggestion) => EditableSuggestion,
     updatedAt?: string,
   ) {
-    setSuggestions((current) => {
-      const nextSuggestions = current.map((suggestion) =>
+    updateSuggestions(
+      (suggestion) =>
         suggestion.id === suggestionId ? updater(suggestion) : suggestion,
-      );
+      updatedAt,
+    );
+  }
+
+  function updateSuggestions(
+    updater: (suggestion: EditableSuggestion) => EditableSuggestion,
+    updatedAt?: string,
+  ) {
+    setSuggestions((current) => {
+      const nextSuggestions = current.map(updater);
 
       syncImportSuggestions(selectedImportId, nextSuggestions, updatedAt);
 
@@ -179,97 +211,143 @@ export function ProjectDetailTabs({
   }
 
   function handleAcceptSuggestion(suggestion: EditableSuggestion) {
-    if (suggestion.status !== "pending") {
+    handleAcceptSuggestions([suggestion]);
+  }
+
+  function handleAcceptSuggestions(targetSuggestions: EditableSuggestion[]) {
+    const acceptableSuggestions = targetSuggestions
+      .filter((suggestion) => suggestion.status === "pending")
+      .map((suggestion) => ({
+        ...suggestion,
+        draftText: suggestion.draftText.trim(),
+      }))
+      .filter((suggestion) => suggestion.draftText);
+
+    if (acceptableSuggestions.length === 0) {
       return;
     }
 
-    const normalizedText = suggestion.draftText.trim();
-
-    if (!normalizedText) {
-      return;
-    }
-
+    const acceptedSuggestionIds = new Set(
+      acceptableSuggestions.map((suggestion) => suggestion.id),
+    );
     const updatedAt = new Date().toISOString();
     const sourceMinuteId =
       selectedImport?.sourceMinuteId ?? getLatestSourceMinuteId(minutes);
 
-    if (suggestion.type === "decision") {
-      const decision: ProjectDecision = {
-        id: `decision-${Date.now()}-${suggestion.id}`,
-        date: updatedAt,
-        summary: normalizedText,
-        sourceMinuteId,
-      };
+    setProjectState((current) => {
+      const nextDecisions: ProjectDecision[] = [];
+      const nextTasks: ProjectTask[] = [];
+      const nextAmbiguities: ProjectAmbiguity[] = [];
+      const decisionSummaries = new Set(
+        current.decisions.map((decision) => decision.summary),
+      );
+      const taskTitles = new Set(current.tasks.map((task) => task.title));
+      const ambiguityKeys = new Set(
+        current.ambiguities.map(
+          (ambiguity) => `${ambiguity.kind}:${ambiguity.summary}`,
+        ),
+      );
 
-      setProjectState((current) => ({
+      acceptableSuggestions.forEach((suggestion) => {
+        const normalizedText = suggestion.draftText;
+
+        if (suggestion.type === "decision" && !decisionSummaries.has(normalizedText)) {
+          nextDecisions.push({
+            id: `decision-${Date.now()}-${suggestion.id}`,
+            date: updatedAt,
+            summary: normalizedText,
+            sourceMinuteId,
+          });
+          decisionSummaries.add(normalizedText);
+        }
+
+        if (suggestion.type === "task" && !taskTitles.has(normalizedText)) {
+          nextTasks.push({
+            id: `task-${Date.now()}-${suggestion.id}`,
+            title: normalizedText,
+            completed: false,
+            priority: suggestion.dueDateCandidate ? "high" : "medium",
+            note: buildTaskNote(suggestion),
+          });
+          taskTitles.add(normalizedText);
+        }
+
+        if (suggestion.type === "ambiguity") {
+          const parsed = parseAmbiguityText(normalizedText);
+          const ambiguityKey = `${parsed.kind}:${parsed.summary}`;
+
+          if (!ambiguityKeys.has(ambiguityKey)) {
+            nextAmbiguities.push({
+              id: `ambiguity-${Date.now()}-${suggestion.id}`,
+              kind: parsed.kind,
+              summary: parsed.summary,
+              resolved: false,
+              sourceMinuteId,
+            });
+            ambiguityKeys.add(ambiguityKey);
+          }
+        }
+      });
+
+      return {
         ...current,
         lastUpdated: updatedAt,
-        decisions: current.decisions.some(
-          (currentDecision) => currentDecision.summary === normalizedText,
-        )
-          ? current.decisions
-          : [decision, ...current.decisions],
-      }));
-    }
-
-    if (suggestion.type === "task") {
-      const task: ProjectTask = {
-        id: `task-${Date.now()}-${suggestion.id}`,
-        title: normalizedText,
-        completed: false,
-        priority: suggestion.dueDateCandidate ? "high" : "medium",
-        note: buildTaskNote(suggestion),
+        decisions: [...nextDecisions, ...current.decisions],
+        tasks: [...nextTasks, ...current.tasks],
+        ambiguities: [...nextAmbiguities, ...current.ambiguities],
       };
+    });
 
-      setProjectState((current) => ({
-        ...current,
-        lastUpdated: updatedAt,
-        tasks: current.tasks.some((currentTask) => currentTask.title === normalizedText)
-          ? current.tasks
-          : [task, ...current.tasks],
-      }));
-    }
+    updateSuggestions(
+      (current) => {
+        if (!acceptedSuggestionIds.has(current.id)) {
+          return current;
+        }
 
-    if (suggestion.type === "ambiguity") {
-      const parsed = parseAmbiguityText(normalizedText);
-      const ambiguity: ProjectAmbiguity = {
-        id: `ambiguity-${Date.now()}-${suggestion.id}`,
-        kind: parsed.kind,
-        summary: parsed.summary,
-        resolved: false,
-        sourceMinuteId,
-      };
+        const normalizedText = current.draftText.trim();
 
-      setProjectState((current) => ({
-        ...current,
-        lastUpdated: updatedAt,
-        ambiguities: current.ambiguities.some(
-          (currentAmbiguity) =>
-            currentAmbiguity.kind === ambiguity.kind &&
-            currentAmbiguity.summary === ambiguity.summary,
-        )
-          ? current.ambiguities
-          : [ambiguity, ...current.ambiguities],
-      }));
-    }
-
-    updateSuggestion(suggestion.id, (current) => ({
-      ...current,
-      status: "accepted",
-      text: normalizedText,
-      draftText: normalizedText,
-      isEditing: false,
-    }), updatedAt);
+        return {
+          ...current,
+          status: "accepted",
+          text: normalizedText,
+          draftText: normalizedText,
+          isEditing: false,
+        };
+      },
+      updatedAt,
+    );
   }
 
   function handleRejectSuggestion(suggestionId: string) {
+    handleRejectSuggestions(
+      suggestions.filter((suggestion) => suggestion.id === suggestionId),
+    );
+  }
+
+  function handleRejectSuggestions(targetSuggestions: EditableSuggestion[]) {
+    const rejectedSuggestionIds = new Set(
+      targetSuggestions
+        .filter((suggestion) => suggestion.status === "pending")
+        .map((suggestion) => suggestion.id),
+    );
+
+    if (rejectedSuggestionIds.size === 0) {
+      return;
+    }
+
     const updatedAt = new Date().toISOString();
 
-    updateSuggestion(suggestionId, (current) => ({
-      ...current,
-      status: "rejected",
-      isEditing: false,
-    }), updatedAt);
+    updateSuggestions(
+      (current) =>
+        rejectedSuggestionIds.has(current.id)
+          ? {
+              ...current,
+              status: "rejected",
+              isEditing: false,
+            }
+          : current,
+      updatedAt,
+    );
   }
 
   function toggleSuggestionEdit(suggestionId: string) {
@@ -603,9 +681,18 @@ export function ProjectDetailTabs({
             </Card>
 
             <div className="space-y-4">
+              <ReviewControls
+                filter={reviewFilter}
+                stats={suggestionStats}
+                visiblePendingCount={visiblePendingSuggestions.length}
+                onFilterChange={setReviewFilter}
+                onAcceptVisible={() => handleAcceptSuggestions(visiblePendingSuggestions)}
+                onRejectVisible={() => handleRejectSuggestions(visiblePendingSuggestions)}
+              />
               <SuggestionSection
                 title="決定事項"
                 suggestions={suggestionsByType.decision}
+                sourceBody={sourceBody}
                 onAccept={handleAcceptSuggestion}
                 onReject={handleRejectSuggestion}
                 onToggleEdit={toggleSuggestionEdit}
@@ -614,6 +701,7 @@ export function ProjectDetailTabs({
               <SuggestionSection
                 title="ToDo"
                 suggestions={suggestionsByType.task}
+                sourceBody={sourceBody}
                 onAccept={handleAcceptSuggestion}
                 onReject={handleRejectSuggestion}
                 onToggleEdit={toggleSuggestionEdit}
@@ -622,6 +710,7 @@ export function ProjectDetailTabs({
               <SuggestionSection
                 title="未確定事項"
                 suggestions={suggestionsByType.ambiguity}
+                sourceBody={sourceBody}
                 onAccept={handleAcceptSuggestion}
                 onReject={handleRejectSuggestion}
                 onToggleEdit={toggleSuggestionEdit}
@@ -741,9 +830,76 @@ export function ProjectDetailTabs({
   );
 }
 
+function ReviewControls({
+  filter,
+  stats,
+  visiblePendingCount,
+  onFilterChange,
+  onAcceptVisible,
+  onRejectVisible,
+}: {
+  filter: ReviewFilter;
+  stats: Record<ReviewFilter, number>;
+  visiblePendingCount: number;
+  onFilterChange: (filter: ReviewFilter) => void;
+  onAcceptVisible: () => void;
+  onRejectVisible: () => void;
+}) {
+  const hasPendingVisible = visiblePendingCount > 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div>
+          <CardTitle>レビュー操作</CardTitle>
+          <p className="mt-1 text-sm text-[#81786d]">
+            表示対象を絞り込み、未処理の候補をまとめて処理します。
+          </p>
+        </div>
+        <Badge tone={hasPendingVisible ? "amber" : "green"}>
+          未処理 {visiblePendingCount}
+        </Badge>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {reviewFilterOptions.map((option) => (
+            <Button
+              key={option.key}
+              variant={filter === option.key ? "primary" : "secondary"}
+              className="h-8 px-3 text-xs"
+              onClick={() => onFilterChange(option.key)}
+            >
+              {option.label}
+              <span className="font-mono">{stats[option.key]}</span>
+            </Button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2 rounded-md border border-[#d8d1c4] bg-[#fbfaf5] p-3">
+          <Button
+            className="h-8 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={onAcceptVisible}
+            disabled={!hasPendingVisible}
+          >
+            表示中を一括採用
+          </Button>
+          <Button
+            variant="secondary"
+            className="h-8 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={onRejectVisible}
+            disabled={!hasPendingVisible}
+          >
+            表示中を一括却下
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SuggestionSection({
   title,
   suggestions,
+  sourceBody,
   onAccept,
   onReject,
   onToggleEdit,
@@ -751,6 +907,7 @@ function SuggestionSection({
 }: {
   title: string;
   suggestions: EditableSuggestion[];
+  sourceBody: string;
   onAccept: (suggestion: EditableSuggestion) => void;
   onReject: (suggestionId: string) => void;
   onToggleEdit: (suggestionId: string) => void;
@@ -766,72 +923,87 @@ function SuggestionSection({
         {suggestions.length === 0 && (
           <EmptyPanel text={`${title} の候補はまだありません。`} />
         )}
-        {suggestions.map((suggestion) => (
-          <div
-            key={suggestion.id}
-            className="rounded-md border border-[#d8d1c4] bg-[#fbfaf5] p-4"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Badge tone={statusToneMap[suggestion.status]}>
-                {statusLabelMap[suggestion.status]}
-              </Badge>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="secondary"
-                  className="h-8 px-3 text-xs"
-                  onClick={() => onToggleEdit(suggestion.id)}
-                  disabled={suggestion.status !== "pending"}
-                >
-                  編集
-                </Button>
-                <Button
-                  variant="secondary"
-                  className="h-8 px-3 text-xs"
-                  onClick={() => onReject(suggestion.id)}
-                  disabled={suggestion.status !== "pending"}
-                >
-                  却下
-                </Button>
-                <Button
-                  className="h-8 px-3 text-xs"
-                  onClick={() => onAccept(suggestion)}
-                  disabled={suggestion.status !== "pending"}
-                >
-                  採用
-                </Button>
+        {suggestions.map((suggestion) => {
+          const sourceContext = getSuggestionContext(suggestion, sourceBody);
+
+          return (
+            <div
+              key={suggestion.id}
+              className="rounded-md border border-[#d8d1c4] bg-[#fbfaf5] p-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <Badge tone={statusToneMap[suggestion.status]}>
+                  {statusLabelMap[suggestion.status]}
+                </Badge>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="secondary"
+                    className="h-8 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => onToggleEdit(suggestion.id)}
+                    disabled={suggestion.status !== "pending"}
+                  >
+                    編集
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="h-8 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => onReject(suggestion.id)}
+                    disabled={suggestion.status !== "pending"}
+                  >
+                    却下
+                  </Button>
+                  <Button
+                    className="h-8 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => onAccept(suggestion)}
+                    disabled={suggestion.status !== "pending"}
+                  >
+                    採用
+                  </Button>
+                </div>
               </div>
+
+              {suggestion.isEditing ? (
+                <textarea
+                  className="mt-3 min-h-24 w-full rounded-md border border-[#d8d1c4] bg-white px-3 py-2 text-sm text-[#312d27] outline-none ring-0"
+                  value={suggestion.draftText}
+                  onChange={(event) =>
+                    onDraftChange(suggestion.id, event.target.value)
+                  }
+                />
+              ) : (
+                <p className="mt-3 text-sm leading-6 text-[#5f574d]">
+                  {suggestion.draftText}
+                </p>
+              )}
+
+              {sourceContext && (
+                <div className="mt-3 rounded-md border border-[#e2dacd] bg-[#fffefa] px-3 py-2">
+                  <p className="text-xs font-bold text-[#81786d]">
+                    元議事録の文脈
+                  </p>
+                  <pre className="mt-2 whitespace-pre-wrap font-mono text-xs leading-5 text-[#70675b]">
+                    {sourceContext}
+                  </pre>
+                </div>
+              )}
+
+              {(suggestion.assigneeCandidate || suggestion.dueDateCandidate) && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {suggestion.assigneeCandidate && (
+                    <Badge tone="blue">
+                      担当候補 {suggestion.assigneeCandidate}
+                    </Badge>
+                  )}
+                  {suggestion.dueDateCandidate && (
+                    <Badge tone="amber">
+                      期限候補 {suggestion.dueDateCandidate}
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
-
-            {suggestion.isEditing ? (
-              <textarea
-                className="mt-3 min-h-24 w-full rounded-md border border-[#d8d1c4] bg-white px-3 py-2 text-sm text-[#312d27] outline-none ring-0"
-                value={suggestion.draftText}
-                onChange={(event) =>
-                  onDraftChange(suggestion.id, event.target.value)
-                }
-              />
-            ) : (
-              <p className="mt-3 text-sm leading-6 text-[#5f574d]">
-                {suggestion.draftText}
-              </p>
-            )}
-
-            {(suggestion.assigneeCandidate || suggestion.dueDateCandidate) && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {suggestion.assigneeCandidate && (
-                  <Badge tone="blue">
-                    担当候補 {suggestion.assigneeCandidate}
-                  </Badge>
-                )}
-                {suggestion.dueDateCandidate && (
-                  <Badge tone="amber">
-                    期限候補 {suggestion.dueDateCandidate}
-                  </Badge>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );
@@ -921,6 +1093,81 @@ function MarkdownLike({ body }: { body: string }) {
       })}
     </div>
   );
+}
+
+function getSuggestionContext(
+  suggestion: EditableSuggestion,
+  sourceBody: string,
+) {
+  if (!sourceBody.trim()) {
+    return "";
+  }
+
+  const lines = sourceBody.split(/\r?\n/);
+  const lineIndex =
+    getSuggestionLineIndex(suggestion.id, lines.length) ??
+    findSuggestionLineIndex(suggestion, lines);
+
+  if (lineIndex === null) {
+    return "";
+  }
+
+  const start = Math.max(0, lineIndex - 1);
+  const end = Math.min(lines.length, lineIndex + 2);
+
+  return lines
+    .slice(start, end)
+    .map((line, index) => `${start + index + 1}: ${line.trim() || "(空行)"}`)
+    .join("\n");
+}
+
+function getSuggestionLineIndex(suggestionId: string, lineCount: number) {
+  const match = suggestionId.match(/^suggestion-(\d+)-/);
+  const sourceLine = match?.[1] ? Number(match[1]) : Number.NaN;
+  const lineIndex = sourceLine - 1;
+
+  if (Number.isNaN(lineIndex) || lineIndex < 0 || lineIndex >= lineCount) {
+    return null;
+  }
+
+  return lineIndex;
+}
+
+function findSuggestionLineIndex(
+  suggestion: EditableSuggestion,
+  lines: string[],
+) {
+  const searchTexts = [suggestion.text, suggestion.draftText]
+    .flatMap((text) => {
+      const [, ...afterColon] = text.split(/[:：]/);
+
+      return [text, afterColon.join(":").trim()];
+    })
+    .map(normalizeContextSearchText)
+    .filter(Boolean);
+
+  const matchedIndex = lines.findIndex((line) => {
+    const normalizedLine = normalizeContextSearchText(line);
+
+    if (!normalizedLine) {
+      return false;
+    }
+
+    return searchTexts.some(
+      (searchText) =>
+        normalizedLine.includes(searchText) || searchText.includes(normalizedLine),
+    );
+  });
+
+  return matchedIndex >= 0 ? matchedIndex : null;
+}
+
+function normalizeContextSearchText(text: string) {
+  return text
+    .replace(/^(?:[-*+]|[0-9]+[.)])\s*/, "")
+    .replace(/^\[[ x]\]\s*/i, "")
+    .trim()
+    .toLowerCase();
 }
 
 function toEditableSuggestions(
