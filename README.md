@@ -1,6 +1,24 @@
 # ClawBoard
 
-Next.js App Router + TypeScript + Tailwind CSS で作成した、案件管理ダッシュボードMVPです。
+受託制作・小規模チーム向けの AI案件運用OS MVP です。
+
+このMVPでは、議事録を案件更新の入口として扱います。案件ごとに議事録ファイルを取り込み、モック抽出で `決定事項` `ToDo` `未確定事項` を生成し、人がレビューして案件表示へ反映します。
+
+## 現在のMVP範囲
+
+- 案件ダッシュボード
+- 案件詳細
+- 議事録ファイル取り込み (`.txt` / `.md`)
+- モック抽出
+- 決定事項 / ToDo / 未確定事項のレビュー
+- ブラウザ保存での反映継続
+- 収支とファイルの閲覧
+
+## 想定ユーザー
+
+- 受託制作の PM
+- 小規模チームの進行管理担当
+- 会議後の案件更新を素早く回したいチーム
 
 ## ディレクトリ構成
 
@@ -13,27 +31,21 @@ app/
     page.tsx
     [id]/page.tsx
 components/
-  dashboard/
   layout/
   projects/
   ui/
 lib/
   mock-data.ts
+  mock-extraction.ts
   types.ts
   utils.ts
 ```
 
-## 実装ファイル
+## 主要ルート
 
-- `app/page.tsx` - ダッシュボードトップ
-- `app/projects/page.tsx` - 案件一覧
-- `app/projects/[id]/page.tsx` - 案件詳細
-- `components/layout/*` - macOS風トップバー、アイコンレール、FILESツリー
-- `components/projects/*` - 案件テーブル、詳細タブ
-- `components/ui/*` - Button、Card、Badge、Progress
-- `lib/mock-data.ts` - モック案件データ
-- `lib/types.ts` - 型定義
-- `lib/utils.ts` - 表示整形ユーティリティ
+- `/` - レビュー待ち、未確定事項、最近の議事録取り込みを確認するダッシュボード
+- `/projects` - 案件一覧
+- `/projects/[id]` - 案件詳細。議事録レビュー、決定事項、ToDo、未確定事項を扱う
 
 ## 起動
 
@@ -42,17 +54,16 @@ npm install
 npm run dev
 ```
 
-## 主要ルート
+## 未実装
 
-- `/` - ダッシュボードトップ
-- `/projects` - 案件一覧
-- `/projects/[id]` - 案件詳細タブ
+- 本物の AI API 連携
+- DB 永続化
+- Google Drive の自動整理
+- 収支の異常検知
+- 外部サービスとの本格連携
 
-## Vercel
+## 備考
 
-- Framework Preset: Next.js
-- Build Command: `npm run build`
-- Output Directory: `.next`
-- `package-lock.json` をコミットして、Next.js 15.5.15 と PostCSS override の組み合わせを固定してください。
-- 公開ドメインは Vercel 側で `pm.ymt-systems.com` を追加し、DNS の CNAME/A レコードを案内通りに設定してください。
-- 認証、DB、Google Drive API接続は未実装です。MVPではモックデータと外部URL表示のみです。
+- 現在はモックデータとブラウザ `localStorage` を前提にしています
+- 収支とファイルは閲覧中心で、MVP ではレビュー体験を優先しています
+- `package-lock.json` により Next.js 15.5.15 と PostCSS override の組み合わせを固定しています

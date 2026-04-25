@@ -1,11 +1,10 @@
+"use client";
+
 import {
   ArrowRight,
-  Bot,
-  Check,
   CircleDollarSign,
   Clock3,
   FileText,
-  FolderKanban,
   ListTodo,
   MessageSquare,
   Network,
@@ -14,31 +13,152 @@ import {
   JapaneseYen,
 } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { ProjectStatusBadge } from "@/components/project-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { allFiles, allMinutes, projects } from "@/lib/mock-data";
+import { allFiles, projects } from "@/lib/mock-data";
+import { readProjectsWithSnapshots } from "@/lib/project-persistence";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const activeProjects = projects.filter(
+  const [dashboardProjects, setDashboardProjects] = useState<DashboardProject[]>(
+    projects,
+  );
+
+  useEffect(() => {
+    setDashboardProjects(readProjectsWithSnapshots(projects) as DashboardProject[]);
+  }, []);
+
+  const activeProjects = dashboardProjects.filter(
     (project) => project.status !== "completed",
   );
-  const incompleteTasks = projects.flatMap((project) =>
-    project.tasks
-      .filter((task) => !task.completed)
-      .map((task) => ({ ...task, projectName: project.name })),
-  );
-  const monthlyProfit = projects.reduce(
+  const monthlyProfit = dashboardProjects.reduce(
     (total, project) => total + project.revenue - project.cost,
     0,
   );
-  const recentProjects = [...projects].sort(
+  const recentProjects = [...dashboardProjects].sort(
     (a, b) =>
       new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
   );
+  const recentImports = dashboardProjects
+    .flatMap((project) =>
+      (project.imports ?? []).map((minuteImport) => ({
+        ...minuteImport,
+        id: minuteImport.id ?? `${project.id}-${minuteImport.createdAt ?? "import"}`,
+        createdAt: minuteImport.createdAt ?? project.lastUpdated,
+        filename: minuteImport.filename ?? "取り込み議事録",
+        projectId: project.id,
+        projectName: project.name,
+      })),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  const fallbackImports = dashboardProjects
+    .flatMap((project) =>
+      project.minutes.map((minute) => ({
+        id: minute.id,
+        filename: minute.title,
+        createdAt: minute.createdAt,
+        extractionStatus: project.status === "review" ? "extracted" : "reviewed",
+        projectId: project.id,
+        projectName: project.name,
+      })),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  const importFeed = recentImports.length > 0 ? recentImports : fallbackImports;
+  const reviewPendingCount = dashboardProjects.reduce(
+    (total, project) => total + getProjectReviewPendingCount(project),
+    0,
+  );
+  const pendingReviews = dashboardProjects.flatMap((project) => {
+    const reviewPendingCount = getProjectReviewPendingCount(project);
+
+    if (reviewPendingCount === 0) {
+      return [];
+    }
+
+    const latestImport = [...importFeed]
+      .filter((minuteImport) => minuteImport.projectId === project.id)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )[0];
+
+    return [
+      {
+        id: `review-${project.id}`,
+        title:
+          latestImport != null
+            ? `${latestImport.filename} のレビューを確定`
+            : `${project.name} の抽出結果を確認`,
+        detail:
+          reviewPendingCount > 1
+            ? `${reviewPendingCount}件の確認待ちがあります`
+            : "抽出結果の確認が残っています",
+        createdAt: latestImport?.createdAt ?? project.lastUpdated,
+        projectId: project.id,
+        projectName: project.name,
+        priority: project.status === "review" ? "high" : "medium",
+      },
+    ];
+  });
+  const explicitUnresolvedCount = dashboardProjects.reduce(
+    (total, project) => total + getExplicitUnresolvedItems(project).length,
+    0,
+  );
+  const unresolvedAmbiguities = dashboardProjects.flatMap((project) =>
+    getProjectUnresolvedItems(project, explicitUnresolvedCount === 0).map(
+      (ambiguity) => ({
+        ...ambiguity,
+        id: `ambiguity-${ambiguity.id}`,
+        projectId: project.id,
+        projectName: project.name,
+      }),
+    ),
+  );
+  const unresolvedTaskIds = new Set(
+    unresolvedAmbiguities.map((ambiguity) => ambiguity.id.replace(/^ambiguity-/, "")),
+  );
+  const focusProjects = recentProjects.filter((project) =>
+    getProjectReviewPendingCount(project) > 0 ||
+    getProjectUnresolvedItems(project, explicitUnresolvedCount === 0).length > 0,
+  );
+  const followUpTasks = dashboardProjects.flatMap((project) =>
+    project.tasks
+      .filter((task) => !task.completed)
+      .filter((task) => !unresolvedTaskIds.has(task.id))
+      .map((task) => ({
+        id: `task-${task.id}`,
+        title: task.title,
+        detail: task.note,
+        createdAt: project.lastUpdated,
+        projectId: project.id,
+        projectName: project.name,
+        priority: task.priority,
+      })),
+  );
+  const reviewQueue = [...pendingReviews, ...unresolvedAmbiguities, ...followUpTasks]
+    .sort((a, b) => {
+      const priorityDiff = priorityRank[a.priority] - priorityRank[b.priority];
+
+      if (priorityDiff !== 0) {
+        return priorityDiff;
+      }
+
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    })
+    .filter(
+      (item, index, array) =>
+        array.findIndex((candidate) => candidate.id === item.id) === index,
+    );
 
   return (
     <div className="space-y-4">
@@ -50,10 +170,11 @@ export default function DashboardPage() {
           <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="text-2xl font-black tracking-normal text-[#2f2b25] sm:text-3xl">
-                おかえりなさい — 今日は{incompleteTasks.length}件の未処理タスク
+                レビュー待ち {reviewPendingCount}件、未確定事項{" "}
+                {unresolvedAmbiguities.length}件。今日はここから進める。
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                案件の進捗、議事録、収支、Google Driveファイルを同じワークスペースで確認できます。
+                AIが取り込んだ議事録を起点に、確認待ちと保留論点を片付けて案件を前に進める運用OSです。
               </p>
             </div>
             <ButtonLink href="/projects" variant="secondary" className="shrink-0">
@@ -61,16 +182,81 @@ export default function DashboardPage() {
               <ArrowRight className="h-4 w-4" aria-hidden />
             </ButtonLink>
           </div>
+          <div className="mt-5 grid gap-3 lg:grid-cols-[0.9fr_0.9fr_1.2fr]">
+            <div className="rounded-lg border border-[#d8d1c4] bg-[#fbfaf5] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-bold text-[#81786d]">
+                  レビュー待ち
+                </span>
+                <Clock3 className="h-4 w-4 text-[#81786d]" aria-hidden />
+              </div>
+              <p className="mt-3 text-3xl font-black tracking-normal text-[#312d27]">
+                {reviewPendingCount}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-[#70675b]">
+                extractionStatus と pending suggestion を起点に集計
+              </p>
+            </div>
+            <div className="rounded-lg border border-[#d8d1c4] bg-[#fbfaf5] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-bold text-[#81786d]">
+                  未解消の未確定事項
+                </span>
+                <MessageSquare className="h-4 w-4 text-[#81786d]" aria-hidden />
+              </div>
+              <p className="mt-3 text-3xl font-black tracking-normal text-[#312d27]">
+                {unresolvedAmbiguities.length}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-[#70675b]">
+                unresolved を優先。未整備時は保留タスクを補助的に反映
+              </p>
+            </div>
+            <div className="rounded-lg border border-[#d8d1c4] bg-[#fbfaf5] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-[#81786d]" aria-hidden />
+                  <p className="text-xs font-bold text-[#81786d]">
+                    最近取り込まれた議事録
+                  </p>
+                </div>
+                <span className="font-mono text-xs text-[#81786d]">
+                  {recentImports.length > 0 ? "project.imports" : "minutes"}
+                </span>
+              </div>
+              <div className="mt-3 space-y-3">
+                {importFeed.slice(0, 3).map((minuteImport) => (
+                  <Link
+                    key={minuteImport.id}
+                    href={`/projects/${minuteImport.projectId}`}
+                    className="block border-b border-dashed border-[#d8d1c4] pb-3 last:border-b-0 last:pb-0"
+                  >
+                    <p className="text-sm font-bold text-[#312d27]">
+                      {minuteImport.filename}
+                    </p>
+                    <p className="mt-1 text-xs text-[#81786d]">
+                      {minuteImport.projectName} ・{" "}
+                      {formatDateTime(minuteImport.createdAt)}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-2">
           <StatPill
-            label="案件数"
-            value={`${projects.length}`}
-            icon={FolderKanban}
+            label="レビュー待ち"
+            value={`${reviewPendingCount}`}
+            icon={Clock3}
           />
           <StatPill
-            label="進行中"
+            label="未確定事項"
+            value={`${unresolvedAmbiguities.length}`}
+            icon={MessageSquare}
+          />
+          <StatPill
+            label="進行中案件"
             value={`${activeProjects.length}`}
             icon={TrendingUp}
           />
@@ -79,11 +265,6 @@ export default function DashboardPage() {
             value={formatCurrency(monthlyProfit)}
             icon={CircleDollarSign}
           />
-          <StatPill
-            label="未処理"
-            value={`${incompleteTasks.length}`}
-            icon={ListTodo}
-          />
         </div>
       </section>
 
@@ -91,52 +272,79 @@ export default function DashboardPage() {
         <Card id="todo" className="xl:row-span-2">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Check className="h-4 w-4" aria-hidden />
-              <CardTitle>ToDo・今日</CardTitle>
-              <Badge tone="red">{incompleteTasks.length}</Badge>
+              <ListTodo className="h-4 w-4" aria-hidden />
+              <CardTitle>今日やること・レビュー起点</CardTitle>
+              <Badge tone="red">{reviewQueue.slice(0, 6).length}</Badge>
             </div>
             <div className="flex overflow-hidden rounded-md border border-[#423c33]/55 text-xs font-semibold">
-              <span className="bg-[#312d27] px-3 py-1.5 text-white">今日</span>
-              <span className="px-3 py-1.5 text-[#70675b]">今週</span>
-              <span className="px-3 py-1.5 text-[#70675b]">すべて</span>
+              <span className="bg-[#312d27] px-3 py-1.5 text-white">
+                レビュー待ち
+              </span>
+              <span className="px-3 py-1.5 text-[#70675b]">未確定事項</span>
+              <span className="px-3 py-1.5 text-[#70675b]">フォローアップ</span>
             </div>
           </CardHeader>
           <CardContent className="space-y-0 p-0">
-            {incompleteTasks.slice(0, 6).map((task, index) => (
-              <div
-                key={task.id}
-                className="grid grid-cols-[24px_1fr_auto] items-start gap-3 border-b border-dashed border-[#d8d1c4] px-4 py-4 last:border-b-0"
+            {reviewQueue.slice(0, 6).map((item) => (
+              <Link
+                key={item.id}
+                href={`/projects/${item.projectId}`}
+                className="grid grid-cols-[24px_1fr_auto] items-start gap-3 border-b border-dashed border-[#d8d1c4] px-4 py-4 transition hover:bg-[#fbfaf5] last:border-b-0"
               >
-                <span className="mt-0.5 h-4 w-4 rounded-sm border border-[#777066] bg-[#fffefa]" />
+                <span
+                  className={
+                    item.priority === "high" && item.id.startsWith("review-")
+                      ? "mt-0.5 flex h-4 w-4 items-center justify-center rounded-sm border border-[#c95d3a] bg-[#fbe4db]"
+                      : item.id.startsWith("ambiguity-")
+                        ? "mt-0.5 flex h-4 w-4 items-center justify-center rounded-sm border border-[#d2a528] bg-[#fff0a8]"
+                        : "mt-0.5 flex h-4 w-4 items-center justify-center rounded-sm border border-[#777066] bg-[#fffefa]"
+                  }
+                >
+                  <FileText className="h-3 w-3 text-[#70675b]" aria-hidden />
+                </span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-[#312d27]">
-                    {task.title}
+                    {item.title}
                   </p>
                   <p className="mt-1 font-mono text-xs text-[#8b8175]">
-                    {index % 2 === 0 ? "10:00" : "14:00"} ・ {task.projectName}
+                    {item.projectName} ・ {formatDateTime(item.createdAt)}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-[#81786d]">
+                    {item.detail}
                   </p>
                 </div>
                 <Badge
                   tone={
-                    task.priority === "high"
-                      ? "red"
-                      : task.priority === "medium"
-                        ? "amber"
-                        : "blue"
+                    item.id.startsWith("review-")
+                      ? "amber"
+                      : item.id.startsWith("ambiguity-")
+                        ? "red"
+                        : item.priority === "high"
+                          ? "red"
+                          : item.priority === "medium"
+                            ? "amber"
+                            : "blue"
                   }
                 >
-                  {task.priority === "high"
-                    ? "重要"
-                    : task.priority === "medium"
-                      ? "通常"
-                      : "低"}
+                  {item.id.startsWith("review-")
+                    ? "レビュー待ち"
+                    : item.id.startsWith("ambiguity-")
+                      ? "未確定"
+                      : item.priority === "high"
+                        ? "重要"
+                        : item.priority === "medium"
+                          ? "通常"
+                          : "低"}
                 </Badge>
-              </div>
+              </Link>
             ))}
             <div className="p-4">
-              <button className="h-10 w-full rounded-md border border-[#d8d1c4] bg-[#fffefa] text-left text-sm text-[#9a9084]">
-                <span className="px-4">＋ タスクを追加...</span>
-              </button>
+              <Link
+                href="/projects"
+                className="flex h-10 w-full items-center rounded-md border border-[#d8d1c4] bg-[#fffefa] px-4 text-sm text-[#9a9084]"
+              >
+                レビュー対象の案件を開く...
+              </Link>
             </div>
           </CardContent>
         </Card>
@@ -145,20 +353,25 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" aria-hidden />
-              <CardTitle>最新議事録</CardTitle>
+              <CardTitle>最新議事録・レビュー対象</CardTitle>
             </div>
-            <span className="font-mono text-xs text-[#81786d]">minutes</span>
+            <span className="font-mono text-xs text-[#81786d]">
+              {recentImports.length > 0 ? "imports" : "minutes"}
+            </span>
           </CardHeader>
           <CardContent className="space-y-3">
-            {allMinutes.slice(0, 4).map((minute) => (
+            {importFeed.slice(0, 4).map((minuteImport) => (
               <Link
-                key={minute.id}
-                href="/projects/ai-minutes"
+                key={minuteImport.id}
+                href={`/projects/${minuteImport.projectId}`}
                 className="block border-b border-dashed border-[#d8d1c4] pb-3 last:border-b-0 last:pb-0"
               >
-                <p className="text-sm font-bold text-[#312d27]">{minute.title}</p>
+                <p className="text-sm font-bold text-[#312d27]">
+                  {minuteImport.filename}
+                </p>
                 <p className="mt-1 text-xs text-[#81786d]">
-                  {minute.projectName} ・ {formatDateTime(minute.createdAt)}
+                  {minuteImport.projectName} ・{" "}
+                  {formatDateTime(minuteImport.createdAt)}
                 </p>
               </Link>
             ))}
@@ -169,28 +382,30 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <SquareTerminal className="h-4 w-4" aria-hidden />
-              <CardTitle>Agent Log</CardTitle>
+              <CardTitle>Review Agent Log</CardTitle>
             </div>
             <Badge tone="green">running</Badge>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 border-l-2 border-[#6e9a66] pl-3 font-mono text-xs leading-6 text-[#4f483f]">
               <p><span className="text-[#8b8175]">08:02</span> cw_scraper → 3 items</p>
-              <p><span className="text-[#8b8175]">08:03</span> ai_extract → normalized</p>
-              <p><span className="text-[#8b8175]">10:15</span> todo_add → project#2</p>
-              <p><span className="text-[#8b8175]">10:16</span> drive_upload → share link</p>
-              <p><span className="text-[#8b8175]">11:32</span> finance_check recovered</p>
+              <p><span className="text-[#8b8175]">08:03</span> minute_import → queued</p>
+              <p><span className="text-[#8b8175]">10:15</span> ai_extract → review-needed</p>
+              <p><span className="text-[#8b8175]">10:16</span> ambiguity_flag → owner missing</p>
+              <p><span className="text-[#8b8175]">11:32</span> review_apply → project updated</p>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>最近更新された案件</CardTitle>
-            <span className="text-xs text-[#81786d]">last 7 days</span>
+            <CardTitle>最近更新案件・レビュー優先</CardTitle>
+            <span className="text-xs text-[#81786d]">review context</span>
           </CardHeader>
           <CardContent className="space-y-3">
-            {recentProjects.slice(0, 4).map((project) => (
+            {(focusProjects.length > 0 ? focusProjects : recentProjects)
+              .slice(0, 4)
+              .map((project) => (
               <Link
                 key={project.id}
                 href={`/projects/${project.id}`}
@@ -208,6 +423,17 @@ export default function DashboardPage() {
                     {project.progress}%
                   </span>
                 </div>
+                <p className="mt-2 text-xs text-[#81786d]">
+                  レビュー待ち {getProjectReviewPendingCount(project)}件 ・
+                  未確定事項{" "}
+                  {
+                    getProjectUnresolvedItems(
+                      project,
+                      explicitUnresolvedCount === 0,
+                    ).length
+                  }
+                  件
+                </p>
               </Link>
             ))}
           </CardContent>
@@ -247,6 +473,180 @@ export default function DashboardPage() {
   );
 }
 
+type DashboardImport = {
+  id?: string;
+  filename?: string;
+  createdAt?: string;
+  extractionStatus?: DashboardExtractionStatus;
+  suggestions?: DashboardSuggestion[];
+};
+
+type DashboardAmbiguity = {
+  id: string;
+  kind?: string;
+  summary?: string;
+  createdAt?: string;
+  resolved?: boolean;
+  status?: string;
+};
+
+type DashboardSuggestion = {
+  id: string;
+  status?: string;
+  pending?: boolean;
+  reviewed?: boolean;
+};
+
+type DashboardExtractionStatus =
+  | string
+  | {
+      status?: string;
+      pendingSuggestions?: number;
+      reviewed?: boolean;
+    };
+
+type DashboardProject = (typeof projects)[number] & {
+  imports?: DashboardImport[];
+  ambiguities?: DashboardAmbiguity[];
+  unresolved?: DashboardAmbiguity[];
+  extractionStatus?: DashboardExtractionStatus;
+  suggestions?: DashboardSuggestion[];
+};
+
+const priorityRank: Record<string, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
+
+function getPendingSuggestionCount(project: DashboardProject) {
+  const projectSuggestions = [
+    ...(project.suggestions ?? []),
+    ...(project.imports ?? []).flatMap((minuteImport) => minuteImport.suggestions ?? []),
+  ];
+
+  return projectSuggestions.filter((suggestion) => {
+    const status = suggestion.status?.toLowerCase();
+    const isPendingFlag =
+      "pending" in suggestion && suggestion.pending === true;
+    const isReviewedFlag =
+      "reviewed" in suggestion && suggestion.reviewed === false;
+
+    return (
+      isPendingFlag ||
+      isReviewedFlag ||
+      status === "pending" ||
+      status === "needs-review" ||
+      status === "review"
+    );
+  }).length;
+}
+
+function isReviewPending(status?: DashboardExtractionStatus) {
+  if (status == null) {
+    return false;
+  }
+
+  if (typeof status === "string") {
+    return ["pending", "extracted", "review-needed", "review"].includes(
+      status.toLowerCase(),
+    );
+  }
+
+  if (typeof status.pendingSuggestions === "number") {
+    return status.pendingSuggestions > 0;
+  }
+
+  return (
+    status.reviewed === false ||
+    ["pending", "needs-review", "review"].includes(
+      status.status?.toLowerCase() ?? "",
+    )
+  );
+}
+
+function getProjectReviewPendingCount(project: DashboardProject) {
+  const pendingSuggestions = getPendingSuggestionCount(project);
+
+  if (pendingSuggestions > 0) {
+    return pendingSuggestions;
+  }
+
+  const importPendingCount = (project.imports ?? []).filter((minuteImport) =>
+    isReviewPending(minuteImport.extractionStatus),
+  ).length;
+
+  if (importPendingCount > 0) {
+    return importPendingCount;
+  }
+
+  if (isReviewPending(project.extractionStatus)) {
+    return Math.max(project.minutes.length, 1);
+  }
+
+  if (project.status === "review") {
+    return Math.max(project.minutes.length, 1);
+  }
+
+  return 0;
+}
+
+function getExplicitUnresolvedItems(project: DashboardProject) {
+  return [...(project.unresolved ?? []), ...(project.ambiguities ?? [])]
+    .filter((item) => {
+      const status = item.status?.toLowerCase();
+
+      return item.resolved !== true && status !== "resolved" && status !== "done";
+    })
+    .map((item) => ({
+      id: item.id,
+      title: item.kind != null ? ambiguityLabel(item.kind) : "未確定事項を確認",
+      detail: item.summary ?? "内容確認待ち",
+      createdAt: item.createdAt ?? project.lastUpdated,
+      priority: "high" as const,
+    }));
+}
+
+function getProjectUnresolvedItems(
+  project: DashboardProject,
+  allowFallback: boolean,
+) {
+  const explicitItems = getExplicitUnresolvedItems(project);
+
+  if (explicitItems.length > 0 || !allowFallback) {
+    return explicitItems;
+  }
+
+  const fallbackKeywords = [
+    "確認",
+    "未確定",
+    "保留",
+    "課題",
+    "要件",
+    "可否",
+    "期限",
+    "優先度",
+    "担当者",
+    "補完",
+    "調整",
+  ];
+
+  return project.tasks
+    .filter((task) => !task.completed)
+    .filter((task) =>
+      fallbackKeywords.some((keyword) =>
+        `${task.title} ${task.note}`.includes(keyword),
+      ),
+    )
+    .map((task) => ({
+      id: task.id,
+      title: task.title,
+      detail: task.note,
+      createdAt: project.lastUpdated,
+      priority: "high" as const,
+    }));
+}
+
 function StatPill({
   label,
   value,
@@ -267,6 +667,17 @@ function StatPill({
       </p>
     </div>
   );
+}
+
+function ambiguityLabel(kind: string) {
+  const labels: Record<string, string> = {
+    "missing-assignee": "担当者なし",
+    "missing-due-date": "期限なし",
+    "unresolved-decision": "決定未確定",
+    "unclear-dependency": "依存不明",
+  };
+
+  return labels[kind] ?? "未確定事項";
 }
 
 function GraphCard() {

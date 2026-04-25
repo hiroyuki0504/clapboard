@@ -23,6 +23,55 @@ export type ProjectMinute = {
   body: string;
 };
 
+export type ProjectDecision = {
+  id: string;
+  date: string;
+  summary: string;
+  sourceMinuteId: string;
+};
+
+export type ProjectAmbiguityKind =
+  | "missing-assignee"
+  | "missing-due-date"
+  | "unresolved-decision"
+  | "unclear-dependency";
+
+export type ProjectAmbiguity = {
+  id: string;
+  kind: ProjectAmbiguityKind;
+  summary: string;
+  sourceMinuteId: string;
+  resolved: boolean;
+};
+
+export type ExtractionSuggestionType = "decision" | "task" | "ambiguity";
+
+export type ExtractionSuggestionStatus = "pending" | "accepted" | "rejected";
+
+export type ExtractionSuggestion = {
+  id: string;
+  type: ExtractionSuggestionType;
+  text: string;
+  assigneeCandidate?: string;
+  dueDateCandidate?: string;
+  status: ExtractionSuggestionStatus;
+};
+
+export type MinuteImportExtractionStatus =
+  | "pending"
+  | "extracted"
+  | "reviewed";
+
+export type MinuteImport = {
+  id: string;
+  filename: string;
+  createdAt: string;
+  body: string;
+  extractionStatus: MinuteImportExtractionStatus;
+  sourceMinuteId?: string;
+  suggestions?: ExtractionSuggestion[];
+};
+
 export type FinanceTransaction = {
   id: string;
   date: string;
@@ -60,6 +109,9 @@ export type Project = {
   updates: ProjectUpdate[];
   tasks: ProjectTask[];
   minutes: ProjectMinute[];
+  decisions: ProjectDecision[];
+  ambiguities: ProjectAmbiguity[];
+  imports: MinuteImport[];
   transactions: FinanceTransaction[];
   files: ProjectFile[];
 };

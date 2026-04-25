@@ -1,10 +1,21 @@
+"use client";
+
 import { Filter, Plus, SlidersHorizontal } from "lucide-react";
+import { useEffect, useState } from "react";
 import { ProjectTable } from "@/components/projects/project-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { projects } from "@/lib/mock-data";
+import { readProjectsWithSnapshots } from "@/lib/project-persistence";
+import type { Project } from "@/lib/types";
 
 export default function ProjectsPage() {
+  const [projectList, setProjectList] = useState<Project[]>(projects);
+
+  useEffect(() => {
+    setProjectList(readProjectsWithSnapshots(projects));
+  }, []);
+
   return (
     <div className="space-y-4">
       <section className="flex flex-col gap-4 rounded-lg border border-[#423c33]/55 bg-[#fffefa] p-5 lg:flex-row lg:items-end lg:justify-between">
@@ -40,12 +51,12 @@ export default function ProjectsPage() {
           <div>
             <CardTitle>管理中の案件</CardTitle>
             <p className="mt-1 text-sm text-[#81786d]">
-              {projects.length}件のモック案件を表示しています。
+              {projectList.length}件のモック案件を表示しています。
             </p>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <ProjectTable projects={projects} />
+          <ProjectTable projects={projectList} />
         </CardContent>
       </Card>
     </div>
