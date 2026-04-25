@@ -31,6 +31,21 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         return;
       }
 
+      if (response.status === 403) {
+        setError("リクエスト元の検証に失敗しました（CSRF）。再読み込みしてからお試しください。");
+        return;
+      }
+
+      if (response.status === 429) {
+        const retryAfter = response.headers.get("retry-after");
+        setError(
+          retryAfter
+            ? `試行回数の上限に達しました。${retryAfter}秒後に再度お試しください。`
+            : "試行回数の上限に達しました。しばらく待ってから再度お試しください。",
+        );
+        return;
+      }
+
       if (response.status === 503) {
         setError("サインイン機能が一時的に利用できません。管理者に確認してください。");
         return;
