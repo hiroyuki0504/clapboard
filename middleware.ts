@@ -1,34 +1,70 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const SESSION_COOKIE = "clapbot-auth";
 
-/** HMAC-SHA256 で署名されたセッション値を検証する */
-export function verifySessionValue(value: string): boolean {
+const encoder = new TextEncoder();
+
+async function importHmacKey(secret: string): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
+
+function hexToBytes(hex: string): Uint8Array<ArrayBuffer> | null {
+  if (hex.length % 2 !== 0) return null;
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    const byte = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    if (Number.isNaN(byte)) return null;
+    bytes[i] = byte;
+  }
+  return bytes as Uint8Array<ArrayBuffer>;
+}
+
+/** HMAC-SHA256 で署名されたセッション値を検証する (Edge Runtime 対応) */
+export async function verifySessionValue(value: string): Promise<boolean> {
   const secret = process.env.CLAPBOARD_SESSION_SECRET;
   if (!secret) return false;
 
-  // format: "<payload>.<signature>"
   const dot = value.lastIndexOf(".");
   if (dot < 0) return false;
 
   const payload = value.slice(0, dot);
   const provided = value.slice(dot + 1);
-  const expected = createHmac("sha256", secret).update(payload).digest("hex");
+  const sigBytes = hexToBytes(provided);
+  if (!sigBytes) return false;
 
   try {
-    return timingSafeEqual(Buffer.from(provided, "hex"), Buffer.from(expected, "hex"));
+    const key = await importHmacKey(secret);
+    return await crypto.subtle.verify(
+      "HMAC",
+      key,
+      sigBytes,
+      encoder.encode(payload),
+    );
   } catch {
     return false;
   }
 }
 
 /** ログイン成功時に Cookie にセットするセッション値を生成する */
-export function createSessionValue(): string {
+export async function createSessionValue(): Promise<string> {
   const secret = process.env.CLAPBOARD_SESSION_SECRET ?? "";
   const payload = Date.now().toString(36);
-  const sig = createHmac("sha256", secret).update(payload).digest("hex");
-  return `${payload}.${sig}`;
+  const key = await importHmacKey(secret);
+  const sigBuffer = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(payload),
+  );
+  const sigHex = Array.from(new Uint8Array(sigBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return `${payload}.${sigHex}`;
 }
 
 const PUBLIC_PATHS = new Set([
@@ -38,7 +74,7 @@ const PUBLIC_PATHS = new Set([
   "/login",
 ]);
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_PATHS.has(pathname)) {
@@ -46,7 +82,7 @@ export function middleware(request: NextRequest) {
   }
 
   const sessionValue = request.cookies.get(SESSION_COOKIE)?.value ?? "";
-  if (!verifySessionValue(sessionValue)) {
+  if (!(await verifySessionValue(sessionValue))) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "unauthorized" },

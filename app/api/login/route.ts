@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   );
   response.cookies.set({
     name: SESSION_COOKIE,
-    value: createSessionValue(),
+    value: await createSessionValue(),
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
