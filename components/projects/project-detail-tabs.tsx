@@ -70,8 +70,16 @@ const tabs: {
   },
 ];
 
-export function ProjectDetailTabs({ project }: { project: Project }) {
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
+export function ProjectDetailTabs({
+  project,
+  initialTab,
+}: {
+  project: Project;
+  initialTab?: string;
+}) {
+  const [activeTab, setActiveTab] = useState<TabKey>(() =>
+    getTabFromValue(initialTab),
+  );
   const profit = getProjectBudgetBalance(project);
   const completion = useMemo(
     () => getTaskCompletion(project.tasks),
@@ -82,11 +90,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
 
   useEffect(() => {
     function syncTabFromUrl() {
-      const tab = getTabFromSearch();
-
-      if (tab) {
-        setActiveTab(tab);
-      }
+      setActiveTab(getTabFromSearch());
     }
 
     syncTabFromUrl();
@@ -96,6 +100,10 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
   }, []);
 
   function handleSelectTab(tab: TabKey) {
+    if (tab === activeTab) {
+      return;
+    }
+
     setActiveTab(tab);
 
     const url = new URL(window.location.href);
@@ -106,7 +114,11 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
       url.searchParams.set("tab", tab);
     }
 
-    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+    window.history.pushState(
+      null,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
   }
 
   return (
@@ -563,16 +575,20 @@ function MarkdownLike({ body }: { body: string }) {
   );
 }
 
-function getTabFromSearch(): TabKey | null {
+function getTabFromSearch(): TabKey {
   if (typeof window === "undefined") {
-    return null;
+    return "overview";
   }
 
   const tab = new URLSearchParams(window.location.search).get("tab");
 
-  return isTabKey(tab) ? tab : null;
+  return getTabFromValue(tab);
 }
 
-function isTabKey(value: string | null): value is TabKey {
+function getTabFromValue(value: string | null | undefined): TabKey {
+  return isTabKey(value) ? value : "overview";
+}
+
+function isTabKey(value: string | null | undefined): value is TabKey {
   return tabs.some((tab) => tab.key === value);
 }

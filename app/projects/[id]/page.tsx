@@ -23,10 +23,14 @@ export const dynamic = "force-dynamic";
 
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 }) {
   const { id } = await params;
+  const { tab } = await searchParams;
+  const initialTab = Array.isArray(tab) ? tab[0] : tab;
   const projectResult = await getProject(id);
   if (projectResult.error) {
     if (projectResult.error.status === 404) {
@@ -141,7 +145,7 @@ export default async function ProjectDetailPage({
         </Card>
       </section>
 
-      <ProjectDetailTabs project={project} />
+      <ProjectDetailTabs project={project} initialTab={initialTab} />
     </div>
   );
 }
