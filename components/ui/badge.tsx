@@ -1,7 +1,10 @@
 import { cn } from "@/lib/utils";
 
+export type BadgeShape = "default" | "vertical";
+
 type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & {
   tone?: "blue" | "green" | "amber" | "red" | "slate" | "purple";
+  shape?: BadgeShape;
 };
 
 const toneClass = {
@@ -13,12 +16,25 @@ const toneClass = {
   purple: "border-[#bdb2ca] bg-[#f1edf7] text-[#5d4d73]",
 };
 
-export function Badge({ tone = "slate", className, ...props }: BadgeProps) {
+const shapeClass: Record<BadgeShape, string> = {
+  default: "px-2.5 py-1 text-xs leading-none",
+  vertical:
+    "w-11 justify-center text-center px-1.5 py-2.5 text-[12px] leading-[1.3]",
+};
+
+export function Badge({
+  tone = "slate",
+  shape = "default",
+  className,
+  ...props
+}: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold leading-none",
+        "inline-flex rounded-full border font-semibold",
+        shape === "default" ? "items-center" : "flex-col items-center",
         toneClass[tone],
+        shapeClass[shape],
         className,
       )}
       {...props}

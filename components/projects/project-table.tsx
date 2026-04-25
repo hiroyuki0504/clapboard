@@ -2,6 +2,10 @@ import { AlertTriangle, ArrowUpRight, CalendarDays } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/project-status-badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  getHighPriorityOpenTaskCount,
+  getOpenTaskCount,
+} from "@/lib/project-selectors";
 import type { Project } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -55,10 +59,8 @@ export function ProjectTable({
         </thead>
         <tbody>
           {projects.map((project) => {
-            const blockers = project.tasks.filter(
-              (task) => !task.completed && task.priority === "high",
-            ).length;
-            const openTasks = project.tasks.filter((task) => !task.completed).length;
+            const blockers = getHighPriorityOpenTaskCount(project.tasks);
+            const openTasks = getOpenTaskCount(project.tasks);
 
             return (
               <tr
@@ -79,7 +81,7 @@ export function ProjectTable({
                   {project.owner}
                 </td>
                 <td className={cn("border-t border-[#ded6ca] px-5", rowPadding)}>
-                  <ProjectStatusBadge status={project.status} />
+                  <ProjectStatusBadge status={project.status} shape="vertical" />
                 </td>
                 <td className={cn("border-t border-[#ded6ca] px-5", rowPadding)}>
                   <div className="flex min-w-36 items-center gap-3">
