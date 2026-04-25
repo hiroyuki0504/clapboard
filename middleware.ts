@@ -12,6 +12,7 @@ import {
 
 const PROTECTED_PAGE_PATHS = new Set(["/"]);
 const PROTECTED_PAGE_PREFIXES = [
+  "/dashboard",
   "/projects",
   "/code-review",
   "/graph",
@@ -144,6 +145,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/",
+    "/dashboard/:path*",
     "/projects/:path*",
     "/code-review/:path*",
     "/graph/:path*",

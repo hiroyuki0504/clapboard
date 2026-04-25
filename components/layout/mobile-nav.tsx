@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { railItems } from "./sidebar";
+import { isNavItemActive, railItems } from "./nav-items";
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
@@ -43,25 +43,6 @@ export function MobileNav() {
     };
   }, [open]);
 
-  const isActiveItem = (item: (typeof railItems)[number]) => {
-    const baseHref = item.href.split("#")[0];
-    const itemHash = item.href.includes("#")
-      ? `#${item.href.split("#")[1]}`
-      : "";
-
-    if (item.href === "/") {
-      return pathname === "/" && currentHash === "";
-    }
-
-    if (itemHash) {
-      return pathname === baseHref && currentHash === itemHash;
-    }
-
-    return (
-      baseHref !== "" &&
-      (pathname === baseHref || pathname.startsWith(`${baseHref}/`))
-    );
-  };
 
   return (
     <>
@@ -105,7 +86,7 @@ export function MobileNav() {
             <nav className="mt-3 grid gap-2" aria-label="主要ナビゲーション">
               {railItems.map((item) => {
                 const Icon = item.icon;
-                const active = isActiveItem(item);
+                const active = isNavItemActive(item, pathname, currentHash);
 
                 return (
                   <Link

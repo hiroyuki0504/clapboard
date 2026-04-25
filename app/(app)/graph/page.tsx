@@ -1,6 +1,5 @@
 import {
   ArrowRight,
-  CircleDot,
   FileText,
   GitBranch,
   ListFilter,
@@ -8,38 +7,15 @@ import {
   TimerReset,
 } from "lucide-react";
 import Link from "next/link";
+import { GraphCanvas } from "@/components/graph/graph-canvas";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getProjects } from "@/lib/clapboard-api";
-import { getHighPriorityOpenTaskCount } from "@/lib/project-selectors";
-import type { Project } from "@/lib/types";
+import { buildGraphModel } from "@/lib/graph-model";
 import { formatDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-
-type GraphNode = {
-  id: string;
-  label: string;
-  sub: string;
-  tone: "project" | "task" | "file" | "minute" | "support";
-  x: number;
-  y: number;
-  href?: string;
-};
-
-type GraphEdge = {
-  from: string;
-  to: string;
-};
-
-const toneClass = {
-  project: "border-[#d66b43] text-[#9a4a31]",
-  task: "border-[#423c33] text-[#312d27]",
-  file: "border-[#8aa0b8] text-[#315a78]",
-  minute: "border-[#b89b48] text-[#7c5a18]",
-  support: "border-[#93aa8d] text-[#426c3d]",
-};
 
 export default async function GraphPage() {
   const projectsResult = await getProjects();
@@ -138,74 +114,7 @@ export default async function GraphPage() {
             </span>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="thin-scrollbar overflow-x-auto">
-              <div className="dotted-canvas relative min-h-[520px] min-w-[680px] bg-[#fffefa]">
-                <svg
-                  className="absolute inset-0 h-full w-full"
-                  viewBox="0 0 1000 520"
-                  role="img"
-                  aria-label="ワーク、タスク、議事録、ファイルの関係線"
-                >
-                  {model.edges.map((edge) => {
-                    const from = model.nodeById.get(edge.from);
-                    const to = model.nodeById.get(edge.to);
-                    if (!from || !to) return null;
-
-                    return (
-                      <line
-                        key={`${edge.from}-${edge.to}`}
-                        x1={from.x}
-                        y1={from.y}
-                        x2={to.x}
-                        y2={to.y}
-                        stroke="#c8c0b4"
-                        strokeWidth="2"
-                      />
-                    );
-                  })}
-                </svg>
-
-                {model.nodes.map((node) => {
-                  const body = (
-                    <div
-                      className={`absolute z-10 w-[220px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-[#fffefa] px-3 py-2 shadow-sm ${toneClass[node.tone]}`}
-                      style={{
-                        left: `${node.x / 10}%`,
-                        top: `${node.y / 5.2}%`,
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <CircleDot className="h-4 w-4 shrink-0" aria-hidden />
-                        <span className="min-w-0 truncate text-sm font-black">
-                          {node.label}
-                        </span>
-                      </div>
-                      <p className="mt-1 truncate text-xs text-[#81786d]">
-                        {node.sub}
-                      </p>
-                    </div>
-                  );
-
-                  if (!node.href) {
-                    return <div key={node.id}>{body}</div>;
-                  }
-
-                  return (
-                    <Link
-                      key={node.id}
-                      href={node.href}
-                      aria-label={`${node.label}を開く`}
-                    >
-                      {body}
-                    </Link>
-                  );
-                })}
-
-                <div className="absolute bottom-6 left-6 max-w-xs rotate-[-1deg] rounded-sm border border-[#d2a528] bg-[#ffe783] px-4 py-3 text-sm font-bold leading-6 text-[#6f5415] shadow-sm">
-                  赤枠は停滞リスク。線はワーク、タスク、議事録、ファイルの参照関係です。
-                </div>
-              </div>
-            </div>
+            <GraphCanvas model={model} />
           </CardContent>
         </Card>
 
@@ -270,98 +179,4 @@ export default async function GraphPage() {
       </section>
     </div>
   );
-}
-
-function buildGraphModel(projects: Project[]) {
-  const focus = [...projects].sort(
-    (a, b) =>
-      getHighPriorityOpenTaskCount(b.tasks) -
-        getHighPriorityOpenTaskCount(a.tasks) ||
-      new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
-  )[0];
-
-  const nodes: GraphNode[] = [];
-  const edges: GraphEdge[] = [];
-
-  if (focus) {
-    nodes.push({
-      id: focus.id,
-      label: focus.name,
-      sub: `${focus.progress}% / ${focus.client}`,
-      tone: "project",
-      x: 170,
-      y: 150,
-      href: `/projects/${focus.id}`,
-    });
-
-    const blocker = focus.tasks.find(
-      (task) => !task.completed && task.priority === "high",
-    );
-    if (blocker) {
-      nodes.push({
-        id: blocker.id,
-        label: blocker.title,
-        sub: "高優先度タスク",
-        tone: "task",
-        x: 455,
-        y: 280,
-        href: `/projects/${focus.id}?tab=progress`,
-      });
-      edges.push({ from: focus.id, to: blocker.id });
-    }
-
-    const minute = focus.minutes[0];
-    if (minute) {
-      nodes.push({
-        id: minute.id,
-        label: minute.title,
-        sub: "議事録",
-        tone: "minute",
-        x: 590,
-        y: 120,
-        href: `/projects/${focus.id}?tab=minutes`,
-      });
-      edges.push({ from: focus.id, to: minute.id });
-    }
-
-    const file = focus.files[0];
-    if (file) {
-      nodes.push({
-        id: file.id,
-        label: file.name,
-        sub: file.type.toUpperCase(),
-        tone: "file",
-        x: 785,
-        y: 250,
-        href: `/projects/${focus.id}?tab=files`,
-      });
-      edges.push({ from: minute?.id ?? focus.id, to: file.id });
-      if (blocker) edges.push({ from: blocker.id, to: file.id });
-    }
-  }
-
-  projects
-    .filter((project) => project.id !== focus?.id)
-    .slice(0, 2)
-    .forEach((project, index) => {
-      nodes.push({
-        id: project.id,
-        label: project.name,
-        sub: `${project.progress}% / ${project.client}`,
-        tone: "support",
-        x: index === 0 ? 300 : 720,
-        y: index === 0 ? 410 : 390,
-        href: `/projects/${project.id}`,
-      });
-      if (focus) {
-        edges.push({ from: focus.id, to: project.id });
-      }
-    });
-
-  return {
-    focus,
-    nodes,
-    edges,
-    nodeById: new Map(nodes.map((node) => [node.id, node])),
-  };
 }

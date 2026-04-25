@@ -16,9 +16,9 @@ export function CommandHeader({
       <p className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-[#81786d]">
         {dateLabel} ・ PROGRESS COMMAND
       </p>
-      <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h2 className="text-2xl font-black tracking-normal text-[#2f2b25] sm:text-3xl">
+      <div className="mt-2 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-xl font-black tracking-normal text-[#2f2b25] sm:text-2xl">
             今日進めるべきこと - ブロッカー{blockerCount}件
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">

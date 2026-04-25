@@ -10,7 +10,6 @@ import {
   getNextMilestoneDate,
   getOpenTaskCount,
   getOpenTasks,
-  getProfit,
   getProjectBudgetBalance,
   getTaskCompletion,
 } from "../lib/project-selectors";
@@ -46,7 +45,6 @@ const tasks: ProjectTask[] = [
 
 test("project selectors summarize task and budget state", () => {
   assert.equal(getProjectBudgetBalance({ revenue: 120000, cost: 45000 }), 75000);
-  assert.equal(getProfit({ revenue: 120000, cost: 45000 }), 75000);
   assert.equal(getTaskCompletion(tasks), 33);
   assert.equal(getTaskCompletion([]), 0);
   assert.deepEqual(getOpenTasks(tasks).map((task) => task.id), [

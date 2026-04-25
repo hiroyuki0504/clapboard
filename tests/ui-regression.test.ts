@@ -85,6 +85,13 @@ test("ProjectDetailTabs keeps URL query tab synchronization", () => {
     ),
     "utf8",
   );
+  const tabNavigationSource = readFileSync(
+    path.join(
+      process.cwd(),
+      "components/projects/detail-tabs/use-tab-navigation.ts",
+    ),
+    "utf8",
+  );
 
   assert.match(
     tabConfigSource,
@@ -92,20 +99,28 @@ test("ProjectDetailTabs keeps URL query tab synchronization", () => {
   );
   assert.match(tabConfigSource, /isTabKey\(tab\)/);
   assert.match(
-    tabsSource,
+    tabNavigationSource,
     /window\.addEventListener\("popstate", syncTabFromUrl\)/,
   );
-  assert.match(tabsSource, /url\.searchParams\.set\("tab", tabKey\)/);
-  assert.match(tabsSource, /url\.searchParams\.delete\("tab"\)/);
-  assert.match(tabsSource, /window\.history\.pushState/);
+  assert.match(tabNavigationSource, /url\.searchParams\.set\("tab", tabKey\)/);
+  assert.match(tabNavigationSource, /url\.searchParams\.delete\("tab"\)/);
+  assert.match(tabNavigationSource, /window\.history\.pushState/);
+  assert.match(tabNavigationSource, /event\.key === "ArrowRight"/);
+  assert.match(tabNavigationSource, /event\.key === "ArrowLeft"/);
+  assert.match(tabNavigationSource, /event\.key === "Home"/);
+  assert.match(tabNavigationSource, /event\.key === "End"/);
+  const tabButtonSource = readFileSync(
+    path.join(
+      process.cwd(),
+      "components/projects/detail-tabs/tab-button.tsx",
+    ),
+    "utf8",
+  );
+
   assert.match(
     tabsSource,
     /onKeyDown=\{\(event\) => handleTabKeyDown\(event, tab\.key\)\}/,
   );
-  assert.match(tabsSource, /event\.key === "ArrowRight"/);
-  assert.match(tabsSource, /event\.key === "ArrowLeft"/);
-  assert.match(tabsSource, /event\.key === "Home"/);
-  assert.match(tabsSource, /event\.key === "End"/);
-  assert.match(tabsSource, /tabIndex=\{active \? 0 : -1\}/);
-  assert.match(tabsSource, /whitespace-nowrap/);
+  assert.match(tabButtonSource, /tabIndex=\{active \? 0 : -1\}/);
+  assert.match(tabButtonSource, /whitespace-nowrap/);
 });
