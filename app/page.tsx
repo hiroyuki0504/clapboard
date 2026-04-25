@@ -4,16 +4,10 @@ import {
   CalendarCheck,
   Check,
   CheckCircle2,
-  FileText,
   Gauge,
   GitBranch,
   GitPullRequest,
-  HelpCircle,
   MessageSquare,
-  Network,
-  Sparkles,
-  SquareTerminal,
-  TimerReset,
 } from "lucide-react";
 import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/project-status-badge";
@@ -21,13 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import {
-  getProjectFiles,
-  getProjectMinutes,
-  getProjects,
-} from "@/lib/clapboard-api";
+import { getProjectMinutes, getProjects } from "@/lib/clapboard-api";
 import type { Project } from "@/lib/types";
-import { buildDateLabel, formatDate, formatDateTime, safeFileUrl } from "@/lib/utils";
+import { buildDateLabel, formatDate, formatDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +28,6 @@ export default async function DashboardPage() {
   }
 
   const projectList = projectsResult.data;
-  const allFiles = getProjectFiles(projectList);
   const allMinutes = getProjectMinutes(projectList);
   const activeWorkstreams = projectList.filter(
     (project) => project.status !== "completed",
@@ -64,15 +53,10 @@ export default async function DashboardPage() {
     (a, b) =>
       new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
   );
-  const milestoneCount = activeWorkstreams.filter((project) =>
-    Boolean(project.dueDate),
-  ).length;
   const dateLabel = buildDateLabel(new Date());
 
   return (
     <div className="space-y-4">
-      <WelcomeCard />
-
       <section className="grid gap-4 xl:grid-cols-[1fr_420px]">
         <div className="rounded-lg border border-[#423c33]/55 bg-[#fffefa] p-5">
           <p className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-[#81786d]">
@@ -84,7 +68,7 @@ export default async function DashboardPage() {
                 今日進めるべきこと - ブロッカー{blockerTasks.length}件
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                ワークストリームごとの進捗率、次の節目、停滞タスク、更新ログを一画面で追跡します。
+                まず見るべきタスク、直近の更新、進捗が動いている案件だけに絞って追跡します。
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
@@ -127,7 +111,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1.25fr_0.95fr_0.95fr]">
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <Card id="todo" className="xl:row-span-2">
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -135,11 +119,7 @@ export default async function DashboardPage() {
               <CardTitle>今日の次アクション</CardTitle>
               <Badge tone="red">{incompleteTasks.length}</Badge>
             </div>
-            <div className="flex overflow-hidden rounded-md border border-[#423c33]/55 text-xs font-semibold">
-              <span className="bg-[#312d27] px-3 py-1.5 text-white">今日</span>
-              <span className="px-3 py-1.5 text-[#70675b]">今週</span>
-              <span className="px-3 py-1.5 text-[#70675b]">停滞</span>
-            </div>
+            <span className="font-mono text-xs text-[#81786d]">priority order</span>
           </CardHeader>
           <CardContent className="space-y-0 p-0">
             {incompleteTasks.length === 0 && (
@@ -184,7 +164,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card id="updates">
           <CardHeader>
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" aria-hidden />
@@ -215,35 +195,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card id="guide">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <HelpCircle className="h-4 w-4 text-[#5f8b5b]" aria-hidden />
-              <CardTitle>使い方ガイド</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-3 text-sm leading-6 text-[#5f574d]">
-              <GuideStep
-                num={1}
-                title="ダッシュボードで全体を確認"
-                body="今日の次アクション、ブロッカー、直近の更新を最初に見ます。"
-              />
-              <GuideStep
-                num={2}
-                title="進捗ボードから詳細へ"
-                body="ワークストリーム名や「開く」ボタンを押すと、タスク・メモ・予算・ファイルを確認できます。"
-              />
-              <GuideStep
-                num={3}
-                title="左の Desktop Files を参照"
-                body="このパソコンの ~/Desktop をそのまま展開できます。名前で絞り込みもできます。"
-              />
-            </ol>
-          </CardContent>
-        </Card>
-
-        <Card>
+        <Card id="workstreams">
           <CardHeader>
             <CardTitle>進捗が動いたワーク</CardTitle>
             <span className="text-xs text-[#81786d]">last 7 days</span>
@@ -279,93 +231,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card id="agent">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <SquareTerminal className="h-4 w-4" aria-hidden />
-              <CardTitle>Progress Agent Log</CardTitle>
-            </div>
-            <Badge tone="green">tracking</Badge>
-          </CardHeader>
-          <CardContent>
-            <ProgressAgentLog
-              latestProjectAt={recentWorkstreams[0]?.lastUpdated}
-              latestBlockerAt={getLatestTaskProjectDate(projectList, "high")}
-              nextMilestoneAt={getNextMilestoneDate(activeWorkstreams)}
-              latestMinuteAt={allMinutes[0]?.createdAt}
-              streamCount={activeWorkstreams.length}
-              blockerCount={blockerTasks.length}
-              completedCount={completedTasks.length}
-              milestoneCount={milestoneCount}
-              minuteCount={allMinutes.length}
-            />
-          </CardContent>
-        </Card>
-
-        <DependencyGraphCard projects={projectList} />
-
-        <WeeklyProgressCard
-          averageProgress={averageProgress}
-          completedCount={completedTasks.length}
-          blockerCount={blockerTasks.length}
-          milestoneCount={milestoneCount}
-        />
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4" aria-hidden />
-              <CardTitle>進捗に紐づくファイル</CardTitle>
-            </div>
-            <span className="text-xs text-[#81786d]">{allFiles.length}件</span>
-          </CardHeader>
-          <CardContent className="space-y-0">
-            {allFiles.length === 0 && (
-              <EmptyState
-                title="ファイルはまだありません"
-                description="詳細画面のファイルタブから確認できます。"
-                icon={FileText}
-              />
-            )}
-            {allFiles.slice(0, 5).map((file) => {
-              const safeUrl = safeFileUrl(file.url);
-              const className =
-                "grid grid-cols-[1fr_auto] gap-3 border-b border-dashed border-[#d8d1c4] py-2.5 text-sm transition last:border-b-0 hover:bg-[#fbfaf5]";
-              const content = (
-                <>
-                  <span className="truncate text-[#312d27]">{file.name}</span>
-                  <span className="text-xs text-[#81786d]">
-                    {formatDateTime(file.updatedAt)}
-                  </span>
-                </>
-              );
-
-              if (!safeUrl) {
-                return (
-                  <div
-                    key={file.id}
-                    className={`${className} text-[#9a4a31]`}
-                    title="無効なURLのためリンクを無効化しています"
-                  >
-                    {content}
-                  </div>
-                );
-              }
-
-              return (
-                <a
-                  key={file.id}
-                  href={safeUrl}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className={className}
-                >
-                  {content}
-                </a>
-              );
-            })}
-          </CardContent>
-        </Card>
       </section>
     </div>
   );
@@ -393,31 +258,6 @@ function getProjectDashboardTab(project: Project): DetailTab {
   }
 
   return "overview";
-}
-
-function WelcomeCard() {
-  return (
-    <section className="rounded-lg border border-[#a8c3a6] bg-[#edf5ea] p-5">
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#5f8b5b] text-white">
-          <Sparkles className="h-5 w-5" aria-hidden />
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-base font-black text-[#2f4f2c]">
-            ようこそ ClawBoard へ
-          </h3>
-          <p className="mt-1.5 text-sm leading-6 text-[#3f5e3d]">
-            進捗・タスク・レビュー・デスクトップのファイルを 1 つの画面で確認できます。
-            初めての方は「
-            <Link href="#guide" className="font-bold underline">
-              使い方ガイド
-            </Link>
-            」から見ると全体像をつかみやすいです。
-          </p>
-        </div>
-      </div>
-    </section>
-  );
 }
 
 function StatPill({
@@ -459,275 +299,5 @@ function EmptyState({
       <p className="text-sm font-bold text-[#5f574d]">{title}</p>
       <p className="text-xs text-[#81786d]">{description}</p>
     </div>
-  );
-}
-
-function GuideStep({
-  num,
-  title,
-  body,
-}: {
-  num: number;
-  title: string;
-  body: string;
-}) {
-  return (
-    <li className="flex gap-3">
-      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5f8b5b] text-xs font-black text-white">
-        {num}
-      </span>
-      <div>
-        <p className="text-sm font-bold text-[#312d27]">{title}</p>
-        <p className="mt-0.5 text-xs leading-5 text-[#70675b]">{body}</p>
-      </div>
-    </li>
-  );
-}
-
-function ProgressAgentLog({
-  latestProjectAt,
-  latestBlockerAt,
-  nextMilestoneAt,
-  latestMinuteAt,
-  streamCount,
-  blockerCount,
-  completedCount,
-  milestoneCount,
-  minuteCount,
-}: {
-  latestProjectAt?: string;
-  latestBlockerAt?: string;
-  nextMilestoneAt?: string;
-  latestMinuteAt?: string;
-  streamCount: number;
-  blockerCount: number;
-  completedCount: number;
-  milestoneCount: number;
-  minuteCount: number;
-}) {
-  const entries = [
-    {
-      at: latestProjectAt,
-      label: "progress_scan",
-      result: `${streamCount} streams`,
-    },
-    {
-      at: latestBlockerAt,
-      label: "blocker_detect",
-      result: `${blockerCount} items`,
-    },
-    {
-      at: nextMilestoneAt,
-      label: "milestone_sync",
-      result: `${milestoneCount} milestones`,
-    },
-    {
-      at: latestMinuteAt,
-      label: "minutes_index",
-      result: `${minuteCount} indexed`,
-    },
-    {
-      at: latestProjectAt,
-      label: "report_draft",
-      result: `${completedCount} completed`,
-    },
-  ];
-
-  return (
-    <div className="space-y-2 border-l-2 border-[#6e9a66] pl-3 font-mono text-xs leading-6 text-[#4f483f]">
-      {entries.map((entry) => (
-        <p key={`${entry.label}-${entry.result}`}>
-          <span className="text-[#8b8175]">{formatLogTime(entry.at)}</span>{" "}
-          {entry.label} -{" "}
-          {entry.result}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-function DependencyGraphCard({ projects }: { projects: Project[] }) {
-  const focus = [...projects].sort(
-    (a, b) => getProjectBlockerCount(b) - getProjectBlockerCount(a),
-  )[0];
-  const focusLabel = focus
-    ? `${focus.name.slice(0, 8)} ${focus.progress}%`
-    : "進捗未取得";
-  const blocker = focus?.tasks.find(
-    (task) => !task.completed && task.priority === "high",
-  );
-  const minute = focus?.minutes[0];
-  const file = focus?.files[0];
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Network className="h-4 w-4" aria-hidden />
-          <CardTitle>進捗依存グラフ</CardTitle>
-        </div>
-        <span className="text-xs text-[#81786d]">blocked path</span>
-      </CardHeader>
-      <CardContent>
-        <div className="dotted-canvas relative h-52 overflow-hidden rounded-md border border-[#d8d1c4] bg-[#fffefa]">
-          <div className="absolute left-6 top-9 z-10 rounded-full border border-[#d66b43] bg-[#fffefa] px-3 py-1 text-xs font-bold text-[#9a4a31]">
-            {focusLabel}
-          </div>
-          <div className="absolute left-32 top-28 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            {blocker?.title.slice(0, 10) ?? "未完了タスク"}
-          </div>
-          <div className="absolute right-8 top-20 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            {file?.name.slice(0, 10) ?? "関連ファイル"}
-          </div>
-          <div className="absolute left-48 top-14 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            {minute?.title.slice(0, 10) ?? "進捗メモ"}
-          </div>
-          <span className="absolute left-[82px] top-[78px] h-px w-24 rotate-45 bg-[#c8c0b4]" />
-          <span className="absolute left-[178px] top-[94px] h-px w-20 -rotate-45 bg-[#c8c0b4]" />
-          <span className="absolute right-[82px] top-[82px] h-px w-24 rotate-[20deg] bg-[#c8c0b4]" />
-          <div className="absolute bottom-5 left-7 rotate-[-2deg] rounded-sm border border-[#d2a528] bg-[#ffe783] px-3 py-2 text-xs font-bold leading-5 text-[#6f5415] shadow-sm">
-            線 = 依存関係 / 赤枠 = 停滞ポイント
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function getProjectBlockerCount(project: Project) {
-  return project.tasks.filter(
-    (task) => !task.completed && task.priority === "high",
-  ).length;
-}
-
-function getLatestTaskProjectDate(
-  projects: Project[],
-  priority: Project["tasks"][number]["priority"],
-) {
-  return projects
-    .filter((project) =>
-      project.tasks.some((task) => !task.completed && task.priority === priority),
-    )
-    .sort(
-      (a, b) =>
-        getProjectDateTime(b.lastUpdated, 0) -
-        getProjectDateTime(a.lastUpdated, 0),
-    )[0]?.lastUpdated;
-}
-
-function getNextMilestoneDate(projects: Project[]) {
-  return projects
-    .filter((project) => parseProjectDate(project.dueDate) !== null)
-    .sort(
-      (a, b) =>
-        getProjectDateTime(a.dueDate, Number.POSITIVE_INFINITY) -
-        getProjectDateTime(b.dueDate, Number.POSITIVE_INFINITY),
-    )[0]?.dueDate;
-}
-
-function formatLogTime(value?: string) {
-  const date = parseProjectDate(value);
-
-  if (!date) {
-    return "--:--";
-  }
-
-  if (value && isDateOnly(value)) {
-    return new Intl.DateTimeFormat("ja-JP", {
-      month: "2-digit",
-      day: "2-digit",
-      timeZone: "Asia/Tokyo",
-    }).format(date);
-  }
-
-  return new Intl.DateTimeFormat("ja-JP", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Tokyo",
-  }).format(date);
-}
-
-function getProjectDateTime(value: string | undefined, fallback: number) {
-  return parseProjectDate(value)?.getTime() ?? fallback;
-}
-
-function parseProjectDate(value?: string) {
-  if (!value) {
-    return null;
-  }
-
-  const date = isDateOnly(value)
-    ? new Date(`${value}T00:00:00+09:00`)
-    : new Date(value);
-
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function isDateOnly(value: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
-}
-
-function WeeklyProgressCard({
-  averageProgress,
-  completedCount,
-  blockerCount,
-  milestoneCount,
-}: {
-  averageProgress: number;
-  completedCount: number;
-  blockerCount: number;
-  milestoneCount: number;
-}) {
-  const start = Math.max(0, averageProgress - 9);
-  const delta = averageProgress - start;
-  const bars = Array.from({ length: 8 }, (_, index) => {
-    const ratio = index / 7;
-    const value = Math.round(start + delta * ratio);
-    return Math.max(8, Math.min(100, value));
-  });
-
-  return (
-    <Card id="timeline">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <TimerReset className="h-4 w-4" aria-hidden />
-          <CardTitle>今週の進捗推移（イメージ）</CardTitle>
-        </div>
-        <span className="text-xs text-[#81786d]">サンプル / 実日次データ未接続</span>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold text-[#81786d]">平均進捗（現在値）</p>
-            <p className="mt-2 text-2xl font-black tracking-normal text-[#312d27]">
-              {start}% - {averageProgress}%
-            </p>
-          </div>
-          <div className="text-right text-sm font-bold text-[#5f8b5b]">
-            {delta >= 0 ? "+" : ""}
-            {delta}pt
-          </div>
-        </div>
-        <div className="mt-6 flex h-24 items-end gap-2">
-          {bars.map((bar, index) => (
-            <span
-              key={`bar-${index}`}
-              className={
-                index > 5
-                  ? "flex-1 rounded-t-sm bg-[#cf623d]"
-                  : "flex-1 rounded-t-sm bg-[#cfc5b4]"
-              }
-              style={{ height: `${bar}%` }}
-            />
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-[#81786d]">
-          今週: 完了 {completedCount}件 / ブロッカー {blockerCount}件 / 節目 {milestoneCount}件
-        </p>
-      </CardContent>
-    </Card>
   );
 }

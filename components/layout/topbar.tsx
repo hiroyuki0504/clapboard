@@ -1,9 +1,8 @@
 "use client";
 
-import { CalendarDays, HelpCircle } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ButtonLink } from "@/components/ui/button";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { buildDateLabel } from "@/lib/utils";
 
@@ -58,14 +57,6 @@ export function Topbar({ agentSummary }: { agentSummary?: React.ReactNode }) {
           </div>
         </div>
 
-        <ButtonLink
-          href="/#guide"
-          variant="secondary"
-          className="h-10 shrink-0 rounded-md px-3"
-        >
-          <HelpCircle className="h-4 w-4" aria-hidden />
-          <span className="hidden sm:inline">使い方ガイド</span>
-        </ButtonLink>
       </div>
     </header>
   );
