@@ -35,6 +35,28 @@ function hasNonEmptyBearer(request: NextRequest) {
   return extractBearer(request) !== null;
 }
 
+function firstHeaderValue(request: NextRequest, name: string): string | null {
+  const raw = request.headers.get(name);
+  if (!raw) return null;
+  const value = raw.split(",")[0]?.trim();
+  return value && value.length > 0 ? value : null;
+}
+
+function buildForwardedRequest(request: NextRequest) {
+  const forwardedProto = firstHeaderValue(request, "x-forwarded-proto");
+  const forwardedHost =
+    firstHeaderValue(request, "x-forwarded-host") ??
+    firstHeaderValue(request, "host");
+  const proto = forwardedProto ?? request.nextUrl.protocol.replace(":", "");
+  const host = forwardedHost ?? request.nextUrl.host;
+  const url = `${proto}://${host}${request.nextUrl.pathname}${request.nextUrl.search}`;
+  return {
+    method: request.method,
+    url,
+    headers: request.headers,
+  };
+}
+
 function resolveRequestRole(request: NextRequest): Role | null {
   const cookieValue = request.cookies.get(ACCESS_COOKIE_NAME)?.value;
   const cookieRole = cookieValue ? resolveRole(cookieValue) : null;
@@ -63,7 +85,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (isApiRoute && !hasNonEmptyBearer(request)) {
-    const csrf = evaluateCsrf(request);
+    const csrf = evaluateCsrf(buildForwardedRequest(request));
     if (!csrf.ok) {
       return NextResponse.json(
         { error: FORBIDDEN_MESSAGE, reason: csrf.reason },
