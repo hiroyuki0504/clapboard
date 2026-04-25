@@ -1,109 +1,124 @@
 import {
+  AlertTriangle,
   ArrowRight,
+  CalendarCheck,
+  Check,
   CheckCircle2,
-  CircleDollarSign,
   FileText,
-  FolderKanban,
+  Gauge,
+  GitBranch,
+  GitPullRequest,
   HelpCircle,
-  ListTodo,
   MessageSquare,
-  TrendingUp,
-  JapaneseYen,
+  Network,
+  Sparkles,
+  SquareTerminal,
+  TimerReset,
 } from "lucide-react";
 import Link from "next/link";
-import { MetricCard } from "@/components/dashboard/metric-card";
 import { ProjectStatusBadge } from "@/components/project-status-badge";
-import { PriorityBadge } from "@/components/project-status-badge";
+import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { allFiles, allMinutes, projects } from "@/lib/mock-data";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
+import {
+  getProjectFiles,
+  getProjectMinutes,
+  getProjects,
+} from "@/lib/clapboard-api";
+import type { Project } from "@/lib/types";
+import { buildDateLabel, formatDate, formatDateTime, safeFileUrl } from "@/lib/utils";
 
-export default function DashboardPage() {
-  const activeProjects = projects.filter(
+export const dynamic = "force-dynamic";
+
+export default async function DashboardPage() {
+  const projectsResult = await getProjects();
+  const projectList = projectsResult.data;
+  const allFiles = getProjectFiles(projectList);
+  const allMinutes = getProjectMinutes(projectList);
+  const activeWorkstreams = projectList.filter(
     (project) => project.status !== "completed",
   );
-  const incompleteTasks = projects.flatMap((project) =>
-    project.tasks
-      .filter((task) => !task.completed)
-      .map((task) => ({ ...task, projectName: project.name })),
+  const allTasks = projectList.flatMap((project) =>
+    project.tasks.map((task) => ({
+      ...task,
+      projectId: project.id,
+      projectName: project.name,
+    })),
   );
-  const highPriorityCount = incompleteTasks.filter(
-    (t) => t.priority === "high",
-  ).length;
-  const monthlyProfit = projects.reduce(
-    (total, project) => total + project.revenue - project.cost,
-    0,
-  );
-  const monthlyRevenue = projects.reduce((sum, p) => sum + p.revenue, 0);
-  const monthlyCost = projects.reduce((sum, p) => sum + p.cost, 0);
-  const recentProjects = [...projects].sort(
+  const incompleteTasks = allTasks.filter((task) => !task.completed);
+  const blockerTasks = incompleteTasks.filter((task) => task.priority === "high");
+  const completedTasks = allTasks.filter((task) => task.completed);
+  const averageProgress =
+    projectList.length === 0
+      ? 0
+      : Math.round(
+          projectList.reduce((total, project) => total + project.progress, 0) /
+            projectList.length,
+        );
+  const recentWorkstreams = [...projectList].sort(
     (a, b) =>
       new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
   );
+  const milestoneCount = activeWorkstreams.filter((project) =>
+    Boolean(project.dueDate),
+  ).length;
+  const dateLabel = buildDateLabel(new Date());
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <WelcomeCard />
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_440px]">
+      <section className="grid gap-4 xl:grid-cols-[1fr_420px]">
         <div className="rounded-lg border border-[#423c33]/55 bg-[#fffefa] p-5">
           <p className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-[#81786d]">
-            おかえりなさい
+            {dateLabel} ・ PROGRESS COMMAND
           </p>
           <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="text-2xl font-black tracking-normal text-[#2f2b25] sm:text-3xl">
-                今日は{incompleteTasks.length}件の未処理タスクがあります
+                今日進めるべきこと - ブロッカー{blockerTasks.length}件
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                下のカードで案件・タスク・収支・ファイルがすぐに確認できます。各カードをクリックすると詳細画面に移動します。
+                ワークストリームごとの進捗率、次の節目、停滞タスク、更新ログを一画面で追跡します。
               </p>
             </div>
-            <ButtonLink href="/projects" variant="primary" className="shrink-0">
-              案件一覧をひらく
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </ButtonLink>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Badge tone={projectsResult.connected ? "green" : "amber"}>
+                {projectsResult.connected ? "Backend API" : "Local API"}
+              </Badge>
+              <ButtonLink href="/code-review">
+                レビュー管制
+                <GitPullRequest className="h-4 w-4" aria-hidden />
+              </ButtonLink>
+              <ButtonLink href="/projects" variant="secondary">
+                進捗ボードへ
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </ButtonLink>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2">
-          <MetricCard
-            label="案件数"
-            value={`${projects.length}件`}
-            helper={`登録済み案件は${projects.length}件です`}
-            icon={FolderKanban}
-            tone="blue"
-          />
-          <MetricCard
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-2">
+          <StatPill
             label="進行中"
-            value={`${activeProjects.length}件`}
-            helper={`全${projects.length}件のうち${activeProjects.length}件が進行中`}
-            icon={TrendingUp}
-            tone="green"
+            value={`${activeWorkstreams.length}`}
+            icon={GitBranch}
           />
-          <MetricCard
-            label="今月の利益"
-            value={formatCurrency(monthlyProfit)}
-            helper={
-              monthlyProfit >= 0
-                ? "売上が支出を上回っています"
-                : "支出が売上を上回っています"
-            }
-            icon={CircleDollarSign}
-            tone={monthlyProfit >= 0 ? "green" : "rose"}
+          <StatPill
+            label="平均進捗"
+            value={`${averageProgress}%`}
+            icon={Gauge}
           />
-          <MetricCard
-            label="未処理タスク"
-            value={`${incompleteTasks.length}件`}
-            helper={
-              highPriorityCount > 0
-                ? `高優先度が${highPriorityCount}件あります`
-                : "高優先度タスクはありません"
-            }
-            icon={ListTodo}
-            tone={highPriorityCount > 0 ? "rose" : "amber"}
+          <StatPill
+            label="完了タスク"
+            value={`${completedTasks.length}`}
+            icon={CalendarCheck}
+          />
+          <StatPill
+            label="ブロッカー"
+            value={`${blockerTasks.length}`}
+            icon={AlertTriangle}
           />
         </div>
       </section>
@@ -111,45 +126,57 @@ export default function DashboardPage() {
       <section className="grid gap-4 xl:grid-cols-[1.25fr_0.95fr_0.95fr]">
         <Card id="todo" className="xl:row-span-2">
           <CardHeader>
-            <div>
-              <CardTitle>今日の未処理タスク</CardTitle>
-              <p className="mt-1 text-xs text-[#81786d]">
-                クリックすると案件の詳細画面が開きます
-              </p>
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4" aria-hidden />
+              <CardTitle>今日の次アクション</CardTitle>
+              <Badge tone="red">{incompleteTasks.length}</Badge>
             </div>
-            <span className="rounded-full bg-[#f8d8cb] px-2.5 py-1 text-xs font-bold text-[#9f452c]">
-              {incompleteTasks.length}件
-            </span>
+            <div className="flex overflow-hidden rounded-md border border-[#423c33]/55 text-xs font-semibold">
+              <span className="bg-[#312d27] px-3 py-1.5 text-white">今日</span>
+              <span className="px-3 py-1.5 text-[#70675b]">今週</span>
+              <span className="px-3 py-1.5 text-[#70675b]">停滞</span>
+            </div>
           </CardHeader>
           <CardContent className="space-y-0 p-0">
             {incompleteTasks.length === 0 && (
               <EmptyState
                 title="未処理のタスクはありません"
-                description="すべてのタスクが完了しています。お疲れさまでした。"
+                description="すべてのタスクが完了しています。"
                 icon={CheckCircle2}
               />
             )}
-            {incompleteTasks.slice(0, 6).map((task) => {
-              const project = projects.find((p) => p.name === task.projectName);
-              return (
-                <Link
-                  key={task.id}
-                  href={project ? `/projects/${project.id}` : "/projects"}
-                  className="grid grid-cols-[24px_1fr_auto] items-start gap-3 border-b border-dashed border-[#d8d1c4] px-4 py-4 transition last:border-b-0 hover:bg-[#fbfaf5]"
+            {incompleteTasks.slice(0, 6).map((task, index) => (
+              <Link
+                key={`${task.projectId}-${task.id}`}
+                href={`/projects/${task.projectId}`}
+                className="grid grid-cols-[24px_1fr_auto] items-start gap-3 border-b border-dashed border-[#d8d1c4] px-4 py-4 transition last:border-b-0 hover:bg-[#fbfaf5]"
+              >
+                <span className="mt-0.5 h-4 w-4 rounded-sm border border-[#777066] bg-[#fffefa]" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-[#312d27]">
+                    {task.title}
+                  </p>
+                  <p className="mt-1 font-mono text-xs text-[#8b8175]">
+                    {index % 2 === 0 ? "10:00" : "14:00"} ・ {task.projectName}
+                  </p>
+                </div>
+                <Badge
+                  tone={
+                    task.priority === "high"
+                      ? "red"
+                      : task.priority === "medium"
+                        ? "amber"
+                        : "blue"
+                  }
                 >
-                  <span className="mt-0.5 h-4 w-4 rounded-sm border border-[#777066] bg-[#fffefa]" />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[#312d27]">
-                      {task.title}
-                    </p>
-                    <p className="mt-1 text-xs text-[#8b8175]">
-                      {task.projectName}
-                    </p>
-                  </div>
-                  <PriorityBadge priority={task.priority} />
-                </Link>
-              );
-            })}
+                  {task.priority === "high"
+                    ? "ブロッカー"
+                    : task.priority === "medium"
+                      ? "通常"
+                      : "低"}
+                </Badge>
+              </Link>
+            ))}
           </CardContent>
         </Card>
 
@@ -157,24 +184,22 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" aria-hidden />
-              <CardTitle>最新の議事録</CardTitle>
+              <CardTitle>最新の進捗メモ</CardTitle>
             </div>
-            <span className="text-xs text-[#81786d]">
-              {allMinutes.length}件
-            </span>
+            <span className="font-mono text-xs text-[#81786d]">updates</span>
           </CardHeader>
           <CardContent className="space-y-3">
             {allMinutes.length === 0 && (
               <EmptyState
-                title="議事録はまだありません"
-                description="案件詳細画面から議事録を追加できます。"
+                title="進捗メモはまだありません"
+                description="ワークストリームの詳細画面に記録されます。"
                 icon={MessageSquare}
               />
             )}
             {allMinutes.slice(0, 4).map((minute) => (
               <Link
                 key={minute.id}
-                href="/projects/ai-minutes"
+                href={`/projects/${minute.projectId}`}
                 className="block border-b border-dashed border-[#d8d1c4] pb-3 transition last:border-b-0 last:pb-0 hover:bg-[#fbfaf5] hover:px-2"
               >
                 <p className="text-sm font-bold text-[#312d27]">{minute.title}</p>
@@ -198,17 +223,17 @@ export default function DashboardPage() {
               <GuideStep
                 num={1}
                 title="ダッシュボードで全体を確認"
-                body="今日のタスク・案件・収支・最新の議事録が一画面で見えます。"
+                body="今日の次アクション、ブロッカー、直近の更新を最初に見ます。"
               />
               <GuideStep
                 num={2}
-                title="案件一覧から詳細へ"
-                body="左メニューの「案件一覧」または各カードをクリックすると、案件ごとのタスク・議事録・収支・ファイルが見られます。"
+                title="進捗ボードから詳細へ"
+                body="ワークストリーム名や「開く」ボタンを押すと、タスク・メモ・予算・ファイルを確認できます。"
               />
               <GuideStep
                 num={3}
-                title="左の Files でデスクトップを参照"
-                body="このパソコンの ~/Desktop の中身が一覧できます。フォルダをクリックすると中身が展開されます。"
+                title="左の Desktop Files を参照"
+                body="このパソコンの ~/Desktop をそのまま展開できます。名前で絞り込みもできます。"
               />
             </ol>
           </CardContent>
@@ -216,11 +241,11 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>最近更新された案件</CardTitle>
-            <span className="text-xs text-[#81786d]">直近の更新順</span>
+            <CardTitle>進捗が動いたワーク</CardTitle>
+            <span className="text-xs text-[#81786d]">last 7 days</span>
           </CardHeader>
           <CardContent className="space-y-3">
-            {recentProjects.slice(0, 4).map((project) => (
+            {recentWorkstreams.slice(0, 4).map((project) => (
               <Link
                 key={project.id}
                 href={`/projects/${project.id}`}
@@ -231,6 +256,10 @@ export default function DashboardPage() {
                     {project.name}
                   </p>
                   <ProjectStatusBadge status={project.status} />
+                </div>
+                <div className="mb-2 flex items-center justify-between font-mono text-xs text-[#81786d]">
+                  <span>次の節目 {formatDate(project.dueDate)}</span>
+                  <span>{formatDateTime(project.lastUpdated)}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Progress value={project.progress} className="h-2" />
@@ -243,17 +272,39 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <FinanceCard
-          profit={monthlyProfit}
-          revenue={monthlyRevenue}
-          cost={monthlyCost}
+        <Card id="agent">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <SquareTerminal className="h-4 w-4" aria-hidden />
+              <CardTitle>Progress Agent Log</CardTitle>
+            </div>
+            <Badge tone="green">tracking</Badge>
+          </CardHeader>
+          <CardContent>
+            <ProgressAgentLog
+              streamCount={activeWorkstreams.length}
+              blockerCount={blockerTasks.length}
+              completedCount={completedTasks.length}
+              milestoneCount={milestoneCount}
+              minuteCount={allMinutes.length}
+            />
+          </CardContent>
+        </Card>
+
+        <DependencyGraphCard projects={projectList} />
+
+        <WeeklyProgressCard
+          averageProgress={averageProgress}
+          completedCount={completedTasks.length}
+          blockerCount={blockerTasks.length}
+          milestoneCount={milestoneCount}
         />
 
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4" aria-hidden />
-              <CardTitle>最近のファイル</CardTitle>
+              <CardTitle>進捗に紐づくファイル</CardTitle>
             </div>
             <span className="text-xs text-[#81786d]">{allFiles.length}件</span>
           </CardHeader>
@@ -261,24 +312,47 @@ export default function DashboardPage() {
             {allFiles.length === 0 && (
               <EmptyState
                 title="ファイルはまだありません"
-                description="案件詳細画面の「ファイル」タブから追加できます。"
+                description="詳細画面のファイルタブから確認できます。"
                 icon={FileText}
               />
             )}
-            {allFiles.slice(0, 5).map((file) => (
-              <a
-                key={file.id}
-                href={file.url}
-                target="_blank"
-                rel="noreferrer"
-                className="grid grid-cols-[1fr_auto] gap-3 border-b border-dashed border-[#d8d1c4] py-2.5 text-sm transition last:border-b-0 hover:bg-[#fbfaf5]"
-              >
-                <span className="truncate text-[#312d27]">{file.name}</span>
-                <span className="text-xs text-[#81786d]">
-                  {formatDateTime(file.updatedAt)}
-                </span>
-              </a>
-            ))}
+            {allFiles.slice(0, 5).map((file) => {
+              const safeUrl = safeFileUrl(file.url);
+              const className =
+                "grid grid-cols-[1fr_auto] gap-3 border-b border-dashed border-[#d8d1c4] py-2.5 text-sm transition last:border-b-0 hover:bg-[#fbfaf5]";
+              const content = (
+                <>
+                  <span className="truncate text-[#312d27]">{file.name}</span>
+                  <span className="text-xs text-[#81786d]">
+                    {formatDateTime(file.updatedAt)}
+                  </span>
+                </>
+              );
+
+              if (!safeUrl) {
+                return (
+                  <div
+                    key={file.id}
+                    className={`${className} text-[#9a4a31]`}
+                    title="無効なURLのためリンクを無効化しています"
+                  >
+                    {content}
+                  </div>
+                );
+              }
+
+              return (
+                <a
+                  key={file.id}
+                  href={safeUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className={className}
+                >
+                  {content}
+                </a>
+              );
+            })}
           </CardContent>
         </Card>
       </section>
@@ -291,19 +365,19 @@ function WelcomeCard() {
     <section className="rounded-lg border border-[#a8c3a6] bg-[#edf5ea] p-5">
       <div className="flex items-start gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#5f8b5b] text-white">
-          <Sparkle />
+          <Sparkles className="h-5 w-5" aria-hidden />
         </div>
         <div className="min-w-0">
           <h3 className="text-base font-black text-[#2f4f2c]">
-            ようこそクラップボードへ
+            ようこそ ClawBoard へ
           </h3>
           <p className="mt-1.5 text-sm leading-6 text-[#3f5e3d]">
-            案件・タスク・議事録・収支・デスクトップのファイルを 1 つの画面で確認できます。
-            初めての方は右下の「
+            進捗・タスク・レビュー・デスクトップのファイルを 1 つの画面で確認できます。
+            初めての方は「
             <Link href="#guide" className="font-bold underline">
               使い方ガイド
             </Link>
-            」をご覧ください。
+            」から見ると全体像をつかみやすいです。
           </p>
         </div>
       </div>
@@ -311,21 +385,25 @@ function WelcomeCard() {
   );
 }
 
-function Sparkle() {
+function StatPill({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  icon: React.ElementType;
+}) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3z" />
-      <path d="M19 16l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7L19 16z" />
-    </svg>
+    <div className="rounded-lg border border-[#423c33]/55 bg-[#fffefa] p-3">
+      <div className="mb-2 flex items-center justify-between text-[#81786d]">
+        <span className="text-xs font-bold">{label}</span>
+        <Icon className="h-4 w-4" aria-hidden />
+      </div>
+      <p className="truncate text-lg font-black tracking-normal text-[#312d27]">
+        {value}
+      </p>
+    </div>
   );
 }
 
@@ -371,49 +449,136 @@ function GuideStep({
   );
 }
 
-function FinanceCard({
-  profit,
-  revenue,
-  cost,
+function ProgressAgentLog({
+  streamCount,
+  blockerCount,
+  completedCount,
+  milestoneCount,
+  minuteCount,
 }: {
-  profit: number;
-  revenue: number;
-  cost: number;
+  streamCount: number;
+  blockerCount: number;
+  completedCount: number;
+  milestoneCount: number;
+  minuteCount: number;
 }) {
+  const entries = [
+    { time: "08:02", label: "progress_scan", result: `${streamCount} streams` },
+    { time: "08:03", label: "blocker_detect", result: `${blockerCount} items` },
+    { time: "10:15", label: "milestone_sync", result: `${milestoneCount} updated` },
+    { time: "10:16", label: "minutes_index", result: `${minuteCount} indexed` },
+    { time: "11:32", label: "report_draft", result: `${completedCount} completed` },
+  ];
+
   return (
-    <Card id="finance">
+    <div className="space-y-2 border-l-2 border-[#6e9a66] pl-3 font-mono text-xs leading-6 text-[#4f483f]">
+      {entries.map((entry) => (
+        <p key={`${entry.time}-${entry.label}`}>
+          <span className="text-[#8b8175]">{entry.time}</span> {entry.label} -{" "}
+          {entry.result}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function DependencyGraphCard({ projects }: { projects: Project[] }) {
+  const focus = projects[0];
+  const focusLabel = focus
+    ? `${focus.name.slice(0, 8)} ${focus.progress}%`
+    : "進捗未取得";
+
+  return (
+    <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <JapaneseYen className="h-4 w-4" aria-hidden />
-          <CardTitle>今月の収支</CardTitle>
+          <Network className="h-4 w-4" aria-hidden />
+          <CardTitle>進捗依存グラフ</CardTitle>
         </div>
-        <span className="text-xs text-[#81786d]">合計</span>
+        <span className="text-xs text-[#81786d]">blocked path</span>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="rounded-md border border-[#d8d1c4] bg-[#fbfaf5] p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#81786d]">
-            利益(売上 − 支出)
-          </p>
-          <p className="mt-2 text-2xl font-black tracking-normal text-[#312d27]">
-            {formatCurrency(profit)}
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-md border border-[#a8bed4] bg-[#eef4f8] p-3">
-            <p className="text-xs font-bold text-[#315a78]">売上</p>
-            <p className="mt-1 text-sm font-black text-[#312d27]">
-              {formatCurrency(revenue)}
-            </p>
+      <CardContent>
+        <div className="dotted-canvas relative h-52 overflow-hidden rounded-md border border-[#d8d1c4] bg-[#fffefa]">
+          <div className="absolute left-6 top-9 z-10 rounded-full border border-[#d66b43] bg-[#fffefa] px-3 py-1 text-xs font-bold text-[#9a4a31]">
+            {focusLabel}
           </div>
-          <div className="rounded-md border border-[#d4bd7f] bg-[#fff3c8] p-3">
-            <p className="text-xs font-bold text-[#7c5a18]">支出</p>
-            <p className="mt-1 text-sm font-black text-[#312d27]">
-              {formatCurrency(cost)}
-            </p>
+          <div className="absolute left-32 top-28 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
+            レビュー待ち
+          </div>
+          <div className="absolute right-8 top-20 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
+            リリース判定
+          </div>
+          <div className="absolute left-48 top-14 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
+            仕様確定
+          </div>
+          <span className="absolute left-[82px] top-[78px] h-px w-24 rotate-45 bg-[#c8c0b4]" />
+          <span className="absolute left-[178px] top-[94px] h-px w-20 -rotate-45 bg-[#c8c0b4]" />
+          <span className="absolute right-[82px] top-[82px] h-px w-24 rotate-[20deg] bg-[#c8c0b4]" />
+          <div className="absolute bottom-5 left-7 rotate-[-2deg] rounded-sm border border-[#d2a528] bg-[#ffe783] px-3 py-2 text-xs font-bold leading-5 text-[#6f5415] shadow-sm">
+            線 = 依存関係 / 赤枠 = 停滞ポイント
           </div>
         </div>
-        <p className="text-xs text-[#81786d]">
-          各案件の詳細画面でも収支をひと目で確認できます。
+      </CardContent>
+    </Card>
+  );
+}
+
+function WeeklyProgressCard({
+  averageProgress,
+  completedCount,
+  blockerCount,
+  milestoneCount,
+}: {
+  averageProgress: number;
+  completedCount: number;
+  blockerCount: number;
+  milestoneCount: number;
+}) {
+  const start = Math.max(0, averageProgress - 9);
+  const delta = averageProgress - start;
+  const bars = Array.from({ length: 8 }, (_, index) => {
+    const ratio = index / 7;
+    const value = Math.round(start + delta * ratio);
+    return Math.max(8, Math.min(100, value));
+  });
+
+  return (
+    <Card id="timeline">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <TimerReset className="h-4 w-4" aria-hidden />
+          <CardTitle>今週の進捗推移（イメージ）</CardTitle>
+        </div>
+        <span className="text-xs text-[#81786d]">サンプル / 実日次データ未接続</span>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold text-[#81786d]">平均進捗（現在値）</p>
+            <p className="mt-2 text-2xl font-black tracking-normal text-[#312d27]">
+              {start}% - {averageProgress}%
+            </p>
+          </div>
+          <div className="text-right text-sm font-bold text-[#5f8b5b]">
+            {delta >= 0 ? "+" : ""}
+            {delta}pt
+          </div>
+        </div>
+        <div className="mt-6 flex h-24 items-end gap-2">
+          {bars.map((bar, index) => (
+            <span
+              key={`bar-${index}`}
+              className={
+                index > 5
+                  ? "flex-1 rounded-t-sm bg-[#cf623d]"
+                  : "flex-1 rounded-t-sm bg-[#cfc5b4]"
+              }
+              style={{ height: `${bar}%` }}
+            />
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-[#81786d]">
+          今週: 完了 {completedCount}件 / ブロッカー {blockerCount}件 / 節目 {milestoneCount}件
         </p>
       </CardContent>
     </Card>

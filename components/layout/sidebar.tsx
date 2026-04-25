@@ -3,12 +3,15 @@
 import {
   Bot,
   Check,
-  Folder,
+  GitPullRequest,
   HelpCircle,
   LayoutDashboard,
+  Network,
   Search,
+  Settings,
   Sparkles,
-  JapaneseYen,
+  SquareTerminal,
+  TimerReset,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -25,38 +28,50 @@ function formatSize(bytes: number) {
 
 const railItems = [
   {
-    label: "ダッシュボード",
+    label: "進捗",
     description: "全体の状況を確認",
     href: "/",
     icon: LayoutDashboard,
   },
   {
-    label: "案件一覧",
-    description: "すべての案件",
+    label: "一覧",
+    description: "ワークストリーム一覧",
     href: "/projects",
-    icon: Folder,
+    icon: Network,
   },
   {
-    label: "今日のタスク",
-    description: "未処理タスク",
+    label: "レビュー",
+    description: "PRレビュー管制",
+    href: "/code-review",
+    icon: GitPullRequest,
+  },
+  {
+    label: "タスク",
+    description: "今日の次アクション",
     href: "/#todo",
     icon: Check,
   },
   {
-    label: "今月の収支",
-    description: "売上と支出",
-    href: "/#finance",
-    icon: JapaneseYen,
+    label: "Agent",
+    description: "進捗エージェントログ",
+    href: "/#agent",
+    icon: Bot,
   },
   {
-    label: "使い方ガイド",
+    label: "推移",
+    description: "今週の進捗推移",
+    href: "/#timeline",
+    icon: TimerReset,
+  },
+  {
+    label: "ガイド",
     description: "初めての方はこちら",
     href: "/#guide",
     icon: HelpCircle,
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ agentSummary }: { agentSummary?: React.ReactNode }) {
   const pathname = usePathname();
   const [filter, setFilter] = useState("");
   const [rootSummary, setRootSummary] = useState<{
@@ -64,7 +79,7 @@ export function Sidebar() {
     sizeBytes: number;
   } | null>(null);
   const handleSummary = useCallback(
-    (s: { count: number; sizeBytes: number }) => setRootSummary(s),
+    (summary: { count: number; sizeBytes: number }) => setRootSummary(summary),
     [],
   );
 
@@ -74,7 +89,7 @@ export function Sidebar() {
         <Link
           href="/"
           className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-[#fffefa] text-[#221d38] shadow-[0_1px_0_rgba(0,0,0,0.22)]"
-          aria-label="ホームに戻る"
+          aria-label="ClawBoard home"
         >
           <Sparkles className="h-5 w-5" aria-hidden />
         </Link>
@@ -85,7 +100,9 @@ export function Sidebar() {
             const active =
               item.href === "/"
                 ? pathname === "/"
-                : pathname.startsWith(baseHref) && baseHref !== "";
+                : !item.href.includes("#") &&
+                  (pathname === baseHref ||
+                    pathname.startsWith(`${baseHref}/`));
 
             return (
               <Link
@@ -96,7 +113,7 @@ export function Sidebar() {
                   active &&
                     "border-[#d66b43] bg-[#cf623d] text-white hover:bg-[#cf623d]",
                 )}
-                aria-label={`${item.label} — ${item.description}`}
+                aria-label={`${item.label} - ${item.description}`}
                 title={`${item.label}\n${item.description}`}
               >
                 <Icon className="h-4 w-4" aria-hidden />
@@ -105,11 +122,20 @@ export function Sidebar() {
             );
           })}
         </nav>
+        <Link
+          href="/code-review"
+          className="mt-4 flex h-10 w-10 items-center justify-center rounded-lg border border-white/12 bg-white/7 text-[#d8d0c6] transition hover:bg-white/14 hover:text-white"
+          aria-label="Command console"
+          title="Command console"
+        >
+          <SquareTerminal className="h-4 w-4" aria-hidden />
+        </Link>
       </div>
 
       <div className="thin-scrollbar w-[260px] overflow-y-auto border-r border-[#d2c8b8] bg-[#f1eee5]/94 px-3 py-4">
         <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-[0.18em] text-[#71685d]">
-          <span>デスクトップのファイル</span>
+          <span>Desktop Files</span>
+          <Search className="h-3.5 w-3.5" aria-hidden />
         </div>
         <p className="mb-3 text-[11px] leading-5 text-[#81786d]">
           このパソコンの ~/Desktop の中身です。フォルダをクリックすると中身が見えます。
@@ -127,9 +153,16 @@ export function Sidebar() {
 
         <FileTree filter={filter} onRootSummary={handleSummary} />
 
-        <div className="mt-5 border-t border-[#d8d0c4] pt-4 text-xs text-[#81786d]">
+        <div className="mt-5 space-y-3 border-t border-[#d8d0c4] pt-4 text-xs text-[#81786d]">
           <div className="flex items-center gap-2 rounded-lg border border-[#c8c0b4] bg-[#fffefa] p-3">
             <Bot className="h-4 w-4 text-[#5f8b5b]" aria-hidden />
+            <div>
+              <p className="font-bold text-[#312d27]">Progress Agent</p>
+              {agentSummary ?? <p className="mt-1 text-[#9a9084]">待機中</p>}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg border border-[#c8c0b4] bg-[#fffefa] p-3">
+            <Sparkles className="h-4 w-4 text-[#5f8b5b]" aria-hidden />
             <div>
               <p className="font-bold text-[#312d27]">デスクトップ概要</p>
               <p className="mt-1">
@@ -139,6 +172,13 @@ export function Sidebar() {
               </p>
             </div>
           </div>
+          <Link
+            href="/code-review"
+            className="flex items-center gap-2 px-2 py-2 text-[#70675b] transition hover:text-[#312d27]"
+          >
+            <Settings className="h-4 w-4" aria-hidden />
+            レビュー設定
+          </Link>
         </div>
       </div>
     </aside>

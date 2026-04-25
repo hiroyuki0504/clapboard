@@ -1,9 +1,9 @@
-import { ArrowUpRight, CircleDollarSign } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, CalendarDays } from "lucide-react";
+import { ProjectStatusBadge } from "@/components/project-status-badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ProjectStatusBadge } from "@/components/project-status-badge";
 import type { Project } from "@/lib/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 export function ProjectTable({ projects }: { projects: Project[] }) {
   return (
@@ -12,32 +12,34 @@ export function ProjectTable({ projects }: { projects: Project[] }) {
         <thead>
           <tr className="bg-[#f3f0e7] text-left text-xs font-bold uppercase tracking-[0.14em] text-[#81786d]">
             <th scope="col" className="px-5 py-4">
-              案件名
+              ワークストリーム
             </th>
             <th scope="col" className="px-5 py-4">
-              クライアント
+              オーナー
             </th>
             <th scope="col" className="px-5 py-4">
-              ステータス
+              状態
             </th>
             <th scope="col" className="px-5 py-4">
-              進捗
+              進捗率
             </th>
             <th scope="col" className="px-5 py-4">
-              最終更新
+              次の節目
             </th>
             <th scope="col" className="px-5 py-4">
-              収支
+              リスク
             </th>
             <th scope="col" className="px-5 py-4 text-right">
-              詳細を見る
+              開く
             </th>
           </tr>
         </thead>
         <tbody>
           {projects.map((project) => {
-            const profit = project.revenue - project.cost;
-            const positive = profit >= 0;
+            const blockers = project.tasks.filter(
+              (task) => !task.completed && task.priority === "high",
+            ).length;
+            const openTasks = project.tasks.filter((task) => !task.completed).length;
 
             return (
               <tr
@@ -53,7 +55,7 @@ export function ProjectTable({ projects }: { projects: Project[] }) {
                   </div>
                 </td>
                 <td className="border-t border-[#ded6ca] px-5 py-4 text-sm text-[#70675b]">
-                  {project.client}
+                  {project.owner}
                 </td>
                 <td className="border-t border-[#ded6ca] px-5 py-4">
                   <ProjectStatusBadge status={project.status} />
@@ -67,18 +69,22 @@ export function ProjectTable({ projects }: { projects: Project[] }) {
                   </div>
                 </td>
                 <td className="border-t border-[#ded6ca] px-5 py-4 text-sm text-[#70675b]">
-                  {formatDate(project.lastUpdated)}
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-[#8b8175]" aria-hidden />
+                    {formatDate(project.dueDate)}
+                  </div>
                 </td>
                 <td className="border-t border-[#ded6ca] px-5 py-4">
-                  <div
-                    className={
-                      positive
-                        ? "flex items-center gap-2 text-sm font-bold text-[#426c3d]"
-                        : "flex items-center gap-2 text-sm font-bold text-[#9f452c]"
-                    }
-                  >
-                    <CircleDollarSign className="h-4 w-4" aria-hidden />
-                    {formatCurrency(profit)}
+                  <div className="flex items-center gap-2 text-sm font-bold text-[#312d27]">
+                    <AlertTriangle
+                      className={
+                        blockers > 0
+                          ? "h-4 w-4 text-[#cf623d]"
+                          : "h-4 w-4 text-[#8bb17f]"
+                      }
+                      aria-hidden
+                    />
+                    {blockers > 0 ? `${blockers}件停滞` : `未完了${openTasks}件`}
                   </div>
                 </td>
                 <td className="border-t border-[#ded6ca] px-5 py-4 text-right">
@@ -86,9 +92,9 @@ export function ProjectTable({ projects }: { projects: Project[] }) {
                     href={`/projects/${project.id}`}
                     variant="secondary"
                     className="h-9 rounded-md px-3"
-                    aria-label={`${project.name}の詳細を見る`}
+                    aria-label={`${project.name}を開く`}
                   >
-                    詳細
+                    開く
                     <ArrowUpRight className="h-4 w-4" aria-hidden />
                   </ButtonLink>
                 </td>

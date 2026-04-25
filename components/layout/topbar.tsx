@@ -1,43 +1,52 @@
 "use client";
 
-import { CalendarDays, HelpCircle } from "lucide-react";
+import { CalendarDays, GitPullRequest, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { ButtonLink } from "@/components/ui/button";
+import { buildDateLabel, cn } from "@/lib/utils";
 
 const titles = [
   {
-    match: "/",
-    label: "ダッシュボード",
-    caption: "今日の状況をひと目で把握",
+    match: "/code-review",
+    label: "Code Review Control",
+    caption: "main保護・ブランチ分割・Codexレビュー管理",
   },
   {
     match: "/projects",
-    label: "案件一覧",
-    caption: "すべての案件と進捗を一覧",
+    label: "Progress Board",
+    caption: "ワークストリームごとの進捗管理",
+  },
+  {
+    match: "/",
+    label: "Progress Dashboard",
+    caption: "今日の進捗・ブロッカー・次アクションを確認",
   },
 ];
 
 const mobileNav = [
-  { label: "ダッシュボード", href: "/" },
-  { label: "案件一覧", href: "/projects" },
+  { label: "Progress", href: "/" },
+  { label: "Board", href: "/projects" },
+  { label: "Review", href: "/code-review" },
 ];
-
-const today = new Intl.DateTimeFormat("ja-JP", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  weekday: "short",
-}).format(new Date());
 
 export function Topbar() {
   const pathname = usePathname();
+  const dashboardTitle = titles.find((item) => item.match === "/") ?? titles[0];
   const title =
     pathname === "/"
-      ? titles[0]
+      ? dashboardTitle
       : pathname.startsWith("/projects/")
-        ? { label: "案件の詳細", caption: "選択した案件の中身を編集・確認" }
-        : (titles.find((item) => pathname.startsWith(item.match)) ?? titles[0]);
+        ? { label: "Progress Detail", caption: "進捗ワークスペース" }
+        : (titles.find(
+            (item) => item.match !== "/" && pathname.startsWith(item.match),
+          ) ?? dashboardTitle);
+  const [dateLabel, setDateLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDateLabel(buildDateLabel(new Date()));
+  }, []);
 
   return (
     <header className="sticky top-0 z-20 border-b border-[#d2c8b8] bg-[#fbfaf5]/95 backdrop-blur">
@@ -45,7 +54,7 @@ export function Topbar() {
         <div className="min-w-0">
           <div className="mb-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#8b8175]">
             <CalendarDays className="h-3.5 w-3.5" aria-hidden />
-            {today}
+            <span suppressHydrationWarning>{dateLabel ?? ""}</span>
           </div>
           <div className="flex items-baseline gap-2">
             <h1 className="truncate text-xl font-black tracking-normal text-[#2f2b25]">
@@ -57,13 +66,16 @@ export function Topbar() {
           </div>
         </div>
 
-        <Link
-          href="/#guide"
-          className="hidden h-10 items-center gap-2 rounded-md border border-[#bfb6a8] bg-[#fffefa] px-3 text-sm font-semibold text-[#312d27] transition hover:bg-[#f6f1e7] lg:inline-flex"
-        >
-          <HelpCircle className="h-4 w-4" aria-hidden />
-          使い方ガイド
-        </Link>
+        <div className="hidden shrink-0 items-center gap-2 lg:flex">
+          <ButtonLink href="/code-review" variant="secondary" className="h-10 rounded-md px-3">
+            <GitPullRequest className="h-4 w-4" aria-hidden />
+            レビュー管制
+          </ButtonLink>
+          <ButtonLink href="/#guide" className="h-10 rounded-md px-3">
+            <HelpCircle className="h-4 w-4" aria-hidden />
+            使い方ガイド
+          </ButtonLink>
+        </div>
       </div>
       <nav className="flex gap-2 overflow-x-auto px-3 pb-3 md:hidden">
         {mobileNav.map((item) => (

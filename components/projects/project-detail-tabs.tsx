@@ -17,7 +17,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import type { Project } from "@/lib/types";
-import { cn, formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import {
+  cn,
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  safeFileUrl,
+} from "@/lib/utils";
 
 type TabKey = "overview" | "progress" | "minutes" | "finance" | "files";
 
@@ -30,7 +36,7 @@ const tabs: {
   {
     key: "overview",
     label: "概要",
-    description: "ステータス・進捗・期限・担当者の確認",
+    description: "状態・進捗・次の節目・担当者の確認",
     icon: FileText,
   },
   {
@@ -42,13 +48,13 @@ const tabs: {
   {
     key: "minutes",
     label: "議事録",
-    description: "打ち合わせの記録",
+    description: "打ち合わせや進捗メモの記録",
     icon: UsersRound,
   },
   {
     key: "finance",
-    label: "収支",
-    description: "売上・支出・利益と取引履歴",
+    label: "予算",
+    description: "予算・消化・余力と履歴",
     icon: Landmark,
   },
   {
@@ -67,13 +73,13 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
     const completed = project.tasks.filter((task) => task.completed).length;
     return Math.round((completed / project.tasks.length) * 100);
   }, [project.tasks]);
-  const activeTabMeta = tabs.find((t) => t.key === activeTab)!;
+  const activeTabMeta = tabs.find((tab) => tab.key === activeTab)!;
 
   return (
     <div className="space-y-4">
       <div
         role="tablist"
-        aria-label="案件詳細のタブ"
+        aria-label="進捗詳細のタブ"
         className="flex gap-1 overflow-x-auto rounded-lg border border-[#423c33]/55 bg-[#f3f0e7] p-1"
       >
         {tabs.map((tab) => {
@@ -101,7 +107,9 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
       </div>
 
       <p className="text-xs text-[#81786d]" aria-live="polite">
-        現在表示中: <strong className="text-[#5f574d]">{activeTabMeta.label}</strong> — {activeTabMeta.description}
+        現在表示中:{" "}
+        <strong className="text-[#5f574d]">{activeTabMeta.label}</strong> -{" "}
+        {activeTabMeta.description}
       </p>
 
       {activeTab === "overview" && (
@@ -109,9 +117,9 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
           <Card>
             <CardHeader>
               <div>
-                <CardTitle>案件の概要</CardTitle>
+                <CardTitle>進捗概要</CardTitle>
                 <p className="mt-1 text-sm text-[#81786d]">
-                  この案件のステータス・進捗・期限・担当者です。
+                  状態、進捗率、次の節目、担当者を確認します。
                 </p>
               </div>
               <ProjectStatusBadge status={project.status} />
@@ -121,7 +129,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
               <div className="grid gap-3 sm:grid-cols-2">
                 <InfoTile
                   icon={CalendarClock}
-                  label="期限"
+                  label="次の節目"
                   value={formatDate(project.dueDate)}
                 />
                 <InfoTile icon={UsersRound} label="担当者" value={project.owner} />
@@ -140,7 +148,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
 
           <Card>
             <CardHeader>
-              <CardTitle>直近の更新</CardTitle>
+              <CardTitle>進捗ログ</CardTitle>
               <span className="text-xs text-[#81786d]">
                 {project.updates.length}件
               </span>
@@ -149,7 +157,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
               {project.updates.length === 0 ? (
                 <EmptyState
                   title="更新履歴はありません"
-                  description="案件に動きがあるとここに記録されます。"
+                  description="進捗に動きがあるとここに記録されます。"
                 />
               ) : (
                 project.updates.map((update) => (
@@ -175,7 +183,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>タスク一覧</CardTitle>
+              <CardTitle>進捗タスク</CardTitle>
               <p className="mt-1 text-sm text-[#81786d]">
                 完了率 {completion}% ・ 未完了{" "}
                 {project.tasks.filter((task) => !task.completed).length}件
@@ -186,7 +194,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
             {project.tasks.length === 0 && (
               <EmptyState
                 title="タスクはまだありません"
-                description="この案件にはタスクが登録されていません。"
+                description="このワークにはタスクが登録されていません。"
               />
             )}
             {project.tasks.map((task) => (
@@ -267,24 +275,24 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
         <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]" id="finance">
           <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
             <FinanceTile
-              label="売上"
+              label="予算"
               value={formatCurrency(project.revenue)}
               tone="blue"
             />
             <FinanceTile
-              label="支出"
+              label="消化"
               value={formatCurrency(project.cost)}
               tone="amber"
             />
             <FinanceTile
-              label="利益"
+              label="余力"
               value={formatCurrency(profit)}
               tone={profit >= 0 ? "green" : "rose"}
             />
           </div>
           <Card>
             <CardHeader>
-              <CardTitle>取引履歴</CardTitle>
+              <CardTitle>予算履歴</CardTitle>
               <span className="text-xs text-[#81786d]">
                 {project.transactions.length}件
               </span>
@@ -292,8 +300,8 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
             <CardContent className="overflow-x-auto p-0">
               {project.transactions.length === 0 ? (
                 <EmptyState
-                  title="取引はまだありません"
-                  description="売上や支出を登録するとここに表示されます。"
+                  title="予算履歴はまだありません"
+                  description="予算や消化額を登録するとここに表示されます。"
                 />
               ) : (
                 <table className="w-full min-w-[620px]">
@@ -328,7 +336,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
                               transaction.type === "revenue" ? "green" : "amber"
                             }
                           >
-                            {transaction.type === "revenue" ? "売上" : "支出"}
+                            {transaction.type === "revenue" ? "予算" : "消化"}
                           </Badge>
                         </td>
                         <td className="border-t border-[#ded6ca] px-5 py-4 text-right font-bold text-[#312d27]">
@@ -348,9 +356,9 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>ファイル(外部リンク)</CardTitle>
+              <CardTitle>Google Drive URL管理</CardTitle>
               <p className="mt-1 text-sm text-[#81786d]">
-                Google Drive などのファイルを開きます。クリックすると新しいタブで開きます。
+                進捗に紐づく外部URLを表示します。安全なURLだけ新しいタブで開けます。
               </p>
             </div>
             <span className="text-xs text-[#81786d]">{project.files.length}件</span>
@@ -360,19 +368,15 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
               <div className="md:col-span-2">
                 <EmptyState
                   title="ファイルはまだありません"
-                  description="この案件にはまだ外部ファイルが登録されていません。"
+                  description="このワークにはまだ外部ファイルが登録されていません。"
                 />
               </div>
             )}
-            {project.files.map((file) => (
-              <a
-                key={file.id}
-                href={file.url}
-                target="_blank"
-                rel="noreferrer"
-                className="group rounded-md border border-[#d8d1c4] bg-[#fbfaf5] p-4 transition hover:border-[#c95d3a] hover:bg-[#fffefa]"
-                aria-label={`${file.name}を新しいタブで開く`}
-              >
+            {project.files.map((file) => {
+              const safeUrl = safeFileUrl(file.url);
+              const cardClass =
+                "group rounded-md border border-[#d8d1c4] bg-[#fbfaf5] p-4 transition hover:border-[#c95d3a] hover:bg-[#fffefa]";
+              const inner = (
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <Badge tone="blue">{file.type.toUpperCase()}</Badge>
@@ -380,11 +384,37 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
                     <p className="mt-1 text-sm text-[#70675b]">
                       更新日 {formatDateTime(file.updatedAt)}
                     </p>
+                    {!safeUrl && (
+                      <p className="mt-2 text-xs font-bold text-[#9a4a31]">
+                        URL不正のためリンクを無効化しています
+                      </p>
+                    )}
                   </div>
                   <ArrowUpRight className="h-5 w-5 text-[#9a9084] transition group-hover:text-[#c95d3a]" />
                 </div>
-              </a>
-            ))}
+              );
+
+              if (!safeUrl) {
+                return (
+                  <div key={file.id} className={cardClass}>
+                    {inner}
+                  </div>
+                );
+              }
+
+              return (
+                <a
+                  key={file.id}
+                  href={safeUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className={cardClass}
+                  aria-label={`${file.name}を新しいタブで開く`}
+                >
+                  {inner}
+                </a>
+              );
+            })}
           </CardContent>
         </Card>
       )}
