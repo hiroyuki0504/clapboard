@@ -39,7 +39,7 @@ const titles = [
   },
 ];
 
-export function Topbar({ agentSummary }: { agentSummary?: React.ReactNode }) {
+export function Topbar() {
   const pathname = usePathname();
   const dashboardTitle = titles.find((item) => item.match === "/") ?? titles[0];
   const title =
@@ -76,7 +76,6 @@ export function Topbar({ agentSummary }: { agentSummary?: React.ReactNode }) {
             </div>
           </div>
         </div>
-
       </div>
     </header>
   );

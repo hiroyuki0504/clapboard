@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, normalizeProgressValue } from "@/lib/utils";
 
 type ProgressProps = {
   value: number;
@@ -11,9 +11,7 @@ export function Progress({
   className,
   indicatorClassName,
 }: ProgressProps) {
-  const normalizedValue = Number.isFinite(value)
-    ? Math.min(100, Math.max(0, value))
-    : 0;
+  const normalizedValue = normalizeProgressValue(value);
 
   return (
     <div

@@ -19,7 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <Sidebar agentSummary={agentSummary} />
         <div className="flex min-w-0 flex-1 flex-col bg-[#fbfaf5]">
-          <Topbar agentSummary={agentSummary} />
+          <Topbar />
           <WorkspaceTabs />
           <main className="thin-scrollbar min-h-0 flex-1 overflow-auto p-3 sm:p-4 lg:p-5">
             {children}
