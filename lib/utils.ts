@@ -48,6 +48,7 @@ export function formatCurrency(value: number) {
 
 const INVALID_DATE_PLACEHOLDER = "—";
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const APP_TIME_ZONE = "Asia/Tokyo";
 
 export function isDateOnly(value: string) {
   return DATE_ONLY_PATTERN.test(value);
@@ -79,6 +80,7 @@ export function formatDate(value: string) {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    timeZone: APP_TIME_ZONE,
   }).format(date);
 }
 
@@ -93,6 +95,7 @@ export function formatDateTime(value: string) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: APP_TIME_ZONE,
   }).format(date);
 }
 
@@ -107,7 +110,7 @@ export function formatLogTime(value: string | undefined) {
     return new Intl.DateTimeFormat("ja-JP", {
       month: "2-digit",
       day: "2-digit",
-      timeZone: "Asia/Tokyo",
+      timeZone: APP_TIME_ZONE,
     }).format(date);
   }
 
@@ -117,6 +120,6 @@ export function formatLogTime(value: string | undefined) {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: "Asia/Tokyo",
+    timeZone: APP_TIME_ZONE,
   }).format(date);
 }
