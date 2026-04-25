@@ -97,7 +97,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
       url.searchParams.set("tab", tabKey);
     }
 
-    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    window.history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }
 
   return (

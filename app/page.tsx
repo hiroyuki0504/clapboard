@@ -610,27 +610,34 @@ function getLatestTaskProjectDate(
     )
     .sort(
       (a, b) =>
-        new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
+        getProjectDateTime(b.lastUpdated, 0) -
+        getProjectDateTime(a.lastUpdated, 0),
     )[0]?.lastUpdated;
 }
 
 function getNextMilestoneDate(projects: Project[]) {
-  return [...projects].sort(
-    (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
-  )[0]?.dueDate;
+  return projects
+    .filter((project) => parseProjectDate(project.dueDate) !== null)
+    .sort(
+      (a, b) =>
+        getProjectDateTime(a.dueDate, Number.POSITIVE_INFINITY) -
+        getProjectDateTime(b.dueDate, Number.POSITIVE_INFINITY),
+    )[0]?.dueDate;
 }
 
 function formatLogTime(value?: string) {
-  if (!value) {
+  const date = parseProjectDate(value);
+
+  if (!date) {
     return "--:--";
   }
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+  if (value && isDateOnly(value)) {
     return new Intl.DateTimeFormat("ja-JP", {
       month: "2-digit",
       day: "2-digit",
       timeZone: "Asia/Tokyo",
-    }).format(new Date(`${value}T00:00:00+09:00`));
+    }).format(date);
   }
 
   return new Intl.DateTimeFormat("ja-JP", {
@@ -640,7 +647,27 @@ function formatLogTime(value?: string) {
     minute: "2-digit",
     hour12: false,
     timeZone: "Asia/Tokyo",
-  }).format(new Date(value));
+  }).format(date);
+}
+
+function getProjectDateTime(value: string | undefined, fallback: number) {
+  return parseProjectDate(value)?.getTime() ?? fallback;
+}
+
+function parseProjectDate(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const date = isDateOnly(value)
+    ? new Date(`${value}T00:00:00+09:00`)
+    : new Date(value);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isDateOnly(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 function WeeklyProgressCard({
