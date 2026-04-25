@@ -1,6 +1,6 @@
 "use client";
 
-import { SlidersHorizontal } from "lucide-react";
+import { RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { statusMeta } from "@/components/project-status-badge";
 import { ProjectTable } from "@/components/projects/project-table";
@@ -55,6 +55,7 @@ export function ProjectBoardClient({
   const [settings, setSettings] =
     useState<BoardSettings>(defaultBoardSettings);
   const { filter, keyword, sortKey, density, showRisk } = settings;
+  const hasCustomSettings = hasCustomBoardSettings(settings);
 
   useEffect(() => {
     function syncSettingsFromUrl() {
@@ -75,9 +76,7 @@ export function ProjectBoardClient({
         const matchesStatus = filter === "all" || project.status === filter;
         const matchesKeyword =
           !normalizedKeyword ||
-          project.name.toLowerCase().includes(normalizedKeyword) ||
-          project.client.toLowerCase().includes(normalizedKeyword) ||
-          project.owner.toLowerCase().includes(normalizedKeyword);
+          getProjectSearchText(project).includes(normalizedKeyword);
 
         return matchesStatus && matchesKeyword;
       })
@@ -110,6 +109,7 @@ export function ProjectBoardClient({
                   key={option.key}
                   type="button"
                   onClick={() => updateSettings({ filter: option.key })}
+                  aria-pressed={active}
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition",
                     active
@@ -131,14 +131,15 @@ export function ProjectBoardClient({
             })}
           </div>
           <label className="flex h-10 w-full max-w-sm items-center gap-2 rounded-md border border-[#c8c0b4] bg-[#fbfaf5] px-3 text-sm">
+            <Search className="h-4 w-4 shrink-0 text-[#8b8175]" aria-hidden />
             <input
               className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[#9a9084]"
-              placeholder="ワーク名・クライアント・担当者で検索..."
+              placeholder="ワーク名・クライアント・担当者・タスクで検索..."
               value={keyword}
               onChange={(event) =>
                 updateSettings({ keyword: event.target.value })
               }
-              aria-label="ワーク名・クライアント・担当者で検索"
+              aria-label="ワーク名・クライアント・担当者・タスクで検索"
               type="search"
             />
           </label>
@@ -166,6 +167,7 @@ export function ProjectBoardClient({
           <Button
             variant="secondary"
             className="h-10 rounded-md px-3"
+            aria-pressed={density === "compact"}
             onClick={() =>
               updateSettings({
                 density: density === "comfortable" ? "compact" : "comfortable",
@@ -190,7 +192,7 @@ export function ProjectBoardClient({
             variant="secondary"
             className="h-10 rounded-md px-3"
             onClick={() => updateSettings(defaultBoardSettings)}
-            disabled={!hasCustomBoardSettings(settings)}
+            disabled={!hasCustomSettings}
           >
             表示をリセット
           </Button>
@@ -226,6 +228,16 @@ export function ProjectBoardClient({
               <p className="text-xs text-[#81786d]">
                 上のフィルタや検索条件を変えてもう一度お試しください。
               </p>
+              {hasCustomSettings && (
+                <Button
+                  variant="secondary"
+                  className="mt-2 h-9 rounded-md px-3"
+                  onClick={() => updateSettings(defaultBoardSettings)}
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden />
+                  条件をリセット
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
@@ -326,6 +338,23 @@ function hasCustomBoardSettings(settings: BoardSettings) {
     settings.density !== defaultBoardSettings.density ||
     settings.showRisk !== defaultBoardSettings.showRisk
   );
+}
+
+function getProjectSearchText(project: Project) {
+  return [
+    project.name,
+    project.client,
+    project.owner,
+    project.summary,
+    ...project.tasks.flatMap((task) => [task.title, task.note]),
+    ...project.updates.map((update) => update.text),
+    ...project.minutes.flatMap((minute) => [
+      minute.title,
+      minute.participants.join(" "),
+    ]),
+  ]
+    .join(" ")
+    .toLowerCase();
 }
 
 function compareProjects(a: Project, b: Project, sortKey: SortKey) {
