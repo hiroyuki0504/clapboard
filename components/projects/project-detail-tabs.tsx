@@ -16,6 +16,11 @@ import { PriorityBadge, ProjectStatusBadge } from "@/components/project-status-b
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import {
+  getOpenTaskCount,
+  getProjectBudgetBalance,
+  getTaskCompletion,
+} from "@/lib/project-selectors";
 import type { Project } from "@/lib/types";
 import {
   cn,
@@ -67,12 +72,12 @@ const tabs: {
 
 export function ProjectDetailTabs({ project }: { project: Project }) {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
-  const profit = project.revenue - project.cost;
-  const completion = useMemo(() => {
-    if (project.tasks.length === 0) return 0;
-    const completed = project.tasks.filter((task) => task.completed).length;
-    return Math.round((completed / project.tasks.length) * 100);
-  }, [project.tasks]);
+  const profit = getProjectBudgetBalance(project);
+  const completion = useMemo(
+    () => getTaskCompletion(project.tasks),
+    [project.tasks],
+  );
+  const openTaskCount = getOpenTaskCount(project.tasks);
   const activeTabMeta = tabs.find((tab) => tab.key === activeTab)!;
 
   useEffect(() => {
@@ -210,8 +215,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
             <div>
               <CardTitle>進捗タスク</CardTitle>
               <p className="mt-1 text-sm text-[#81786d]">
-                完了率 {completion}% ・ 未完了{" "}
-                {project.tasks.filter((task) => !task.completed).length}件
+                完了率 {completion}% ・ 未完了 {openTaskCount}件
               </p>
             </div>
           </CardHeader>
