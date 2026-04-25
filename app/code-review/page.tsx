@@ -93,6 +93,10 @@ function isAuthorRequiredPriority(priority: ReviewPriority) {
 
 export default async function CodeReviewPage() {
   const reviewSystemResult = await getCodeReviewSystem();
+  if (reviewSystemResult.error) {
+    throw new Error(reviewSystemResult.error.message);
+  }
+
   const reviewSystem = reviewSystemResult.data;
   const activeBranches = reviewSystem.branches.length;
   const queuedReviews = reviewSystem.pullRequests.filter(

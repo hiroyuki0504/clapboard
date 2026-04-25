@@ -75,10 +75,10 @@ PRを出した人には、`Crucial` と `High Priority` までを対応しても
 
 ```markdown
 ## 概要
-- 
+-
 
 ## 変更範囲
-- 
+-
 
 ## 検証
 - [ ] npm run build
@@ -96,6 +96,12 @@ PRを出した人には、`Crucial` と `High Priority` までを対応しても
 - Medium / Low:
 - 対応状況:
 ```
+
+## アクセス制御
+
+- `/`、`/projects`、`/code-review` と `/api/*`（health/login/logout を除く）は `middleware.ts` で `CLAPBOARD_ACCESS_TOKEN` を必須にしています。
+- ブラウザは `/login` ページから Cookie を取得、CI や外部スクリプトは `Authorization: Bearer <token>` で接続します。
+- 本番では `CLAPBOARD_ACCESS_TOKEN` を Secrets/環境変数で配布してください。未設定のまま `NODE_ENV=production` で起動すると保護対象は 503 を返します。
 
 ## マージ条件
 

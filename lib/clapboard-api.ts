@@ -28,13 +28,24 @@ export type ApiResult<T> = {
   source: ApiDataSource;
   connected: boolean;
   fallbackReason?: string;
+  error?: ApiError;
+};
+
+export type ApiError = {
+  status: number;
+  message: string;
 };
 
 export type CodeReviewSystem = typeof reviewSystem;
 
-type BackendFetchResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; reason: string };
+type BackendFetchFailure = {
+  ok: false;
+  reason: string;
+  status?: number;
+  fallbackAllowed: boolean;
+};
+
+type BackendFetchResult<T> = { ok: true; data: T } | BackendFetchFailure;
 
 type ProjectsPayload = Project[] | { projects?: Project[]; data?: Project[] };
 type ProjectPayload = Project | { project?: Project | null; data?: Project | null } | null;
@@ -45,6 +56,7 @@ type CodeReviewPayload =
 const backendBaseUrl = process.env.CLAPBOARD_API_BASE_URL?.replace(/\/+$/, "");
 const backendToken = process.env.CLAPBOARD_API_TOKEN;
 const backendTimeoutMs = normalizeTimeout(process.env.CLAPBOARD_API_TIMEOUT_MS);
+const NON_FALLBACK_BACKEND_STATUSES = new Set([401, 403, 404]);
 
 function normalizeTimeout(value: string | undefined) {
   const parsed = Number(value ?? 5000);
@@ -65,6 +77,19 @@ function mockResult<T>(data: T, fallbackReason?: string): ApiResult<T> {
   };
 }
 
+function backendErrorResult<T>(data: T, backend: BackendFetchFailure): ApiResult<T> {
+  return {
+    data,
+    source: "backend",
+    connected: false,
+    fallbackReason: backend.reason,
+    error: {
+      status: backend.status ?? 502,
+      message: backend.reason,
+    },
+  };
+}
+
 function backendResult<T>(data: T): ApiResult<T> {
   return {
     data,
@@ -78,6 +103,7 @@ async function fetchBackendJson<T>(path: string): Promise<BackendFetchResult<T>>
     return {
       ok: false,
       reason: "CLAPBOARD_API_BASE_URL is not set",
+      fallbackAllowed: true,
     };
   }
 
@@ -99,6 +125,8 @@ async function fetchBackendJson<T>(path: string): Promise<BackendFetchResult<T>>
       return {
         ok: false,
         reason: `Backend API returned ${response.status} for ${path}`,
+        status: response.status,
+        fallbackAllowed: !NON_FALLBACK_BACKEND_STATUSES.has(response.status),
       };
     }
 
@@ -111,6 +139,7 @@ async function fetchBackendJson<T>(path: string): Promise<BackendFetchResult<T>>
       return {
         ok: false,
         reason: `Backend API request timed out after ${backendTimeoutMs}ms`,
+        fallbackAllowed: true,
       };
     }
 
@@ -119,6 +148,7 @@ async function fetchBackendJson<T>(path: string): Promise<BackendFetchResult<T>>
     return {
       ok: false,
       reason: `Backend API request failed: ${message}`,
+      fallbackAllowed: true,
     };
   }
 }
@@ -402,6 +432,9 @@ export const getProjects = cache(
     const backend = await fetchBackendJson<ProjectsPayload>("/projects");
 
     if (!backend.ok) {
+      if (!backend.fallbackAllowed) {
+        return backendErrorResult([], backend);
+      }
       return mockResult(mockProjects, backend.reason);
     }
 
@@ -423,6 +456,9 @@ export const getProject = cache(
     );
 
     if (!backend.ok) {
+      if (!backend.fallbackAllowed) {
+        return backendErrorResult(null, backend);
+      }
       return mockResult(fallbackProject, backend.reason);
     }
 
@@ -441,6 +477,9 @@ export const getCodeReviewSystem = cache(
     const backend = await fetchBackendJson<CodeReviewPayload>("/code-review");
 
     if (!backend.ok) {
+      if (!backend.fallbackAllowed) {
+        return backendErrorResult(reviewSystem, backend);
+      }
       return mockResult(reviewSystem, backend.reason);
     }
 
@@ -459,6 +498,23 @@ export function publicFallbackReason(reason: string | undefined) {
   return process.env.NODE_ENV === "production"
     ? "external backend unavailable"
     : reason;
+}
+
+export function publicApiError(error: ApiError | undefined) {
+  if (!error) return null;
+
+  const message =
+    process.env.NODE_ENV === "production"
+      ? error.status === 404
+        ? "external backend resource not found"
+        : "external backend unavailable"
+      : error.message;
+
+  return {
+    error: "backend-error",
+    status: error.status,
+    message,
+  };
 }
 
 export function getProjectFiles(
@@ -509,10 +565,12 @@ export async function getApiHealth() {
     ok: externalHealthy,
     service: "clapboard",
     localApi: "connected",
-    dataSource: backend.ok ? "backend" : "mock",
+    dataSource: backend.ok ? "backend" : backend.fallbackAllowed ? "mock" : "backend-error",
     externalApi: {
       configured: externalConfigured,
       connected: backend.ok,
+      status: backend.ok ? 200 : (backend.status ?? null),
+      fallbackAllowed: backend.ok ? false : backend.fallbackAllowed,
       baseUrl: exposedBaseUrl,
       timeoutMs: backendTimeoutMs,
       fallbackReason: exposedFallbackReason,

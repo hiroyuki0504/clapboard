@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
-import { getCodeReviewSystem, publicFallbackReason } from "@/lib/clapboard-api";
+import {
+  getCodeReviewSystem,
+  publicApiError,
+  publicFallbackReason,
+} from "@/lib/clapboard-api";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const result = await getCodeReviewSystem();
+  const error = publicApiError(result.error);
+
+  if (error) {
+    return NextResponse.json(error, { status: error.status });
+  }
 
   return NextResponse.json({
     reviewSystem: result.data,
