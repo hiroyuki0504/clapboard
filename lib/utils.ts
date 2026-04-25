@@ -47,10 +47,26 @@ export function formatCurrency(value: number) {
 }
 
 const INVALID_DATE_PLACEHOLDER = "—";
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-function safeDate(value: string): Date | null {
-  const date = new Date(value);
+export function isDateOnly(value: string) {
+  return DATE_ONLY_PATTERN.test(value);
+}
+
+export function safeDate(value: string | undefined | null): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  const date = isDateOnly(value)
+    ? new Date(`${value}T00:00:00+09:00`)
+    : new Date(value);
+
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function safeDateTime(value: string | undefined, fallback: number): number {
+  return safeDate(value)?.getTime() ?? fallback;
 }
 
 export function formatDate(value: string) {
@@ -77,5 +93,30 @@ export function formatDateTime(value: string) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+  }).format(date);
+}
+
+export function formatLogTime(value: string | undefined) {
+  const date = safeDate(value);
+
+  if (!date) {
+    return "--:--";
+  }
+
+  if (value && isDateOnly(value)) {
+    return new Intl.DateTimeFormat("ja-JP", {
+      month: "2-digit",
+      day: "2-digit",
+      timeZone: "Asia/Tokyo",
+    }).format(date);
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Tokyo",
   }).format(date);
 }

@@ -382,27 +382,3 @@ export const projects: Project[] = [
 export function getProjectById(id: string) {
   return projects.find((project) => project.id === id);
 }
-
-export const allFiles = projects
-  .flatMap((project) =>
-    project.files.map((file) => ({
-      ...file,
-      projectName: project.name,
-    })),
-  )
-  .sort(
-    (a, b) =>
-      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-  );
-
-export const allMinutes = projects
-  .flatMap((project) =>
-    project.minutes.map((minute) => ({
-      ...minute,
-      projectName: project.name,
-    })),
-  )
-  .sort(
-    (a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );

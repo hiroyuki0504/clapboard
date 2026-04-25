@@ -6,8 +6,9 @@ import { statusMeta } from "@/components/project-status-badge";
 import { ProjectTable } from "@/components/projects/project-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getHighPriorityOpenTaskCount } from "@/lib/project-selectors";
 import type { Project, ProjectStatus } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, safeDateTime } from "@/lib/utils";
 
 type Filter = "all" | ProjectStatus;
 type SortKey = "lastUpdated" | "dueDate" | "progress" | "blockers";
@@ -330,8 +331,8 @@ function hasCustomBoardSettings(settings: BoardSettings) {
 function compareProjects(a: Project, b: Project, sortKey: SortKey) {
   if (sortKey === "dueDate") {
     return (
-      getProjectTime(a.dueDate, Number.POSITIVE_INFINITY) -
-      getProjectTime(b.dueDate, Number.POSITIVE_INFINITY)
+      safeDateTime(a.dueDate, Number.POSITIVE_INFINITY) -
+      safeDateTime(b.dueDate, Number.POSITIVE_INFINITY)
     );
   }
 
@@ -340,19 +341,11 @@ function compareProjects(a: Project, b: Project, sortKey: SortKey) {
   }
 
   if (sortKey === "blockers") {
-    return getBlockerCount(b) - getBlockerCount(a);
+    return (
+      getHighPriorityOpenTaskCount(b.tasks) -
+      getHighPriorityOpenTaskCount(a.tasks)
+    );
   }
 
-  return getProjectTime(b.lastUpdated, 0) - getProjectTime(a.lastUpdated, 0);
-}
-
-function getBlockerCount(project: Project) {
-  return project.tasks.filter(
-    (task) => !task.completed && task.priority === "high",
-  ).length;
-}
-
-function getProjectTime(value: string, fallback: number) {
-  const time = new Date(value).getTime();
-  return Number.isNaN(time) ? fallback : time;
+  return safeDateTime(b.lastUpdated, 0) - safeDateTime(a.lastUpdated, 0);
 }

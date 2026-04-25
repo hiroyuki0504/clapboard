@@ -1,9 +1,9 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
 import type { ProjectStatus, TaskPriority } from "@/lib/types";
 
 export const statusMeta: Record<
   ProjectStatus,
-  { label: string; tone: "blue" | "green" | "amber" | "red" | "slate" | "purple" }
+  { label: string; tone: BadgeTone }
 > = {
   planning: { label: "計画中", tone: "purple" },
   "in-progress": { label: "進行中", tone: "blue" },
@@ -14,7 +14,7 @@ export const statusMeta: Record<
 
 export const priorityMeta: Record<
   TaskPriority,
-  { label: string; tone: "blue" | "amber" | "red" }
+  { label: string; tone: BadgeTone }
 > = {
   high: { label: "高", tone: "red" },
   medium: { label: "中", tone: "amber" },

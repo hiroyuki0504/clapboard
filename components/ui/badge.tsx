@@ -1,10 +1,12 @@
 import { cn } from "@/lib/utils";
 
+export type BadgeTone = "blue" | "green" | "amber" | "red" | "slate" | "purple";
+
 type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & {
-  tone?: "blue" | "green" | "amber" | "red" | "slate" | "purple";
+  tone?: BadgeTone;
 };
 
-const toneClass = {
+const toneClass: Record<BadgeTone, string> = {
   blue: "border-[#a8bed4] bg-[#eef4f8] text-[#315a78]",
   green: "border-[#a8c3a6] bg-[#edf5ea] text-[#426c3d]",
   amber: "border-[#d4bd7f] bg-[#fff3c8] text-[#7c5a18]",
