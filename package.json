@@ -7,7 +7,8 @@
     "dev:webpack": "next dev",
     "build": "next build",
     "start": "next start",
-    "review:codex": "scripts/codex-pr-review.sh"
+    "review:codex": "scripts/codex-pr-review.sh",
+    "review:comment": "scripts/codex-pr-review-comment.sh"
   },
   "dependencies": {
     "clsx": "^2.1.1",
