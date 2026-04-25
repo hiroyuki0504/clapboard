@@ -52,19 +52,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 function getReviewCount(projects: Project[]) {
   return projects.reduce((total, project) => {
-    const pendingImports = project.imports.filter(
-      (entry) => entry.extractionStatus !== "reviewed",
-    ).length;
-    const pendingSuggestions = project.imports.reduce(
-      (count, entry) =>
-        count +
-        (entry.suggestions ?? []).filter((suggestion) => suggestion.status === "pending")
-          .length,
+    const projectReviewCount = project.imports.reduce(
+      (count, entry) => count + getImportReviewCount(entry),
       0,
     );
 
-    return total + pendingImports + pendingSuggestions;
+    return total + projectReviewCount;
   }, 0);
+}
+
+function getImportReviewCount(project: Project["imports"][number]) {
+  const pendingSuggestions = (project.suggestions ?? []).filter(
+    (suggestion) => suggestion.status === "pending",
+  ).length;
+
+  if (pendingSuggestions > 0) {
+    return pendingSuggestions;
+  }
+
+  return project.extractionStatus !== "reviewed" ? 1 : 0;
 }
 
 function getUnresolvedCount(projects: Project[]) {

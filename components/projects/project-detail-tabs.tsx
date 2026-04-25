@@ -90,11 +90,7 @@ export function ProjectDetailTabs({
 
   useEffect(() => {
     function syncTabFromUrl() {
-      const tab = getTabKeyFromSearch();
-
-      if (tab != null) {
-        setActiveTab(tab);
-      }
+      setActiveTab(getTabKeyFromSearch() ?? "overview");
     }
 
     syncTabFromUrl();

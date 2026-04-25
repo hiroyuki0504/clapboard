@@ -477,7 +477,10 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <GraphCard project={graphProject} files={allFiles.slice(0, 2)} />
+        <GraphCard
+          project={graphProject}
+          files={graphProject?.files ?? allFiles.slice(0, 2)}
+        />
 
         <FinanceCard summary={financeSummary} />
 
@@ -855,13 +858,14 @@ function GraphCard({
   files,
 }: {
   project?: DashboardProject;
-  files: typeof allFiles;
+  files: Array<{ name: string }>;
 }) {
   const sourceMinute = project?.minutes[0];
+  const graphFiles = project?.files ?? files;
   const relationCount =
     (project?.minutes.length ?? 0) +
     (project?.imports.length ?? 0) +
-    (project?.files.length ?? files.length);
+    graphFiles.length;
 
   return (
     <Card>
@@ -883,10 +887,10 @@ function GraphCard({
             {sourceMinute?.title ?? "議事録"}
           </div>
           <div className="absolute right-8 top-20 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            {files[0]?.name ?? "関連ファイル"}
+            {graphFiles[0]?.name ?? "関連ファイル"}
           </div>
           <div className="absolute left-48 top-14 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            {files[1]?.name ?? "共有資料"}
+            {graphFiles[1]?.name ?? "共有資料"}
           </div>
           <span className="absolute left-[82px] top-[78px] h-px w-24 rotate-45 bg-[#c8c0b4]" />
           <span className="absolute left-[178px] top-[94px] h-px w-20 -rotate-45 bg-[#c8c0b4]" />
