@@ -1,0 +1,4 @@
+interface:
+  display_name: "議事録アクション抽出"
+  short_description: "Extract decisions TODOs and ambiguities from meeting notes"
+  default_prompt: "Use $extract-minutes-actions to extract decisions, TODOs, and ambiguities from these minutes."

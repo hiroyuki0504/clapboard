@@ -1,0 +1,4 @@
+interface:
+  display_name: "レビュー判断整理"
+  short_description: "Summarize review findings for PM merge decisions"
+  default_prompt: "Use $summarize-review-gate to summarize review comments for PM merge judgment."

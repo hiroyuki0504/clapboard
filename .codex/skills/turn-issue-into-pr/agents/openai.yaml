@@ -1,0 +1,4 @@
+interface:
+  display_name: "Issue修正PR化"
+  short_description: "Convert a GitHub Issue into a focused PR workflow"
+  default_prompt: "Use $turn-issue-into-pr to convert this GitHub Issue into a focused PR plan."

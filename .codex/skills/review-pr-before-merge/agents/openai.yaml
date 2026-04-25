@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR事前レビュー"
+  short_description: "Review PRs before main merge with PM priorities"
+  default_prompt: "Use $review-pr-before-merge to review this PR before merging to main."

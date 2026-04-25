@@ -1,0 +1,4 @@
+interface:
+  display_name: "デザインUI反映"
+  short_description: "Translate design direction into UI implementation work"
+  default_prompt: "Use $apply-design-to-ui to translate this design direction into UI implementation steps."

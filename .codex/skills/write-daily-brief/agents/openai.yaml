@@ -1,0 +1,4 @@
+interface:
+  display_name: "日次状況整理"
+  short_description: "Create a concise daily PM task and review brief"
+  default_prompt: "Use $write-daily-brief to create today's task and review brief."

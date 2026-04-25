@@ -1,0 +1,4 @@
+interface:
+  display_name: "関連ファイル確認"
+  short_description: "Identify related project files and inspection order"
+  default_prompt: "Use $check-related-files to identify related files and what to inspect first."

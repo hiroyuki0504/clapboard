@@ -1,0 +1,4 @@
+interface:
+  display_name: "Webワークツリー化"
+  short_description: "Scope a natural language request into a Web worktree"
+  default_prompt: "Use $prepare-web-worktree to turn this request into a scoped Web worktree."

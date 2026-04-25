@@ -1,0 +1,4 @@
+interface:
+  display_name: "ブロッカー抽出"
+  short_description: "Find blockers and concrete next actions from progress data"
+  default_prompt: "Use $extract-blockers to find current blockers and next actions."

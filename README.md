@@ -178,39 +178,171 @@ npm run build
 
 ## ディレクトリ構成
 
+今回のハッカソンで使ったこのリポジトリの作業ツリーを基準にしています。`.env.local`、`.next/`、`node_modules/`、`tsconfig.tsbuildinfo` などのローカル生成物や秘密情報は除外します。
+
 ```text
-app/
-  (app)/
-    page.tsx
-    dashboard/page.tsx
-    code-review/page.tsx
-    projects/page.tsx
-  api/
-    code-review/
-    files/
-    health/
-    login/
-    logout/
-    projects/
-  login/page.tsx
-components/
-  auth/
-  dashboard/
-  layout/
-  projects/
-  ui/
-lib/
-  auth.ts
-  clapboard-api.ts
-  code-review-system.ts
-  mock-data.ts
-  project-selectors.ts
-  types.ts
-docs/
-  pm-codex-review-system.md
-scripts/
-  codex-pr-review.sh
-  codex-pr-review-comment.sh
+.
+|-- app/
+|   |-- (app)/
+|   |   |-- code-review/page.tsx
+|   |   |-- command/page.tsx
+|   |   |-- dashboard/page.tsx
+|   |   |-- graph/page.tsx
+|   |   |-- guide/page.tsx
+|   |   |-- layout.tsx
+|   |   |-- page.tsx
+|   |   |-- projects/
+|   |   |   |-- [id]/page.tsx
+|   |   |   `-- page.tsx
+|   |   `-- timeline/page.tsx
+|   |-- api/
+|   |   |-- code-review/route.ts
+|   |   |-- files/route.ts
+|   |   |-- health/route.ts
+|   |   |-- login/route.ts
+|   |   |-- logout/route.ts
+|   |   `-- projects/
+|   |       |-- [id]/route.ts
+|   |       `-- route.ts
+|   |-- favicon.ico
+|   |-- globals.css
+|   |-- icon.png
+|   |-- layout.tsx
+|   `-- login/page.tsx
+|-- components/
+|   |-- auth/login-form.tsx
+|   |-- code-review/
+|   |   |-- agent-worktrees-card.tsx
+|   |   |-- branch-table-card.tsx
+|   |   |-- hackathon-intake-demo.tsx
+|   |   |-- header-section.tsx
+|   |   |-- metric-tile.tsx
+|   |   |-- no-code-request-queue.tsx
+|   |   |-- oauth-runner-card.tsx
+|   |   |-- pipeline-steps-card.tsx
+|   |   |-- policy-list-card.tsx
+|   |   |-- priority-level-table.tsx
+|   |   `-- pull-request-queue.tsx
+|   |-- dashboard/
+|   |   |-- command-header.tsx
+|   |   |-- dependency-graph-card.tsx
+|   |   |-- files-section.tsx
+|   |   |-- finance-section.tsx
+|   |   |-- guide-section.tsx
+|   |   |-- metric-card.tsx
+|   |   |-- minutes-section.tsx
+|   |   |-- progress-agent-log.tsx
+|   |   |-- recent-projects-section.tsx
+|   |   |-- stat-pills.tsx
+|   |   |-- todo-section.tsx
+|   |   |-- weekly-progress-card.tsx
+|   |   |-- welcome-card.tsx
+|   |   `-- _shared.tsx
+|   |-- graph/graph-canvas.tsx
+|   |-- layout/
+|   |   |-- app-shell.tsx
+|   |   |-- file-panel.tsx
+|   |   |-- file-tree.tsx
+|   |   |-- mobile-nav.tsx
+|   |   |-- nav-items.ts
+|   |   |-- sidebar.tsx
+|   |   |-- topbar.tsx
+|   |   |-- workspace-summary.tsx
+|   |   `-- workspace-tabs.tsx
+|   |-- projects/
+|   |   |-- detail-tabs/
+|   |   |   |-- files-tab.tsx
+|   |   |   |-- finance-tab.tsx
+|   |   |   |-- minutes-tab.tsx
+|   |   |   |-- overview-tab.tsx
+|   |   |   |-- progress-tab.tsx
+|   |   |   |-- review-suggestion-card.tsx
+|   |   |   |-- review-tab.tsx
+|   |   |   |-- tab-button.tsx
+|   |   |   |-- tab-config.ts
+|   |   |   |-- use-review-sources.ts
+|   |   |   |-- use-tab-navigation.ts
+|   |   |   `-- _shared.tsx
+|   |   |-- project-board-client.tsx
+|   |   |-- project-detail-tabs.tsx
+|   |   `-- project-table.tsx
+|   |-- timeline/timeline-grid.tsx
+|   |-- ui/
+|   |   |-- badge.tsx
+|   |   |-- button.tsx
+|   |   |-- card.tsx
+|   |   `-- progress.tsx
+|   `-- project-status-badge.tsx
+|-- lib/
+|   |-- auth.ts
+|   |-- board-settings.ts
+|   |-- clapboard-api.ts
+|   |-- clapboard-api-validators.ts
+|   |-- code-review-meta.ts
+|   |-- code-review-mock.ts
+|   |-- code-review-system.ts
+|   |-- command-agent-log.ts
+|   |-- file-tree-api.ts
+|   |-- graph-model.ts
+|   |-- mock-data.ts
+|   |-- mock-extraction.ts
+|   |-- project-href.ts
+|   |-- project-selectors.ts
+|   |-- session.ts
+|   |-- suggestion-context.ts
+|   |-- suggestion-state.ts
+|   |-- timeline-events.ts
+|   |-- types.ts
+|   `-- utils.ts
+|-- tests/
+|   |-- auth.test.ts
+|   |-- code-review-system.test.ts
+|   |-- mock-data-integrity.test.ts
+|   |-- mock-extraction.test.ts
+|   |-- progress.test.ts
+|   |-- project-selectors.test.ts
+|   |-- session.test.ts
+|   |-- suggestion-state.test.ts
+|   |-- ui-regression.test.ts
+|   `-- utils.test.ts
+|-- docs/
+|   |-- pm-codex-review-system.md
+|   `-- prompt-skill-map.md
+|-- scripts/
+|   |-- codex-pr-review-comment.sh
+|   |-- codex-pr-review.sh
+|   `-- deploy.sh
+|-- .codex/skills/
+|   |-- apply-design-to-ui/
+|   |-- check-related-files/
+|   |-- draft-pm-pr/
+|   |-- extract-blockers/
+|   |-- extract-minutes-actions/
+|   |-- prepare-web-worktree/
+|   |-- review-pr-before-merge/
+|   |-- summarize-review-gate/
+|   |-- turn-issue-into-pr/
+|   `-- write-daily-brief/
+|-- .github/
+|   |-- pull_request_template.md
+|   `-- workflows/
+|       |-- ci.yml
+|       `-- deploy.yml
+|-- .env.example
+|-- .gitignore
+|-- .node-version
+|-- AGENTS.md
+|-- README.md
+|-- ecosystem.config.cjs
+|-- middleware.ts
+|-- next-env.d.ts
+|-- next.config.ts
+|-- package-lock.json
+|-- package.json
+|-- postcss.config.mjs
+|-- tailwind.config.ts
+|-- tsconfig.json
+`-- tsconfig.test.json
 ```
 
 ## 実装判断

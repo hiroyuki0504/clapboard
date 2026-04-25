@@ -1,0 +1,4 @@
+interface:
+  display_name: "PM向けPR本文作成"
+  short_description: "Draft a PM ready PR body with risks and checks"
+  default_prompt: "Use $draft-pm-pr to draft a PM-ready pull request body."
