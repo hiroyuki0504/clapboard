@@ -59,3 +59,21 @@ test("Progress clamps values to the accessible range", () => {
   assert.match(lowMarkup, /aria-valuenow="0"/);
   assert.match(lowMarkup, /width:0%/);
 });
+
+test("Progress treats non-finite values as zero", () => {
+  const { Progress } = requireFromOutput(
+    "../components/ui/progress",
+  ) as typeof import("../components/ui/progress");
+
+  const nanMarkup = renderToStaticMarkup(
+    React.createElement(Progress, { value: Number.NaN }),
+  );
+  assert.match(nanMarkup, /aria-valuenow="0"/);
+  assert.match(nanMarkup, /width:0%/);
+
+  const infinityMarkup = renderToStaticMarkup(
+    React.createElement(Progress, { value: Number.POSITIVE_INFINITY }),
+  );
+  assert.match(infinityMarkup, /aria-valuenow="0"/);
+  assert.match(infinityMarkup, /width:0%/);
+});
