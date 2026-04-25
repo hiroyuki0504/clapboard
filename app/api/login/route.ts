@@ -36,7 +36,7 @@ function rateLimitHeaders(decision: {
 
 export async function POST(request: Request) {
   const clientKey = `login:${clientKeyFromHeaders(request.headers)}`;
-  const rate = consumeRateLimit(
+  const rate = await consumeRateLimit(
     clientKey,
     LOGIN_RATE_LIMIT,
     LOGIN_RATE_LIMIT_WINDOW_MS,

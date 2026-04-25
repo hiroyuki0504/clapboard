@@ -8,12 +8,30 @@ type CsrfRequest = {
   headers: Headers;
 };
 
-export type CsrfDecision =
-  | { ok: true }
-  | { ok: false; reason: "missing-origin" | "cross-origin" | "cross-site-fetch" };
+export type CsrfReason =
+  | "missing-origin"
+  | "cross-origin"
+  | "cross-site-fetch";
 
-export function evaluateCsrf(request: CsrfRequest): CsrfDecision {
-  if (SAFE_METHODS.has(request.method.toUpperCase())) {
+export type CsrfDecision = { ok: true } | { ok: false; reason: CsrfReason };
+
+export type CsrfOptions = {
+  /**
+   * GET / HEAD / OPTIONS にも CSRF 検証を強制する。副作用ある GET API を追加
+   * したときに有効化する。デフォルト false（ブラウザが Origin を付けない GET を
+   * 許容）。
+   */
+  enforceOnGet?: boolean;
+};
+
+export function evaluateCsrf(
+  request: CsrfRequest,
+  options: CsrfOptions = {},
+): CsrfDecision {
+  const { enforceOnGet = false } = options;
+  const method = request.method.toUpperCase();
+
+  if (!enforceOnGet && SAFE_METHODS.has(method)) {
     return { ok: true };
   }
 
