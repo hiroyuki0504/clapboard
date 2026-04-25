@@ -79,7 +79,21 @@ CLAPBOARD_API_TOKEN=optional-token
 CLAPBOARD_API_TIMEOUT_MS=5000
 ```
 
-バックエンドは `/health`、`/projects`、`/projects/:id`、`/code-review` を返す想定です。取得に失敗した場合やタイムアウトした場合は既存モックデータへ退避します。APIデータを静的生成で固定しないよう、データ取得画面とAPI Routeは動的レンダリングにしています。
+バックエンドは `/health`、`/projects`、`/projects/:id`、`/code-review` を返す想定です。取得に失敗した場合やタイムアウトした場合は既存モックデータへ退避します。APIデータを静的生成で固定しないよう、データ取得画面とAPI Routeは動的レンダリングにしています。ただし、外部バックエンドが `401` / `403` / `404` を返した場合は認可拒否・存在なしを隠さないため、モックへ退避せずエラーとして返します。
+
+## アクセス制御
+
+`/`、`/projects`、`/code-review` と `/api/*`（`/api/health`・`/api/login`・`/api/logout` を除く）は middleware で保護されており、`CLAPBOARD_ACCESS_TOKEN`（16文字以上）を一致させた利用者だけが閲覧できます。
+
+```bash
+# .env.local など
+CLAPBOARD_ACCESS_TOKEN=<openssl rand -base64 32>
+```
+
+- 本番デプロイ前に必ず設定してください。未設定のまま `NODE_ENV=production` で起動した場合、保護対象は 503 を返します。
+- ブラウザ利用時は `/login` ページでトークンを送信し、HttpOnly / SameSite=Lax / Secure な Cookie に保存します。
+- API クライアントは `Authorization: Bearer <token>` でも認証できます。
+- Cookie は7日で失効します。ログアウトする場合は `POST /api/logout` を呼び出してください。
 
 ## PM / Codexレビュー運用
 

@@ -7,8 +7,19 @@ import {
   WorkspaceStreamPill,
   WorkspaceStreamPillFallback,
 } from "@/components/layout/workspace-summary";
+import { canRenderProtectedShell } from "@/lib/access-control";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export async function AppShell({ children }: { children: React.ReactNode }) {
+  const showWorkspaceShell = await canRenderProtectedShell();
+
+  if (!showWorkspaceShell) {
+    return (
+      <div className="min-h-screen bg-[#fbfaf5] text-[#312d27]">
+        <main className="min-h-screen">{children}</main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen overflow-hidden bg-[#f4f1e8] text-[#312d27]">
       <div className="grid h-9 grid-cols-[1fr_auto_1fr] items-center border-b border-[#cfc6b8] bg-[#e8e2d7] px-4 text-xs text-[#70675b]">

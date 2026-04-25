@@ -17,6 +17,13 @@ export default async function ProjectDetailPage({
 }) {
   const { id } = await params;
   const projectResult = await getProject(id);
+  if (projectResult.error) {
+    if (projectResult.error.status === 404) {
+      notFound();
+    }
+    throw new Error(projectResult.error.message);
+  }
+
   const project = projectResult.data;
 
   if (!project) {

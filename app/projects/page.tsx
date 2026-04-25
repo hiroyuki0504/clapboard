@@ -8,6 +8,10 @@ export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {
   const projectsResult = await getProjects();
+  if (projectsResult.error) {
+    throw new Error(projectsResult.error.message);
+  }
+
   const projects = projectsResult.data;
 
   return (

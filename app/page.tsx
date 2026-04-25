@@ -30,6 +30,10 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const projectsResult = await getProjects();
+  if (projectsResult.error) {
+    throw new Error(projectsResult.error.message);
+  }
+
   const projectList = projectsResult.data;
   const allFiles = getProjectFiles(projectList);
   const allMinutes = getProjectMinutes(projectList);
