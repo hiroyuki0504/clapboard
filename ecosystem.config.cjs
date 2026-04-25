@@ -17,6 +17,10 @@ module.exports = {
       env_production: {
         NODE_ENV: "production",
         PORT: 3000,
+        // 機密値は GitHub Actions secrets / vars から process.env に注入される。
+        // pm2 start --update-env でこの内容が更新される。
+        CLAPBOARD_SESSION_SECRET: process.env.CLAPBOARD_SESSION_SECRET,
+        CLAPBOT_FILES_ROOT: process.env.CLAPBOT_FILES_ROOT,
       },
 
       // プロセス管理
