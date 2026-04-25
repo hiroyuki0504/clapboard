@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { SESSION_COOKIE } from "@/middleware";
+import { SESSION_COOKIE, createSessionValue } from "@/middleware";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   );
   response.cookies.set({
     name: SESSION_COOKIE,
-    value: "1",
+    value: createSessionValue(),
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -39,4 +39,3 @@ export async function POST(request: Request) {
   });
   return response;
 }
-
