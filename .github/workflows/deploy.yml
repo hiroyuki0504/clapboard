@@ -1,0 +1,89 @@
+name: Deploy to Mac mini
+
+on:
+  push:
+    branches:
+      - main
+  # 手動実行も可能
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    # Mac mini に登録した self-hosted runner で実行
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".node-version"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Type check
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Validate required secrets / vars
+        env:
+          CLAPBOARD_SESSION_SECRET: ${{ secrets.CLAPBOARD_SESSION_SECRET }}
+          CLAPBOT_FILES_ROOT: ${{ vars.CLAPBOT_FILES_ROOT }}
+        run: |
+          missing=()
+          [ -z "${CLAPBOARD_SESSION_SECRET}" ] && missing+=("secrets.CLAPBOARD_SESSION_SECRET")
+          [ -z "${CLAPBOT_FILES_ROOT}" ] && missing+=("vars.CLAPBOT_FILES_ROOT")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "✗ missing required configuration:"
+            for m in "${missing[@]}"; do echo "  - $m"; done
+            echo "  Configure them in repo settings (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          echo "✓ required secrets / vars present"
+
+      - name: Build
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Reload PM2 process
+        env:
+          CLAPBOARD_SESSION_SECRET: ${{ secrets.CLAPBOARD_SESSION_SECRET }}
+          CLAPBOT_FILES_ROOT: ${{ vars.CLAPBOT_FILES_ROOT }}
+        run: |
+          # pm2 がなければインストール
+          if ! command -v pm2 &>/dev/null; then
+            npm install -g pm2
+          fi
+
+          if pm2 describe clapboard &>/dev/null; then
+            pm2 reload clapboard --update-env
+          else
+            pm2 start ecosystem.config.cjs --env production --update-env
+          fi
+
+          pm2 save
+
+      - name: Health check
+        run: |
+          sleep 3
+          # 1) 基本疎通
+          curl -fsS http://localhost:3000/api/health | grep -q '"ok"' \
+            || (echo "✗ /api/health failed"; pm2 logs clapboard --lines 30 --nostream; exit 1)
+          # 2) 認証ミドルウェアが起動していること (未認証 /api/files は 401)
+          status=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/files)
+          if [ "$status" != "401" ]; then
+            echo "✗ /api/files unauth check expected 401, got $status (auth middleware mis-configured?)"
+            pm2 logs clapboard --lines 30 --nostream
+            exit 1
+          fi
+          echo "✓ health checks passed (api/health ok, api/files auth=401)"

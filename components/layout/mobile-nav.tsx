@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { railItems } from "./sidebar";
 
-export function MobileNav({ agentSummary }: { agentSummary?: React.ReactNode }) {
+export function MobileNav() {
   const [open, setOpen] = useState(false);
   const [currentHash, setCurrentHash] = useState("");
   const pathname = usePathname();

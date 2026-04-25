@@ -8,6 +8,26 @@ import { buildDateLabel } from "@/lib/utils";
 
 const titles = [
   {
+    match: "/graph",
+    label: "関係グラフ",
+    caption: "ワーク・タスク・ファイルのつながりを確認",
+  },
+  {
+    match: "/command",
+    label: "コマンドセンター",
+    caption: "AIへの指示と実行ログを追跡",
+  },
+  {
+    match: "/timeline",
+    label: "タイムライン",
+    caption: "予定と進捗を時間軸で確認",
+  },
+  {
+    match: "/code-review",
+    label: "レビュー管制",
+    caption: "PRとレビュー状態を管理",
+  },
+  {
     match: "/projects",
     label: "案件一覧",
     caption: "すべての案件と進捗を一覧",

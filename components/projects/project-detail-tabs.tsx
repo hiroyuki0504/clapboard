@@ -168,6 +168,12 @@ export function ProjectDetailTabs({
     setReviewError("");
   }, [project.id, project.minutes]);
 
+  useEffect(() => {
+    document.querySelector<HTMLButtonElement>(
+      `[data-project-detail-tab="${activeTab}"]`,
+    )?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [activeTab]);
+
   async function handleImportChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
@@ -228,6 +234,44 @@ export function ProjectDetailTabs({
       "",
       `${url.pathname}${url.search}${url.hash}`,
     );
+  }
+
+  function selectAndFocusTab(tabKey: TabKey) {
+    handleSelectTab(tabKey);
+    window.requestAnimationFrame(() => {
+      const tabButton = document.querySelector<HTMLButtonElement>(
+        `[data-project-detail-tab="${tabKey}"]`,
+      );
+
+      tabButton?.scrollIntoView({ block: "nearest", inline: "center" });
+      tabButton?.focus();
+    });
+  }
+
+  function handleTabKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    tabKey: TabKey,
+  ) {
+    const currentIndex = tabs.findIndex((tab) => tab.key === tabKey);
+    const lastIndex = tabs.length - 1;
+    let nextIndex: number | null = null;
+
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      nextIndex = currentIndex === lastIndex ? 0 : currentIndex + 1;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      nextIndex = currentIndex === 0 ? lastIndex : currentIndex - 1;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = lastIndex;
+    }
+
+    if (nextIndex === null) {
+      return;
+    }
+
+    event.preventDefault();
+    selectAndFocusTab(tabs[nextIndex].key);
   }
 
   function handleSelectReviewSource(sourceId: string) {
@@ -357,15 +401,18 @@ export function ProjectDetailTabs({
               key={tab.key}
               role="tab"
               aria-selected={active}
+              tabIndex={active ? 0 : -1}
+              data-project-detail-tab={tab.key}
               onClick={() => handleSelectTab(tab.key)}
+              onKeyDown={(event) => handleTabKeyDown(event, tab.key)}
               className={cn(
-                "inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-bold text-[#70675b] transition",
+                "inline-flex h-10 min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-bold text-[#70675b] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c95d3a] sm:flex-1 sm:px-4",
                 active && "bg-[#312d27] text-white shadow-sm",
                 !active && "hover:bg-[#fffefa] hover:text-[#312d27]",
               )}
               type="button"
             >
-              <Icon className="h-4 w-4" aria-hidden />
+              <Icon className="h-4 w-4 shrink-0" aria-hidden />
               {tab.label}
             </button>
           );
@@ -969,7 +1016,7 @@ function SuggestionSection({
                 />
               ) : (
                 <p className="mt-3 text-sm leading-6 text-[#5f574d]">
-                  {suggestion.draftText}
+                  {formatSuggestionText(suggestion.draftText)}
                 </p>
               )}
 
@@ -1275,6 +1322,15 @@ function normalizeContextSearchText(text: string) {
     .replace(/^\[[ x]\]\s*/i, "")
     .trim()
     .toLowerCase();
+}
+
+function formatSuggestionText(text: string) {
+  return text
+    .replace(/^missing-assignee:\s*/, "担当未設定: ")
+    .replace(/^missing-due-date:\s*/, "期限未設定: ")
+    .replace(/^unresolved-decision:\s*/, "未確定判断: ")
+    .replace(/^unclear-dependency:\s*/, "依存関係: ")
+    .replace(/^risk:\s*/, "リスク確認: ");
 }
 
 const statusToneMap = {

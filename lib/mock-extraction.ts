@@ -2,7 +2,8 @@ export type ProjectAmbiguityKind =
   | "missing-assignee"
   | "missing-due-date"
   | "unresolved-decision"
-  | "unclear-dependency";
+  | "unclear-dependency"
+  | "risk";
 
 export type ExtractionSuggestion = {
   id: string;
@@ -26,11 +27,16 @@ const HEADING_TYPE_MAP: Record<
   "確認": { type: "ambiguity", ambiguityKind: "unresolved-decision" },
   "保留": { type: "ambiguity", ambiguityKind: "unresolved-decision" },
   "依存": { type: "ambiguity", ambiguityKind: "unclear-dependency" },
+  "リスク": { type: "ambiguity", ambiguityKind: "risk" },
 };
 
 const HEADING_PREFIX_PATTERN = String.raw`(?:(?:[#>*-]+|\d+[.)])\s*)?`;
 
 const DATE_PATTERNS = [
+  /(?:期限|due|deadline|by)[:：\s]*(\d{4}[/-]\d{1,2}[/-]\d{1,2})\b/i,
+  /(?:期限|due|deadline|by)[:：\s]*(\d{1,2}[/-]\d{1,2})\b/i,
+  /(?:期限|due|deadline|by)[:：\s]*(\d{1,2}月\d{1,2}日)/i,
+  /(?:期限|due|deadline|by)[:：\s]*(今週中|来週中|今月中|月曜まで|火曜まで|水曜まで|木曜まで|金曜まで)/i,
   /\b\d{4}[/-]\d{1,2}[/-]\d{1,2}\b/,
   /\b\d{1,2}[/-]\d{1,2}\b/,
   /\d{1,2}月\d{1,2}日/,
@@ -38,7 +44,7 @@ const DATE_PATTERNS = [
 ];
 
 const ASSIGNEE_PATTERNS = [
-  /(?:担当|owner|assignee)[:：]\s*([^\s,、。]+)/i,
+  /(?:担当者?|owner|assignee)[:：]\s*([^\s,、。]+)/i,
   /([^\s,、。]+(?:さん|氏))(?:が|は)/,
 ];
 
@@ -61,7 +67,10 @@ export function extractMinuteSuggestions(text: string): ExtractionSuggestion[] {
       currentSection = headingMatch.type;
       currentSectionAmbiguityKind = headingMatch.ambiguityKind;
 
-      if (headingMatch.content) {
+      if (
+        headingMatch.content &&
+        !(headingMatch.type === "task" && isCompletedChecklistItem(headingMatch.content))
+      ) {
         suggestions.push(
           ...buildSuggestions(
             headingMatch.type,
@@ -84,6 +93,10 @@ export function extractMinuteSuggestions(text: string): ExtractionSuggestion[] {
     const itemText = normalizeItemText(line);
 
     if (!itemText) {
+      return;
+    }
+
+    if (currentSection === "task" && isCompletedChecklistItem(line)) {
       return;
     }
 
@@ -214,6 +227,10 @@ function normalizeItemText(line: string): string {
     .trim();
 }
 
+function isCompletedChecklistItem(line: string) {
+  return /^(?:[-*+]|\d+[.)])?\s*\[x\]\s+/i.test(line);
+}
+
 function matchInlineTaggedLine(
   line: string,
 ): {
@@ -261,8 +278,8 @@ function extractDueDateCandidate(text: string): string | undefined {
   for (const pattern of DATE_PATTERNS) {
     const match = text.match(pattern);
 
-    if (match?.[0]) {
-      return match[0].trim();
+    if (match) {
+      return (match[1] ?? match[0]).trim();
     }
   }
 
@@ -287,6 +304,10 @@ function inferAmbiguityKind(
 
   if (/(依存|待ち|blocker|blocked|先方確認)/i.test(text)) {
     return "unclear-dependency";
+  }
+
+  if (/(リスク|risk|懸念|危険)/i.test(text)) {
+    return "risk";
   }
 
   return "unresolved-decision";

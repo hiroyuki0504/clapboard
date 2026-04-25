@@ -20,6 +20,7 @@ import {
   getActiveProjects,
   getAverageProgress,
   getCompletedTasks,
+  getHighPriorityOpenTaskCount,
   getHighPriorityOpenTasks,
   getOpenTasks,
 } from "@/lib/project-selectors";

@@ -4,12 +4,16 @@ import {
   Bot,
   Check,
   Folder,
+  JapaneseYen,
   LayoutDashboard,
+  Network,
   Search,
   Sparkles,
+  SquareTerminal,
+  TimerReset,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { FileTree } from "./file-tree";
@@ -37,11 +41,39 @@ export const railItems = [
     icon: Folder,
   },
   {
+    label: "グラフ",
+    shortLabel: "グラフ",
+    description: "関係性を可視化",
+    href: "/graph",
+    icon: Network,
+  },
+  {
+    label: "コマンド",
+    shortLabel: "コマンド",
+    description: "AI実行ログと指示",
+    href: "/command",
+    icon: SquareTerminal,
+  },
+  {
+    label: "タイムライン",
+    shortLabel: "タイム",
+    description: "予定と実行履歴",
+    href: "/timeline",
+    icon: TimerReset,
+  },
+  {
     label: "今日のタスク",
     shortLabel: "今日",
     description: "未処理タスク",
     href: "/#todo",
     icon: Check,
+  },
+  {
+    label: "今月の収支",
+    shortLabel: "収支",
+    description: "売上と支出",
+    href: "/#finance",
+    icon: JapaneseYen,
   },
 ];
 
@@ -55,6 +87,7 @@ export function SidebarContent({
   agentSummary,
 }: SidebarContentProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [filter, setFilter] = useState("");
   const [currentHash, setCurrentHash] = useState("");
   const [rootSummary, setRootSummary] = useState<{
@@ -102,6 +135,34 @@ export function SidebarContent({
     [currentHash, pathname],
   );
 
+  const handleNavClick = useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+      onNavigate?.();
+      if (!href.includes("#")) return;
+      if (
+        event.defaultPrevented ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        event.button !== 0
+      ) {
+        return;
+      }
+      event.preventDefault();
+      const [base, hash] = href.split("#");
+      const targetPath = base === "" ? "/" : base;
+      if (pathname === targetPath) {
+        const nextUrl = `${window.location.pathname}${window.location.search}#${hash}`;
+        window.history.pushState(null, "", nextUrl);
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+        return;
+      }
+      router.push(href, { scroll: false });
+    },
+    [onNavigate, pathname, router],
+  );
+
   return (
     <div className="flex h-full w-full">
       <div className="flex w-[68px] shrink-0 flex-col items-center border-r border-[#1d1831] bg-[#221d38] py-3">
@@ -111,9 +172,14 @@ export function SidebarContent({
           className="mb-6 flex h-11 w-11 items-center justify-center rounded-lg bg-[#fffefa] text-[#221d38] shadow-[0_1px_0_rgba(0,0,0,0.22)]"
           aria-label="ホームに戻る"
         >
-          <Sparkles className="h-5 w-5" aria-hidden />
+          <img
+            src="/icon.png"
+            alt=""
+            className="h-8 w-8 rounded-md object-cover"
+            aria-hidden
+          />
         </Link>
-        <nav className="flex flex-1 flex-col items-center gap-2">
+        <nav className="thin-scrollbar flex flex-1 flex-col items-center gap-2 overflow-y-auto">
           {railItems.map((item) => {
             const Icon = item.icon;
             const active = isActiveItem(item);
@@ -122,7 +188,8 @@ export function SidebarContent({
               <Link
                 key={`${item.href}-${item.label}`}
                 href={item.href}
-                onClick={onNavigate}
+                scroll={false}
+                onClick={(event) => handleNavClick(event, item.href)}
                 className={cn(
                   "flex h-11 w-11 items-center justify-center rounded-lg border border-white/12 bg-white/7 text-[#d8d0c6] transition hover:bg-white/14 hover:text-white",
                   active &&
