@@ -35,7 +35,7 @@ function withAuthEnv<T>(env: Record<string, string | undefined>, run: () => T) {
   }
 }
 
-test("development accepts passwor as the default admin secret", () => {
+test("development accepts password as the default admin secret", () => {
   withAuthEnv(
     {
       CLAPBOARD_ACCESS_TOKEN: undefined,
@@ -45,7 +45,7 @@ test("development accepts passwor as the default admin secret", () => {
     },
     () => {
       assert.equal(hasAnyConfiguredCredential(), true);
-      assert.equal(resolveRoleFromSecret("passwor"), "admin");
+      assert.equal(resolveRoleFromSecret("password"), "admin");
     },
   );
 });
