@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import {
   ACCESS_COOKIE_MAX_AGE_SECONDS,
   ACCESS_COOKIE_NAME,
+  JWT_COOKIE_TTL_SECONDS,
   MAX_LOGIN_BODY_BYTES,
   isAccessControlConfigured,
   isProductionRuntime,
+  resolveRoleFromToken,
   verifyAccessToken,
 } from "@/lib/access-control";
 import {
@@ -12,6 +14,7 @@ import {
   CSRF_COOKIE_NAME,
   generateCsrfToken,
 } from "@/lib/csrf-token";
+import { isJwtSecretStrong, signJwt } from "@/lib/jwt";
 import { clientKeyFromHeaders, consumeRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -104,19 +107,34 @@ export async function POST(request: Request) {
     );
   }
 
+  const role = resolveRoleFromToken(token);
+  if (!role) {
+    return NextResponse.json(
+      { error: "unauthorized" },
+      { status: 401, headers: rateLimitHeaders(rate) },
+    );
+  }
+
+  const jwtSecret = process.env.CLAPBOARD_JWT_SECRET;
+  const useJwt = isJwtSecretStrong(jwtSecret);
+  const cookieValue = useJwt
+    ? await signJwt({ role }, jwtSecret as string, JWT_COOKIE_TTL_SECONDS)
+    : token;
+  const cookieMaxAge = useJwt ? JWT_COOKIE_TTL_SECONDS : ACCESS_COOKIE_MAX_AGE_SECONDS;
+
   const csrfToken = generateCsrfToken();
   const response = NextResponse.json(
-    { ok: true, csrfToken },
+    { ok: true, role, csrfToken, mode: useJwt ? "jwt" : "legacy" },
     { status: 200, headers: rateLimitHeaders(rate) },
   );
   response.cookies.set({
     name: ACCESS_COOKIE_NAME,
-    value: token,
+    value: cookieValue,
     httpOnly: true,
     sameSite: "lax",
     secure: isProductionRuntime(),
     path: "/",
-    maxAge: ACCESS_COOKIE_MAX_AGE_SECONDS,
+    maxAge: cookieMaxAge,
   });
   response.cookies.set({
     name: CSRF_COOKIE_NAME,
