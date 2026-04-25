@@ -30,10 +30,10 @@ export default async function ProjectDetailPage({
     <div className="space-y-4">
       <Link
         href="/projects"
-        className="inline-flex items-center gap-2 text-sm font-bold text-[#70675b] transition hover:text-[#312d27]"
+        className="inline-flex items-center gap-2 rounded-md border border-transparent px-2 py-1 text-sm font-bold text-[#70675b] transition hover:border-[#d8d1c4] hover:bg-[#fffefa] hover:text-[#312d27]"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        案件一覧へ戻る
+        案件一覧に戻る
       </Link>
 
       <section className="grid gap-4 lg:grid-cols-[1fr_340px]">
@@ -84,23 +84,25 @@ export default async function ProjectDetailPage({
         <Card className="bg-[#221d38] p-5 text-white">
           <div className="flex items-center gap-2 text-sm font-bold text-[#a9d2a4]">
             <Bot className="h-4 w-4" aria-hidden />
-            OpenClaw Link
+            この画面でできること
           </div>
-          <h3 className="mt-3 text-xl font-black tracking-normal">
-            AI補助の接続準備
+          <h3 className="mt-3 text-lg font-black tracking-normal">
+            案件のすべてを 1 か所で
           </h3>
-          <p className="mt-3 text-sm leading-6 text-[#d8d0c6]">
-            議事録整理、進捗更新、Google Driveファイル分類を同じ案件IDに紐付けられる想定です。
-          </p>
-          <div className="mt-5 rounded-md border border-white/15 bg-white/8 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#bdb5ad]">
-              Agent Status
-            </p>
-            <p className="mt-2 text-sm font-bold">Standby / Mock Mode</p>
-          </div>
-          <div className="mt-4 rounded-sm border border-[#d2a528] bg-[#ffe783] px-3 py-2 text-xs font-bold leading-5 text-[#6f5415]">
-            次フェーズで実行ログ、チャット指示、Drive整理ジョブを接続予定。
-          </div>
+          <ul className="mt-4 space-y-2.5 text-sm leading-6 text-[#d8d0c6]">
+            <li className="flex gap-2">
+              <span aria-hidden>•</span>
+              <span>下のタブを切り替えると、タスク・議事録・収支・ファイルを確認できます。</span>
+            </li>
+            <li className="flex gap-2">
+              <span aria-hidden>•</span>
+              <span>ファイルタブからは Google Drive のリンクを開けます。</span>
+            </li>
+            <li className="flex gap-2">
+              <span aria-hidden>•</span>
+              <span>左上の「案件一覧に戻る」で他の案件に切り替わります。</span>
+            </li>
+          </ul>
         </Card>
       </section>
 

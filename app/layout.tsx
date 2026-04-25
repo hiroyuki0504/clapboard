@@ -3,8 +3,9 @@ import { AppShell } from "@/components/layout/app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ClawBoard | 案件管理ダッシュボード",
-  description: "pm.ymt-systems.com で運用予定の案件管理ダッシュボードMVP",
+  title: "クラップボード — 案件管理",
+  description:
+    "案件、タスク、議事録、収支、ファイルをひとつの画面で確認できる案件管理ツールです。",
 };
 
 export default function RootLayout({

@@ -4,13 +4,10 @@ import {
   Bot,
   Check,
   Folder,
-  Gamepad2,
+  HelpCircle,
   LayoutDashboard,
-  Network,
   Search,
-  Settings,
   Sparkles,
-  SquareTerminal,
   JapaneseYen,
 } from "lucide-react";
 import Link from "next/link";
@@ -27,13 +24,36 @@ function formatSize(bytes: number) {
 }
 
 const railItems = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { label: "案件グラフ", href: "/projects", icon: Network },
-  { label: "Files", href: "/projects", icon: Folder },
-  { label: "ToDo", href: "/#todo", icon: Check },
-  { label: "Agent", href: "/#agent", icon: Bot },
-  { label: "Finance", href: "/#finance", icon: JapaneseYen },
-  { label: "Sandbox", href: "/projects/ai-minutes", icon: Gamepad2 },
+  {
+    label: "ダッシュボード",
+    description: "全体の状況を確認",
+    href: "/",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "案件一覧",
+    description: "すべての案件",
+    href: "/projects",
+    icon: Folder,
+  },
+  {
+    label: "今日のタスク",
+    description: "未処理タスク",
+    href: "/#todo",
+    icon: Check,
+  },
+  {
+    label: "今月の収支",
+    description: "売上と支出",
+    href: "/#finance",
+    icon: JapaneseYen,
+  },
+  {
+    label: "使い方ガイド",
+    description: "初めての方はこちら",
+    href: "/#guide",
+    icon: HelpCircle,
+  },
 ];
 
 export function Sidebar() {
@@ -50,63 +70,58 @@ export function Sidebar() {
 
   return (
     <aside className="hidden shrink-0 md:flex">
-      <div className="flex w-[58px] flex-col items-center border-r border-[#1d1831] bg-[#221d38] py-3">
+      <div className="flex w-[68px] flex-col items-center border-r border-[#1d1831] bg-[#221d38] py-3">
         <Link
           href="/"
           className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-[#fffefa] text-[#221d38] shadow-[0_1px_0_rgba(0,0,0,0.22)]"
-          aria-label="ClawBoard home"
+          aria-label="ホームに戻る"
         >
           <Sparkles className="h-5 w-5" aria-hidden />
         </Link>
         <nav className="flex flex-1 flex-col items-center gap-2">
           {railItems.map((item) => {
             const Icon = item.icon;
+            const baseHref = item.href.split("#")[0];
             const active =
               item.href === "/"
                 ? pathname === "/"
-                : pathname.startsWith(item.href.split("#")[0]);
+                : pathname.startsWith(baseHref) && baseHref !== "";
 
             return (
               <Link
                 key={`${item.href}-${item.label}`}
                 href={item.href}
                 className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-lg border border-white/12 bg-white/7 text-[#d8d0c6] transition hover:bg-white/14 hover:text-white",
+                  "flex w-12 flex-col items-center gap-1 rounded-lg border border-white/12 bg-white/7 px-1.5 py-2 text-center text-[10px] font-bold leading-tight text-[#d8d0c6] transition hover:bg-white/14 hover:text-white",
                   active &&
                     "border-[#d66b43] bg-[#cf623d] text-white hover:bg-[#cf623d]",
                 )}
-                aria-label={item.label}
-                title={item.label}
+                aria-label={`${item.label} — ${item.description}`}
+                title={`${item.label}\n${item.description}`}
               >
                 <Icon className="h-4 w-4" aria-hidden />
+                <span className="block w-full truncate">{item.label}</span>
               </Link>
             );
           })}
         </nav>
-        <Link
-          href="#"
-          className="mt-4 flex h-10 w-10 items-center justify-center rounded-lg border border-white/12 bg-white/7 text-[#d8d0c6]"
-          aria-label="Command console"
-        >
-          <SquareTerminal className="h-4 w-4" aria-hidden />
-        </Link>
       </div>
 
-      <div className="thin-scrollbar w-[242px] overflow-y-auto border-r border-[#d2c8b8] bg-[#f1eee5]/94 px-3 py-4">
-        <div className="mb-3 flex items-center justify-between text-xs font-bold uppercase tracking-[0.18em] text-[#71685d]">
-          <span>Files</span>
-          <div className="flex items-center gap-2">
-            <Search className="h-3.5 w-3.5" aria-hidden />
-            <span>+</span>
-          </div>
+      <div className="thin-scrollbar w-[260px] overflow-y-auto border-r border-[#d2c8b8] bg-[#f1eee5]/94 px-3 py-4">
+        <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-[0.18em] text-[#71685d]">
+          <span>デスクトップのファイル</span>
         </div>
-        <label className="mb-4 flex h-9 items-center gap-2 rounded-md border border-[#c8c0b4] bg-[#fffefa] px-3 text-sm text-[#8b8175]">
+        <p className="mb-3 text-[11px] leading-5 text-[#81786d]">
+          このパソコンの ~/Desktop の中身です。フォルダをクリックすると中身が見えます。
+        </p>
+        <label className="mb-3 flex h-9 items-center gap-2 rounded-md border border-[#c8c0b4] bg-[#fffefa] px-3 text-sm text-[#8b8175]">
           <Search className="h-3.5 w-3.5" aria-hidden />
           <input
             className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[#9a9084]"
-            placeholder="files / contents..."
+            placeholder="名前で絞り込み..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
+            aria-label="ファイルを名前で絞り込み"
           />
         </label>
 
@@ -116,21 +131,14 @@ export function Sidebar() {
           <div className="flex items-center gap-2 rounded-lg border border-[#c8c0b4] bg-[#fffefa] p-3">
             <Bot className="h-4 w-4 text-[#5f8b5b]" aria-hidden />
             <div>
-              <p className="font-bold text-[#312d27]">OpenClaw Ready</p>
+              <p className="font-bold text-[#312d27]">デスクトップ概要</p>
               <p className="mt-1">
                 {rootSummary
-                  ? `${rootSummary.count} items ・ ${formatSize(rootSummary.sizeBytes)}`
-                  : "scanning..."}
+                  ? `${rootSummary.count}件 ・ 合計 ${formatSize(rootSummary.sizeBytes)}`
+                  : "読み込み中..."}
               </p>
             </div>
           </div>
-          <Link
-            href="#"
-            className="mt-3 flex items-center gap-2 px-2 py-2 text-[#70675b]"
-          >
-            <Settings className="h-4 w-4" aria-hidden />
-            Settings
-          </Link>
         </div>
       </div>
     </aside>
