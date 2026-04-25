@@ -12,7 +12,7 @@ import {
   SquareTerminal,
   UserCheck,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCodeReviewSystem } from "@/lib/clapboard-api";
 import {
@@ -26,7 +26,7 @@ import { cn, formatDateTime } from "@/lib/utils";
 
 const branchStatusMeta: Record<
   BranchWorkstreamStatus,
-  { label: string; tone: "blue" | "green" | "amber" | "red" | "slate" | "purple" }
+  { label: string; tone: BadgeTone }
 > = {
   design: { label: "設計中", tone: "purple" },
   implementing: { label: "実装中", tone: "blue" },
@@ -37,7 +37,7 @@ const branchStatusMeta: Record<
 
 const reviewStateMeta: Record<
   ReviewState,
-  { label: string; tone: "blue" | "green" | "amber" | "red" | "slate" | "purple" }
+  { label: string; tone: BadgeTone }
 > = {
   queued: { label: "投入待ち", tone: "amber" },
   running: { label: "レビュー中", tone: "blue" },
@@ -47,7 +47,7 @@ const reviewStateMeta: Record<
 
 const mergeGateMeta: Record<
   MergeGate,
-  { label: string; tone: "blue" | "green" | "amber" | "red" | "slate" | "purple" }
+  { label: string; tone: BadgeTone }
 > = {
   open: { label: "確認中", tone: "blue" },
   blocked: { label: "ブロック", tone: "red" },
@@ -62,11 +62,7 @@ const riskMeta = {
 
 const priorityMeta: Record<
   ReviewPriority,
-  {
-    rank: 1 | 2 | 3 | 4;
-    label: string;
-    tone: "blue" | "green" | "amber" | "red" | "slate" | "purple";
-  }
+  { rank: 1 | 2 | 3 | 4; label: string; tone: BadgeTone }
 > = {
   crucial: { rank: 1, label: "Crucial", tone: "red" },
   high: { rank: 2, label: "High Priority", tone: "amber" },
@@ -76,7 +72,7 @@ const priorityMeta: Record<
 
 const commentStatusMeta: Record<
   ReviewCommentStatus,
-  { label: string; tone: "blue" | "green" | "amber" | "red" | "slate" | "purple" }
+  { label: string; tone: BadgeTone }
 > = {
   open: { label: "未対応", tone: "red" },
   fixed: { label: "対応済み", tone: "green" },

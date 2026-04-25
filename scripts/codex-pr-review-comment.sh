@@ -92,9 +92,11 @@ if [[ -z "$TITLE" ]]; then
   TITLE="Codex PR review"
 fi
 
+MARKER="<!-- clapboard-codex-pr-review -->"
 review_output="$(mktemp)"
 body_file="$(mktemp)"
-trap 'rm -f "$review_output" "$body_file"' EXIT
+api_body_file="$(mktemp)"
+trap 'rm -f "$review_output" "$body_file" "$api_body_file"' EXIT
 
 review_args=(--base "$BASE_BRANCH" --model "$MODEL" --title "$TITLE")
 
@@ -105,7 +107,7 @@ fi
 scripts/codex-pr-review.sh "${review_args[@]}" | tee "$review_output"
 
 {
-  printf '<!-- clapboard-codex-pr-review -->\n'
+  printf '%s\n' "$MARKER"
   printf '## Codex PR Review\n\n'
   printf '- Model: `%s`\n' "$MODEL"
   printf '- Base: `%s`\n' "$BASE_BRANCH"
@@ -126,4 +128,17 @@ if [[ -z "$PR_NUMBER" ]]; then
   exit 1
 fi
 
-gh pr review "$PR_NUMBER" --comment --body-file "$body_file"
+REPO="$(gh repo view --json nameWithOwner --jq '.nameWithOwner')"
+EXISTING_COMMENT_ID="$(
+  gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate \
+    --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" |
+    tail -n 1
+)"
+
+if [[ -n "$EXISTING_COMMENT_ID" ]]; then
+  node -e "const fs=require('fs'); fs.writeFileSync(process.argv[2], JSON.stringify({body: fs.readFileSync(process.argv[1], 'utf8')}));" "$body_file" "$api_body_file"
+  gh api --method PATCH "repos/$REPO/issues/comments/$EXISTING_COMMENT_ID" \
+    --input "$api_body_file" >/dev/null
+else
+  gh pr comment "$PR_NUMBER" --body-file "$body_file"
+fi

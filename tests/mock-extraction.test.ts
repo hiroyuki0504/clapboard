@@ -78,6 +78,52 @@ TODO: 田中さんが 4/30までにQA観点を整理
     ]);
   });
 
+  it("extracts explicit assignee and due date labels", () => {
+    const suggestions = extractMinuteSuggestions(`
+## TODO
+- 担当者: 鈴木 期限: 2026-05-02 までにレビュー観点をまとめる
+TODO: owner: Lee by 5/8 finalize demo script
+`);
+
+    assert.deepEqual(suggestions, [
+      {
+        id: "suggestion-3-0-task",
+        type: "task",
+        text: "担当者: 鈴木 期限: 2026-05-02 までにレビュー観点をまとめる",
+        assigneeCandidate: "鈴木",
+        dueDateCandidate: "2026-05-02",
+        status: "pending",
+      },
+      {
+        id: "suggestion-4-0-task",
+        type: "task",
+        text: "owner: Lee by 5/8 finalize demo script",
+        assigneeCandidate: "Lee",
+        dueDateCandidate: "5/8",
+        status: "pending",
+      },
+    ]);
+  });
+
+  it("does not extract completed checklist tasks", () => {
+    const suggestions = extractMinuteSuggestions(`
+## TODO
+- [x] 担当: 佐藤 4/30までに完了済みの確認
+- [ ] 担当: 田中 5/1までに残タスクを確認
+`);
+
+    assert.deepEqual(suggestions, [
+      {
+        id: "suggestion-4-0-task",
+        type: "task",
+        text: "担当: 田中 5/1までに残タスクを確認",
+        assigneeCandidate: "田中",
+        dueDateCandidate: "5/1",
+        status: "pending",
+      },
+    ]);
+  });
+
   it("adds missing-field ambiguities for tasks without assignee or due date", () => {
     const suggestions = extractMinuteSuggestions(`
 ## TODO

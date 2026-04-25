@@ -6,6 +6,7 @@ import {
 } from "@/lib/clapboard-api";
 
 export const dynamic = "force-dynamic";
+const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 
 export async function GET(
   _request: Request,
@@ -17,7 +18,10 @@ export async function GET(
   const error = publicApiError(result.error);
 
   if (error) {
-    return NextResponse.json(error, { status: error.status });
+    return NextResponse.json(error, {
+      headers: NO_STORE_HEADERS,
+      status: error.status,
+    });
   }
 
   if (!result.data) {
@@ -28,7 +32,7 @@ export async function GET(
         connected: result.connected,
         fallbackReason,
       },
-      { status: 404 },
+      { headers: NO_STORE_HEADERS, status: 404 },
     );
   }
 
@@ -37,5 +41,5 @@ export async function GET(
     source: result.source,
     connected: result.connected,
     fallbackReason,
-  });
+  }, { headers: NO_STORE_HEADERS });
 }

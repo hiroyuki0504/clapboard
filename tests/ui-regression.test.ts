@@ -88,4 +88,11 @@ test("ProjectDetailTabs keeps URL query tab synchronization", () => {
   assert.match(source, /url\.searchParams\.set\("tab", tabKey\)/);
   assert.match(source, /url\.searchParams\.delete\("tab"\)/);
   assert.match(source, /window\.history\.pushState/);
+  assert.match(source, /onKeyDown=\{\(event\) => handleTabKeyDown\(event, tab\.key\)\}/);
+  assert.match(source, /event\.key === "ArrowRight"/);
+  assert.match(source, /event\.key === "ArrowLeft"/);
+  assert.match(source, /event\.key === "Home"/);
+  assert.match(source, /event\.key === "End"/);
+  assert.match(source, /tabIndex=\{active \? 0 : -1\}/);
+  assert.match(source, /whitespace-nowrap/);
 });

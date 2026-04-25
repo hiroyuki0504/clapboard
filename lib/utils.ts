@@ -48,10 +48,34 @@ export function formatCurrency(value: number) {
 
 const INVALID_DATE_PLACEHOLDER = "—";
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
+const APP_TIME_ZONE = "Asia/Tokyo";
 
-function safeDate(value: string): Date | null {
+export function isDateOnly(value: string) {
+  return formatDateOnly(value) !== null;
+}
+
+export function safeDate(value: string | undefined | null): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  if (isDateOnly(value)) {
+    const dateOnlyLabel = formatDateOnly(value);
+
+    if (!dateOnlyLabel) {
+      return null;
+    }
+
+    return new Date(`${dateOnlyLabel.replaceAll("/", "-")}T00:00:00+09:00`);
+  }
+
   const date = new Date(value);
+
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function safeDateTime(value: string | undefined, fallback: number): number {
+  return safeDate(value)?.getTime() ?? fallback;
 }
 
 function formatDateOnly(value: string) {
@@ -96,7 +120,7 @@ export function formatDate(value: string) {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    timeZone: "Asia/Tokyo",
+    timeZone: APP_TIME_ZONE,
   }).format(date);
 }
 
@@ -111,6 +135,31 @@ export function formatDateTime(value: string) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "Asia/Tokyo",
+    timeZone: APP_TIME_ZONE,
+  }).format(date);
+}
+
+export function formatLogTime(value: string | undefined) {
+  const date = safeDate(value);
+
+  if (!date) {
+    return "--:--";
+  }
+
+  if (value && isDateOnly(value)) {
+    return new Intl.DateTimeFormat("ja-JP", {
+      month: "2-digit",
+      day: "2-digit",
+      timeZone: APP_TIME_ZONE,
+    }).format(date);
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: APP_TIME_ZONE,
   }).format(date);
 }
