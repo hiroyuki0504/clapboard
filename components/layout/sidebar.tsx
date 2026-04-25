@@ -42,18 +42,21 @@ export const railItems = [
   },
   {
     label: "グラフ",
+    shortLabel: "グラフ",
     description: "関係性を可視化",
     href: "/graph",
     icon: Network,
   },
   {
     label: "コマンド",
+    shortLabel: "コマンド",
     description: "AI実行ログと指示",
     href: "/command",
     icon: SquareTerminal,
   },
   {
     label: "タイムライン",
+    shortLabel: "タイム",
     description: "予定と実行履歴",
     href: "/timeline",
     icon: TimerReset,
