@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeShape } from "@/components/ui/badge";
 import type { ProjectStatus, TaskPriority } from "@/lib/types";
 
 export const statusMeta: Record<
@@ -21,9 +21,35 @@ export const priorityMeta: Record<
   low: { label: "低", tone: "blue" },
 };
 
-export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
+function splitEveryTwoChars(label: string): string[] {
+  return Array.from(label.match(/.{1,2}/gu) ?? [label]);
+}
+
+export function ProjectStatusBadge({
+  status,
+  shape = "default",
+}: {
+  status: ProjectStatus;
+  shape?: BadgeShape;
+}) {
   const meta = statusMeta[status];
-  return <Badge tone={meta.tone}>{meta.label}</Badge>;
+  if (shape === "vertical") {
+    return (
+      <Badge tone={meta.tone} shape="vertical">
+        <span className="sr-only">{meta.label}</span>
+        {splitEveryTwoChars(meta.label).map((line, index) => (
+          <span key={index} className="block" aria-hidden>
+            {line}
+          </span>
+        ))}
+      </Badge>
+    );
+  }
+  return (
+    <Badge tone={meta.tone} shape={shape}>
+      {meta.label}
+    </Badge>
+  );
 }
 
 export function PriorityBadge({ priority }: { priority: TaskPriority }) {
