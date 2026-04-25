@@ -3,13 +3,10 @@
 import {
   Bot,
   Check,
-  FileText,
   Folder,
-  FolderOpen,
   Gamepad2,
   LayoutDashboard,
   Network,
-  PanelLeft,
   Search,
   Settings,
   Sparkles,
@@ -19,6 +16,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { FileTree } from "./file-tree";
 
 const railItems = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -28,39 +26,6 @@ const railItems = [
   { label: "Agent", href: "/#agent", icon: Bot },
   { label: "Finance", href: "/#finance", icon: JapaneseYen },
   { label: "Sandbox", href: "/projects/ai-minutes", icon: Gamepad2 },
-];
-
-const tree = [
-  {
-    label: "01_案件・リサーチ",
-    open: true,
-    children: ["クラウドワークス_抽出", "Lancers_抽出", "案件サマリ_0423.md"],
-  },
-  {
-    label: "02_ナレッジ",
-    open: true,
-    children: ["議事録_音声起こし", "product_spec.pdf", "競合比較.xlsx"],
-  },
-  {
-    label: "03_収支・日報",
-    open: false,
-    children: [],
-  },
-  {
-    label: "04_開発",
-    open: false,
-    children: [],
-  },
-  {
-    label: "05_共有_大容量",
-    open: false,
-    children: [],
-  },
-  {
-    label: "99_archive",
-    open: false,
-    children: [],
-  },
 ];
 
 export function Sidebar() {
@@ -126,40 +91,7 @@ export function Sidebar() {
           />
         </label>
 
-        <div className="space-y-1 text-sm text-[#5f574d]">
-          {tree.map((folder) => (
-            <div key={folder.label}>
-              <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
-                {folder.open ? (
-                  <FolderOpen className="h-4 w-4 text-[#8b8175]" aria-hidden />
-                ) : (
-                  <Folder className="h-4 w-4 text-[#8b8175]" aria-hidden />
-                )}
-                <span className="truncate">{folder.label}</span>
-              </div>
-              {folder.open && (
-                <div className="ml-5 space-y-1 border-l border-[#ddd5c8] pl-2">
-                  {folder.children.map((child) => {
-                    const selected = child.includes("案件サマリ");
-                    return (
-                      <Link
-                        key={child}
-                        href={selected ? "/projects/ai-minutes" : "/projects"}
-                        className={cn(
-                          "flex items-center gap-2 rounded-md px-2 py-1.5 text-[#696158] transition hover:bg-[#e5dfd2]",
-                          selected && "bg-[#f1cfc2] text-[#9a4a31]",
-                        )}
-                      >
-                        <FileText className="h-3.5 w-3.5" aria-hidden />
-                        <span className="truncate">{child}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+        <FileTree />
 
         <div className="mt-5 border-t border-[#d8d0c4] pt-4 text-xs text-[#81786d]">
           <div className="flex items-center gap-2 rounded-lg border border-[#c8c0b4] bg-[#fffefa] p-3">
