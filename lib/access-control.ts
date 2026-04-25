@@ -6,9 +6,13 @@ import {
   ACCESS_COOKIE_NAME,
   MAX_LOGIN_BODY_BYTES,
   MIN_ACCESS_TOKEN_LENGTH,
+  hasAnyConfiguredRole,
   isAccessTokenStrong,
+  resolveRole,
+  roleAtLeast,
   sanitizeRedirectPath,
   timingSafeEquals,
+  type Role,
 } from "@/lib/access-token";
 
 export {
@@ -16,15 +20,17 @@ export {
   ACCESS_COOKIE_NAME,
   MAX_LOGIN_BODY_BYTES,
   MIN_ACCESS_TOKEN_LENGTH,
+  hasAnyConfiguredRole,
   isAccessTokenStrong,
+  resolveRole,
+  roleAtLeast,
   sanitizeRedirectPath,
   timingSafeEquals,
 };
-
-const accessToken = process.env.CLAPBOARD_ACCESS_TOKEN;
+export type { Role };
 
 export function isAccessControlConfigured() {
-  return isAccessTokenStrong(accessToken);
+  return hasAnyConfiguredRole();
 }
 
 export function isProductionRuntime() {
@@ -32,31 +38,32 @@ export function isProductionRuntime() {
 }
 
 export function verifyAccessToken(candidate: string | undefined | null) {
-  if (!accessToken || !candidate || typeof candidate !== "string") {
-    return false;
-  }
+  return resolveRole(candidate) !== null;
+}
 
-  return timingSafeEquals(accessToken, candidate);
+export function resolveRoleFromToken(candidate: string | undefined | null): Role | null {
+  return resolveRole(candidate);
 }
 
 function extractBearer(header: string | null) {
   if (!header || !header.toLowerCase().startsWith("bearer ")) {
     return null;
   }
-
-  return header.slice(7).trim();
+  const value = header.slice(7).trim();
+  return value.length > 0 ? value : null;
 }
 
-export async function canRenderProtectedShell() {
+export async function canRenderProtectedShell(required: Role = "viewer") {
   if (!isAccessControlConfigured()) {
     return !isProductionRuntime();
   }
 
   const [cookieStore, headerStore] = await Promise.all([cookies(), headers()]);
-  const cookieValue = cookieStore.get(ACCESS_COOKIE_NAME)?.value;
-  if (verifyAccessToken(cookieValue)) {
+  const cookieRole = resolveRole(cookieStore.get(ACCESS_COOKIE_NAME)?.value);
+  if (roleAtLeast(cookieRole, required)) {
     return true;
   }
 
-  return verifyAccessToken(extractBearer(headerStore.get("authorization")));
+  const bearer = extractBearer(headerStore.get("authorization"));
+  return roleAtLeast(resolveRole(bearer), required);
 }
