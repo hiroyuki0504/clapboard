@@ -128,7 +128,7 @@ Codexレビュアーのコメントには、必ず次の4段階の優先度を�
 
 ## アクセス制御
 
-- `/`、`/projects`、`/code-review` と保護対象の `/api/*` は `middleware.ts` で保護します。
+- `/`、`/projects`、`/code-review`、`/graph`、`/command`、`/timeline` と保護対象の `/api/*` は `middleware.ts` で保護します。
 - ブラウザは `/login` からCookieを取得します。
 - CIや外部スクリプトは `Authorization: Bearer <token>` を使います。
 - 本番では `CLAPBOARD_PASSWORD` または `CLAPBOARD_ACCESS_TOKEN` を必ず設定します。

@@ -11,7 +11,13 @@ import {
 } from "@/lib/auth";
 
 const PROTECTED_PAGE_PATHS = new Set(["/"]);
-const PROTECTED_PAGE_PREFIXES = ["/projects", "/code-review"];
+const PROTECTED_PAGE_PREFIXES = [
+  "/projects",
+  "/code-review",
+  "/graph",
+  "/command",
+  "/timeline",
+];
 const PUBLIC_API_PATHS = new Set(["/api/health", "/api/login", "/api/logout"]);
 
 const SERVICE_UNAVAILABLE_MESSAGE = "service configuration error";
@@ -136,5 +142,13 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/projects/:path*", "/code-review/:path*", "/api/:path*"],
+  matcher: [
+    "/",
+    "/projects/:path*",
+    "/code-review/:path*",
+    "/graph/:path*",
+    "/command/:path*",
+    "/timeline/:path*",
+    "/api/:path*",
+  ],
 };

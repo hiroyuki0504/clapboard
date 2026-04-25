@@ -78,7 +78,7 @@ CLAPBOARD_API_TIMEOUT_MS=5000
 
 ## 認証
 
-`/`、`/projects`、`/code-review`、保護対象の `/api/*` は middleware で保護します。
+`/`、`/projects`、`/code-review`、`/graph`、`/command`、`/timeline`、保護対象の `/api/*` は middleware で保護します。
 
 ```bash
 CLAPBOARD_PASSWORD=<admin password>
