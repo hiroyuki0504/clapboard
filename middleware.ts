@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   ACCESS_COOKIE_NAME,
+  SAFE_HTTP_METHODS,
   hasAnyConfiguredRole,
+  isProductionRuntime,
   methodRequiresAdmin,
   resolveRole,
+  roleAtLeast,
   sanitizeRedirectPath,
   type Role,
 } from "@/lib/access-token";
 import { evaluateCsrf } from "@/lib/csrf";
+import {
+  CSRF_COOKIE_NAME,
+  CSRF_HEADER_NAME,
+  verifyDoubleSubmit,
+} from "@/lib/csrf-token";
 
 const PROTECTED_PAGE_PREFIXES = ["/projects", "/code-review"];
 const PROTECTED_PAGE_PATHS = new Set(["/"]);
@@ -16,11 +24,27 @@ const PUBLIC_API_PATHS = new Set([
   "/api/health",
   "/api/login",
   "/api/logout",
+  "/api/csrf",
 ]);
+const CSRF_TOKEN_BYPASS_API_PATHS = new Set(["/api/login", "/api/csrf"]);
 
 const SERVICE_UNAVAILABLE_MESSAGE = "service configuration error";
 const UNAUTHORIZED_MESSAGE = "unauthorized";
 const FORBIDDEN_MESSAGE = "forbidden";
+
+function getRequiredPageRole(pathname: string): Role {
+  if (pathname === "/code-review" || pathname.startsWith("/code-review/")) {
+    return "admin";
+  }
+  return "viewer";
+}
+
+function getRequiredApiRole(pathname: string, method: string): Role {
+  if (pathname === "/api/code-review") {
+    return "admin";
+  }
+  return methodRequiresAdmin(method) ? "admin" : "viewer";
+}
 
 function extractBearer(request: NextRequest): string | null {
   const header = request.headers.get("authorization");
@@ -46,7 +70,7 @@ function resolveRequestRole(request: NextRequest): Role | null {
 
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction = isProductionRuntime();
 
   const isApiRoute = PROTECTED_API_PREFIXES.some((prefix) =>
     pathname.startsWith(prefix),
@@ -57,6 +81,10 @@ export function middleware(request: NextRequest) {
       (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
     );
   const isProtectedApi = isApiRoute && !PUBLIC_API_PATHS.has(pathname);
+  const requiredPageRole = isProtectedPage ? getRequiredPageRole(pathname) : null;
+  const requiredApiRole = isProtectedApi
+    ? getRequiredApiRole(pathname, request.method)
+    : null;
 
   if (!isProtectedPage && !isApiRoute) {
     return NextResponse.next();
@@ -75,6 +103,24 @@ export function middleware(request: NextRequest) {
           },
         },
       );
+    }
+
+    const isWriteMethod = !SAFE_HTTP_METHODS.has(request.method.toUpperCase());
+    if (isWriteMethod && !CSRF_TOKEN_BYPASS_API_PATHS.has(pathname)) {
+      const headerToken = request.headers.get(CSRF_HEADER_NAME);
+      const cookieToken = request.cookies.get(CSRF_COOKIE_NAME)?.value ?? null;
+      if (!verifyDoubleSubmit(headerToken, cookieToken)) {
+        return NextResponse.json(
+          { error: FORBIDDEN_MESSAGE, reason: "csrf-token-mismatch" },
+          {
+            status: 403,
+            headers: {
+              "cache-control": "no-store",
+              vary: "origin",
+            },
+          },
+        );
+      }
     }
   }
 
@@ -124,16 +170,28 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isProtectedApi && methodRequiresAdmin(request.method) && role !== "admin") {
-    return NextResponse.json(
-      { error: FORBIDDEN_MESSAGE, reason: "role-insufficient" },
-      {
-        status: 403,
-        headers: {
-          "cache-control": "no-store",
+  if (
+    (requiredPageRole && !roleAtLeast(role, requiredPageRole)) ||
+    (requiredApiRole && !roleAtLeast(role, requiredApiRole))
+  ) {
+    if (isProtectedApi) {
+      return NextResponse.json(
+        { error: FORBIDDEN_MESSAGE, reason: "role-insufficient" },
+        {
+          status: 403,
+          headers: {
+            "cache-control": "no-store",
+          },
         },
+      );
+    }
+    return new NextResponse(FORBIDDEN_MESSAGE, {
+      status: 403,
+      headers: {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "no-store",
       },
-    );
+    });
   }
 
   const response = NextResponse.next();

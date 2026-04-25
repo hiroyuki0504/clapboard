@@ -8,6 +8,7 @@ import {
   MIN_ACCESS_TOKEN_LENGTH,
   hasAnyConfiguredRole,
   isAccessTokenStrong,
+  isProductionRuntime,
   resolveRole,
   roleAtLeast,
   sanitizeRedirectPath,
@@ -22,6 +23,7 @@ export {
   MIN_ACCESS_TOKEN_LENGTH,
   hasAnyConfiguredRole,
   isAccessTokenStrong,
+  isProductionRuntime,
   resolveRole,
   roleAtLeast,
   sanitizeRedirectPath,
@@ -31,10 +33,6 @@ export type { Role };
 
 export function isAccessControlConfigured() {
   return hasAnyConfiguredRole();
-}
-
-export function isProductionRuntime() {
-  return process.env.NODE_ENV === "production";
 }
 
 export function verifyAccessToken(candidate: string | undefined | null) {
