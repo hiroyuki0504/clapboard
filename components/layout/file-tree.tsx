@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
 type Entry = {
@@ -31,6 +31,8 @@ async function fetchDir(rel: string): Promise<Entry[]> {
 function DirNode({
   entry,
   depth,
+  filter,
+  forceOpen,
   openMap,
   setOpenMap,
   cache,
@@ -38,41 +40,58 @@ function DirNode({
 }: {
   entry: Entry;
   depth: number;
+  filter: string;
+  forceOpen: boolean;
   openMap: Record<string, boolean>;
   setOpenMap: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   cache: Record<string, DirState>;
   setCache: React.Dispatch<React.SetStateAction<Record<string, DirState>>>;
 }) {
-  const open = !!openMap[entry.path];
+  const open = forceOpen || !!openMap[entry.path];
   const dirState = cache[entry.path];
+
+  const loadChildren = useCallback(async () => {
+    if (cache[entry.path]?.items || cache[entry.path]?.loading) return;
+    setCache((c) => ({
+      ...c,
+      [entry.path]: { loading: true, error: null, items: null },
+    }));
+    try {
+      const items = await fetchDir(entry.path);
+      setCache((c) => ({
+        ...c,
+        [entry.path]: { loading: false, error: null, items },
+      }));
+    } catch (err) {
+      setCache((c) => ({
+        ...c,
+        [entry.path]: {
+          loading: false,
+          error: err instanceof Error ? err.message : "failed",
+          items: null,
+        },
+      }));
+    }
+  }, [entry.path, cache, setCache]);
+
+  useEffect(() => {
+    if (entry.isDir && forceOpen) {
+      loadChildren();
+    }
+  }, [entry.isDir, forceOpen, loadChildren]);
 
   const toggle = useCallback(async () => {
     setOpenMap((m) => ({ ...m, [entry.path]: !m[entry.path] }));
-    if (!open && !cache[entry.path]?.items) {
-      setCache((c) => ({
-        ...c,
-        [entry.path]: { loading: true, error: null, items: null },
-      }));
-      try {
-        const items = await fetchDir(entry.path);
-        setCache((c) => ({
-          ...c,
-          [entry.path]: { loading: false, error: null, items },
-        }));
-      } catch (err) {
-        setCache((c) => ({
-          ...c,
-          [entry.path]: {
-            loading: false,
-            error: err instanceof Error ? err.message : "failed",
-            items: null,
-          },
-        }));
-      }
+    if (!open) {
+      loadChildren();
     }
-  }, [open, entry.path, cache, setCache, setOpenMap]);
+  }, [open, entry.path, setOpenMap, loadChildren]);
+
+  const matchesFilter =
+    !filter || entry.name.toLowerCase().includes(filter.toLowerCase());
 
   if (!entry.isDir) {
+    if (!matchesFilter) return null;
     return (
       <div
         className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[#696158]"
@@ -82,6 +101,17 @@ function DirNode({
         <span className="truncate">{entry.name}</span>
       </div>
     );
+  }
+
+  const visibleChildren =
+    filter && dirState?.items
+      ? dirState.items.filter((c) =>
+          c.name.toLowerCase().includes(filter.toLowerCase()),
+        )
+      : dirState?.items;
+
+  if (filter && !matchesFilter && visibleChildren?.length === 0) {
+    return null;
   }
 
   return (
@@ -124,23 +154,25 @@ function DirNode({
               {dirState.error}
             </p>
           )}
-          {dirState?.items?.map((child) => (
+          {visibleChildren?.map((child) => (
             <DirNode
               key={child.path}
               entry={child}
               depth={depth + 1}
+              filter={filter}
+              forceOpen={!!filter}
               openMap={openMap}
               setOpenMap={setOpenMap}
               cache={cache}
               setCache={setCache}
             />
           ))}
-          {dirState?.items?.length === 0 && (
+          {!dirState?.loading && visibleChildren?.length === 0 && (
             <p
               className="px-2 py-1 text-xs text-[#9a9084]"
               style={{ paddingLeft: 22 + depth * 14 }}
             >
-              (空)
+              {filter ? "(該当なし)" : "(空)"}
             </p>
           )}
         </div>
@@ -149,7 +181,13 @@ function DirNode({
   );
 }
 
-export function FileTree() {
+export function FileTree({
+  filter = "",
+  onRootSummary,
+}: {
+  filter?: string;
+  onRootSummary?: (summary: { count: number; sizeBytes: number }) => void;
+}) {
   const [root, setRoot] = useState<Entry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
@@ -157,32 +195,52 @@ export function FileTree() {
 
   useEffect(() => {
     fetchDir("")
-      .then((items) => setRoot(items))
+      .then((items) => {
+        setRoot(items);
+        if (onRootSummary) {
+          onRootSummary({
+            count: items.length,
+            sizeBytes: items.reduce((sum, i) => sum + (i.size ?? 0), 0),
+          });
+        }
+      })
       .catch((e: Error) => setError(e.message));
-  }, []);
+  }, [onRootSummary]);
+
+  const visibleRoot = useMemo(() => {
+    if (!root) return null;
+    if (!filter) return root;
+    return root.filter((entry) =>
+      entry.name.toLowerCase().includes(filter.toLowerCase()) || entry.isDir,
+    );
+  }, [root, filter]);
 
   if (error) {
     return <p className="px-2 py-2 text-xs text-[#b14a2c]">{error}</p>;
   }
-  if (!root) {
+  if (!visibleRoot) {
     return <p className="px-2 py-2 text-xs text-[#9a9084]">読み込み中…</p>;
   }
 
   return (
     <div className="space-y-0.5 text-sm text-[#5f574d]">
-      {root.map((entry) => (
+      {visibleRoot.map((entry) => (
         <DirNode
           key={entry.path}
           entry={entry}
           depth={0}
+          filter={filter}
+          forceOpen={!!filter}
           openMap={openMap}
           setOpenMap={setOpenMap}
           cache={cache}
           setCache={setCache}
         />
       ))}
-      {root.length === 0 && (
-        <p className="px-2 py-2 text-xs text-[#9a9084]">(空)</p>
+      {visibleRoot.length === 0 && (
+        <p className="px-2 py-2 text-xs text-[#9a9084]">
+          {filter ? "(該当なし)" : "(空)"}
+        </p>
       )}
     </div>
   );

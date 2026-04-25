@@ -3,7 +3,6 @@ import {
   Bot,
   Check,
   CircleDollarSign,
-  Clock3,
   FileText,
   FolderKanban,
   ListTodo,
@@ -14,6 +13,7 @@ import {
   JapaneseYen,
 } from "lucide-react";
 import Link from "next/link";
+import { MetricCard } from "@/components/dashboard/metric-card";
 import { ProjectStatusBadge } from "@/components/project-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -63,26 +63,34 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-2">
-          <StatPill
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2">
+          <MetricCard
             label="案件数"
             value={`${projects.length}`}
+            helper={`登録済み案件は${projects.length}件`}
             icon={FolderKanban}
+            tone="blue"
           />
-          <StatPill
+          <MetricCard
             label="進行中"
             value={`${activeProjects.length}`}
+            helper={`${activeProjects.length}/${projects.length} が進行中`}
             icon={TrendingUp}
+            tone="green"
           />
-          <StatPill
+          <MetricCard
             label="今月収支"
             value={formatCurrency(monthlyProfit)}
+            helper={monthlyProfit >= 0 ? "黒字維持" : "赤字注意"}
             icon={CircleDollarSign}
+            tone={monthlyProfit >= 0 ? "green" : "rose"}
           />
-          <StatPill
+          <MetricCard
             label="未処理"
             value={`${incompleteTasks.length}`}
+            helper={`高優先度 ${incompleteTasks.filter((t) => t.priority === "high").length}件`}
             icon={ListTodo}
+            tone={incompleteTasks.length > 5 ? "rose" : "amber"}
           />
         </div>
       </section>
@@ -243,28 +251,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </section>
-    </div>
-  );
-}
-
-function StatPill({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string;
-  value: string;
-  icon: React.ElementType;
-}) {
-  return (
-    <div className="rounded-lg border border-[#423c33]/55 bg-[#fffefa] p-3">
-      <div className="mb-2 flex items-center justify-between text-[#81786d]">
-        <span className="text-xs font-bold">{label}</span>
-        <Icon className="h-4 w-4" aria-hidden />
-      </div>
-      <p className="truncate text-lg font-black tracking-normal text-[#312d27]">
-        {value}
-      </p>
     </div>
   );
 }

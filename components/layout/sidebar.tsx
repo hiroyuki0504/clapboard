@@ -15,8 +15,16 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 import { FileTree } from "./file-tree";
+
+function formatSize(bytes: number) {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)}GB`;
+}
 
 const railItems = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -30,6 +38,15 @@ const railItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [filter, setFilter] = useState("");
+  const [rootSummary, setRootSummary] = useState<{
+    count: number;
+    sizeBytes: number;
+  } | null>(null);
+  const handleSummary = useCallback(
+    (s: { count: number; sizeBytes: number }) => setRootSummary(s),
+    [],
+  );
 
   return (
     <aside className="hidden shrink-0 md:flex">
@@ -88,17 +105,23 @@ export function Sidebar() {
           <input
             className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[#9a9084]"
             placeholder="files / contents..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
           />
         </label>
 
-        <FileTree />
+        <FileTree filter={filter} onRootSummary={handleSummary} />
 
         <div className="mt-5 border-t border-[#d8d0c4] pt-4 text-xs text-[#81786d]">
           <div className="flex items-center gap-2 rounded-lg border border-[#c8c0b4] bg-[#fffefa] p-3">
             <Bot className="h-4 w-4 text-[#5f8b5b]" aria-hidden />
             <div>
               <p className="font-bold text-[#312d27]">OpenClaw Ready</p>
-              <p className="mt-1">42 items ・ 1.2GB</p>
+              <p className="mt-1">
+                {rootSummary
+                  ? `${rootSummary.count} items ・ ${formatSize(rootSummary.sizeBytes)}`
+                  : "scanning..."}
+              </p>
             </div>
           </div>
           <Link
