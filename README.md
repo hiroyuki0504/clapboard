@@ -214,11 +214,11 @@ CLI側で利用できるモデルを明示したい場合だけ `--model <model-
 
 Codexレビュアーのコメントは `1. Crucial`、`2. High Priority`、`3. Medium`、`4. Low` の4段階で扱います。PR作成者の必須対応範囲は `Crucial` と `High Priority` までです。
 
-## Vercel
+## 本番運用
 
-- Framework Preset: Next.js
+- 公開URL: `https://clapbot.ymt-systems.com`
 - Build Command: `npm run build`
 - Output Directory: `.next`
-- `package-lock.json` をコミットして、Next.js 15.5.15 と PostCSS override の組み合わせを固定してください。
-- 公開ドメインは Vercel 側で `pm.ymt-systems.com` を追加し、DNS の CNAME/A レコードを案内通りに設定してください。
-- 認証、DB、Google Drive OAuth接続は未実装です。MVPではAPI Route経由の進捗データ取得と外部URL表示まで対応しています。
+- `package-lock.json` をコミットして、Next.js 15.5.15 と PostCSS override の組み合わせを固定します。
+- DNSは `clapbot.ymt-systems.com` を運用環境の案内に従って CNAME または A レコードで設定してください。
+- Vercel前提の `pm.ymt-systems.com` 設定は使用しません。
