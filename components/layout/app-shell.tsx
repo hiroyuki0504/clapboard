@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import {
+  WorkspaceAgentPill,
+  WorkspaceAgentPillFallback,
   SidebarAgentSummary,
   SidebarAgentSummaryFallback,
   WorkspaceStreamPill,
@@ -32,9 +34,9 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           ClawBoard — Progress Management Workspace
         </div>
         <div className="flex justify-end gap-2">
-          <span className="rounded-full border border-[#a8bed4] bg-[#eef4f8] px-3 py-1 text-[#315a78]">
-            Agent: 待機中
-          </span>
+          <Suspense fallback={<WorkspaceAgentPillFallback />}>
+            <WorkspaceAgentPill />
+          </Suspense>
           <Suspense fallback={<WorkspaceStreamPillFallback />}>
             <WorkspaceStreamPill />
           </Suspense>

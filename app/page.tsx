@@ -152,7 +152,7 @@ export default async function DashboardPage() {
             {incompleteTasks.slice(0, 6).map((task, index) => (
               <Link
                 key={`${task.projectId}-${task.id}`}
-                href={`/projects/${task.projectId}`}
+                href={projectDetailHref(task.projectId, "progress")}
                 className="grid grid-cols-[24px_1fr_auto] items-start gap-3 border-b border-dashed border-[#d8d1c4] px-4 py-4 transition last:border-b-0 hover:bg-[#fbfaf5]"
               >
                 <span className="mt-0.5 h-4 w-4 rounded-sm border border-[#777066] bg-[#fffefa]" />
@@ -203,7 +203,7 @@ export default async function DashboardPage() {
             {allMinutes.slice(0, 4).map((minute) => (
               <Link
                 key={minute.id}
-                href={`/projects/${minute.projectId}`}
+                href={projectDetailHref(minute.projectId, "minutes")}
                 className="block border-b border-dashed border-[#d8d1c4] pb-3 transition last:border-b-0 last:pb-0 hover:bg-[#fbfaf5] hover:px-2"
               >
                 <p className="text-sm font-bold text-[#312d27]">{minute.title}</p>
@@ -252,7 +252,10 @@ export default async function DashboardPage() {
             {recentWorkstreams.slice(0, 4).map((project) => (
               <Link
                 key={project.id}
-                href={`/projects/${project.id}`}
+                href={projectDetailHref(
+                  project.id,
+                  getProjectDashboardTab(project),
+                )}
                 className="block rounded-md border border-[#d8d1c4] bg-[#fbfaf5] p-3 transition hover:border-[#c95d3a] hover:bg-[#fffefa]"
               >
                 <div className="mb-2 flex items-center justify-between gap-2">
@@ -286,6 +289,10 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <ProgressAgentLog
+              latestProjectAt={recentWorkstreams[0]?.lastUpdated}
+              latestBlockerAt={getLatestTaskProjectDate(projectList, "high")}
+              nextMilestoneAt={getNextMilestoneDate(activeWorkstreams)}
+              latestMinuteAt={allMinutes[0]?.createdAt}
               streamCount={activeWorkstreams.length}
               blockerCount={blockerTasks.length}
               completedCount={completedTasks.length}
@@ -362,6 +369,30 @@ export default async function DashboardPage() {
       </section>
     </div>
   );
+}
+
+type DetailTab = "overview" | "progress" | "minutes" | "finance" | "files";
+
+function projectDetailHref(projectId: string, tab: DetailTab) {
+  return tab === "overview"
+    ? `/projects/${projectId}`
+    : `/projects/${projectId}?tab=${tab}`;
+}
+
+function getProjectDashboardTab(project: Project): DetailTab {
+  const hasBlocker = project.tasks.some(
+    (task) => !task.completed && task.priority === "high",
+  );
+
+  if (hasBlocker) {
+    return "progress";
+  }
+
+  if (project.minutes.length > 0) {
+    return "minutes";
+  }
+
+  return "overview";
 }
 
 function WelcomeCard() {
@@ -454,12 +485,20 @@ function GuideStep({
 }
 
 function ProgressAgentLog({
+  latestProjectAt,
+  latestBlockerAt,
+  nextMilestoneAt,
+  latestMinuteAt,
   streamCount,
   blockerCount,
   completedCount,
   milestoneCount,
   minuteCount,
 }: {
+  latestProjectAt?: string;
+  latestBlockerAt?: string;
+  nextMilestoneAt?: string;
+  latestMinuteAt?: string;
   streamCount: number;
   blockerCount: number;
   completedCount: number;
@@ -467,18 +506,39 @@ function ProgressAgentLog({
   minuteCount: number;
 }) {
   const entries = [
-    { time: "08:02", label: "progress_scan", result: `${streamCount} streams` },
-    { time: "08:03", label: "blocker_detect", result: `${blockerCount} items` },
-    { time: "10:15", label: "milestone_sync", result: `${milestoneCount} updated` },
-    { time: "10:16", label: "minutes_index", result: `${minuteCount} indexed` },
-    { time: "11:32", label: "report_draft", result: `${completedCount} completed` },
+    {
+      at: latestProjectAt,
+      label: "progress_scan",
+      result: `${streamCount} streams`,
+    },
+    {
+      at: latestBlockerAt,
+      label: "blocker_detect",
+      result: `${blockerCount} items`,
+    },
+    {
+      at: nextMilestoneAt,
+      label: "milestone_sync",
+      result: `${milestoneCount} milestones`,
+    },
+    {
+      at: latestMinuteAt,
+      label: "minutes_index",
+      result: `${minuteCount} indexed`,
+    },
+    {
+      at: latestProjectAt,
+      label: "report_draft",
+      result: `${completedCount} completed`,
+    },
   ];
 
   return (
     <div className="space-y-2 border-l-2 border-[#6e9a66] pl-3 font-mono text-xs leading-6 text-[#4f483f]">
       {entries.map((entry) => (
-        <p key={`${entry.time}-${entry.label}`}>
-          <span className="text-[#8b8175]">{entry.time}</span> {entry.label} -{" "}
+        <p key={`${entry.label}-${entry.result}`}>
+          <span className="text-[#8b8175]">{formatLogTime(entry.at)}</span>{" "}
+          {entry.label} -{" "}
           {entry.result}
         </p>
       ))}
@@ -487,10 +547,17 @@ function ProgressAgentLog({
 }
 
 function DependencyGraphCard({ projects }: { projects: Project[] }) {
-  const focus = projects[0];
+  const focus = [...projects].sort(
+    (a, b) => getProjectBlockerCount(b) - getProjectBlockerCount(a),
+  )[0];
   const focusLabel = focus
     ? `${focus.name.slice(0, 8)} ${focus.progress}%`
     : "進捗未取得";
+  const blocker = focus?.tasks.find(
+    (task) => !task.completed && task.priority === "high",
+  );
+  const minute = focus?.minutes[0];
+  const file = focus?.files[0];
 
   return (
     <Card>
@@ -507,13 +574,13 @@ function DependencyGraphCard({ projects }: { projects: Project[] }) {
             {focusLabel}
           </div>
           <div className="absolute left-32 top-28 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            レビュー待ち
+            {blocker?.title.slice(0, 10) ?? "未完了タスク"}
           </div>
           <div className="absolute right-8 top-20 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            リリース判定
+            {file?.name.slice(0, 10) ?? "関連ファイル"}
           </div>
           <div className="absolute left-48 top-14 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            仕様確定
+            {minute?.title.slice(0, 10) ?? "進捗メモ"}
           </div>
           <span className="absolute left-[82px] top-[78px] h-px w-24 rotate-45 bg-[#c8c0b4]" />
           <span className="absolute left-[178px] top-[94px] h-px w-20 -rotate-45 bg-[#c8c0b4]" />
@@ -525,6 +592,55 @@ function DependencyGraphCard({ projects }: { projects: Project[] }) {
       </CardContent>
     </Card>
   );
+}
+
+function getProjectBlockerCount(project: Project) {
+  return project.tasks.filter(
+    (task) => !task.completed && task.priority === "high",
+  ).length;
+}
+
+function getLatestTaskProjectDate(
+  projects: Project[],
+  priority: Project["tasks"][number]["priority"],
+) {
+  return projects
+    .filter((project) =>
+      project.tasks.some((task) => !task.completed && task.priority === priority),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
+    )[0]?.lastUpdated;
+}
+
+function getNextMilestoneDate(projects: Project[]) {
+  return [...projects].sort(
+    (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
+  )[0]?.dueDate;
+}
+
+function formatLogTime(value?: string) {
+  if (!value) {
+    return "--:--";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return new Intl.DateTimeFormat("ja-JP", {
+      month: "2-digit",
+      day: "2-digit",
+      timeZone: "Asia/Tokyo",
+    }).format(new Date(`${value}T00:00:00+09:00`));
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Tokyo",
+  }).format(new Date(value));
 }
 
 function WeeklyProgressCard({

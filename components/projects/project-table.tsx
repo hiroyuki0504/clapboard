@@ -3,12 +3,29 @@ import { ProjectStatusBadge } from "@/components/project-status-badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { Project } from "@/lib/types";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
-export function ProjectTable({ projects }: { projects: Project[] }) {
+type ProjectTableProps = {
+  projects: Project[];
+  density?: "comfortable" | "compact";
+  showRisk?: boolean;
+};
+
+export function ProjectTable({
+  projects,
+  density = "comfortable",
+  showRisk = true,
+}: ProjectTableProps) {
+  const rowPadding = density === "compact" ? "py-3" : "py-4";
+
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[900px] border-separate border-spacing-0">
+      <table
+        className={cn(
+          "w-full border-separate border-spacing-0",
+          showRisk ? "min-w-[900px]" : "min-w-[780px]",
+        )}
+      >
         <thead>
           <tr className="bg-[#f3f0e7] text-left text-xs font-bold uppercase tracking-[0.14em] text-[#81786d]">
             <th scope="col" className="px-5 py-4">
@@ -26,9 +43,11 @@ export function ProjectTable({ projects }: { projects: Project[] }) {
             <th scope="col" className="px-5 py-4">
               次の節目
             </th>
-            <th scope="col" className="px-5 py-4">
-              リスク
-            </th>
+            {showRisk && (
+              <th scope="col" className="px-5 py-4">
+                リスク
+              </th>
+            )}
             <th scope="col" className="px-5 py-4 text-right">
               開く
             </th>
@@ -46,21 +65,23 @@ export function ProjectTable({ projects }: { projects: Project[] }) {
                 key={project.id}
                 className="group transition hover:bg-[#fbfaf5]"
               >
-                <td className="border-t border-[#ded6ca] px-5 py-4">
+                <td className={cn("border-t border-[#ded6ca] px-5", rowPadding)}>
                   <div>
                     <p className="font-bold text-[#312d27]">{project.name}</p>
-                    <p className="mt-1 line-clamp-1 text-sm text-[#70675b]">
-                      {project.summary}
-                    </p>
+                    {density === "comfortable" && (
+                      <p className="mt-1 line-clamp-1 text-sm text-[#70675b]">
+                        {project.summary}
+                      </p>
+                    )}
                   </div>
                 </td>
-                <td className="border-t border-[#ded6ca] px-5 py-4 text-sm text-[#70675b]">
+                <td className={cn("border-t border-[#ded6ca] px-5 text-sm text-[#70675b]", rowPadding)}>
                   {project.owner}
                 </td>
-                <td className="border-t border-[#ded6ca] px-5 py-4">
+                <td className={cn("border-t border-[#ded6ca] px-5", rowPadding)}>
                   <ProjectStatusBadge status={project.status} />
                 </td>
-                <td className="border-t border-[#ded6ca] px-5 py-4">
+                <td className={cn("border-t border-[#ded6ca] px-5", rowPadding)}>
                   <div className="flex min-w-36 items-center gap-3">
                     <Progress value={project.progress} />
                     <span className="w-10 text-right font-mono text-sm font-bold text-[#70675b]">
@@ -68,26 +89,28 @@ export function ProjectTable({ projects }: { projects: Project[] }) {
                     </span>
                   </div>
                 </td>
-                <td className="border-t border-[#ded6ca] px-5 py-4 text-sm text-[#70675b]">
+                <td className={cn("border-t border-[#ded6ca] px-5 text-sm text-[#70675b]", rowPadding)}>
                   <div className="flex items-center gap-2">
                     <CalendarDays className="h-4 w-4 text-[#8b8175]" aria-hidden />
                     {formatDate(project.dueDate)}
                   </div>
                 </td>
-                <td className="border-t border-[#ded6ca] px-5 py-4">
-                  <div className="flex items-center gap-2 text-sm font-bold text-[#312d27]">
-                    <AlertTriangle
-                      className={
-                        blockers > 0
-                          ? "h-4 w-4 text-[#cf623d]"
-                          : "h-4 w-4 text-[#8bb17f]"
-                      }
-                      aria-hidden
-                    />
-                    {blockers > 0 ? `${blockers}件停滞` : `未完了${openTasks}件`}
-                  </div>
-                </td>
-                <td className="border-t border-[#ded6ca] px-5 py-4 text-right">
+                {showRisk && (
+                  <td className={cn("border-t border-[#ded6ca] px-5", rowPadding)}>
+                    <div className="flex items-center gap-2 text-sm font-bold text-[#312d27]">
+                      <AlertTriangle
+                        className={
+                          blockers > 0
+                            ? "h-4 w-4 text-[#cf623d]"
+                            : "h-4 w-4 text-[#8bb17f]"
+                        }
+                        aria-hidden
+                      />
+                      {blockers > 0 ? `${blockers}件停滞` : `未完了${openTasks}件`}
+                    </div>
+                  </td>
+                )}
+                <td className={cn("border-t border-[#ded6ca] px-5 text-right", rowPadding)}>
                   <ButtonLink
                     href={`/projects/${project.id}`}
                     variant="secondary"
