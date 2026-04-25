@@ -960,7 +960,7 @@ function stripEditableSuggestion(
   return {
     id: suggestion.id,
     type: suggestion.type,
-    text: suggestion.text,
+    text: suggestion.draftText,
     assigneeCandidate: suggestion.assigneeCandidate,
     dueDateCandidate: suggestion.dueDateCandidate,
     status: suggestion.status,

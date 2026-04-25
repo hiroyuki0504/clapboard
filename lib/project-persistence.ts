@@ -78,5 +78,15 @@ export function writeProjectSnapshot(
     return;
   }
 
-  window.localStorage.setItem(getStorageKey(projectId), JSON.stringify(snapshot));
+  try {
+    window.localStorage.setItem(
+      getStorageKey(projectId),
+      JSON.stringify(snapshot),
+    );
+  } catch (error) {
+    console.warn("failed to persist project snapshot", {
+      projectId,
+      error,
+    });
+  }
 }

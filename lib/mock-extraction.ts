@@ -12,6 +12,7 @@ const HEADING_TYPE_MAP: Record<
   "決定事項": { type: "decision" },
   TODO: { type: "task" },
   "次アクション": { type: "task" },
+  "未確定事項": { type: "ambiguity", ambiguityKind: "unresolved-decision" },
   "確認": { type: "ambiguity", ambiguityKind: "unresolved-decision" },
   "保留": { type: "ambiguity", ambiguityKind: "unresolved-decision" },
   "依存": { type: "ambiguity", ambiguityKind: "unclear-dependency" },
@@ -59,6 +60,11 @@ export function extractMinuteSuggestions(text: string): ExtractionSuggestion[] {
         );
       }
 
+      return;
+    }
+
+    if (isUnsupportedMarkdownHeading(line)) {
+      currentSection = null;
       return;
     }
 
@@ -219,6 +225,10 @@ function matchInlineTaggedLine(
   }
 
   return null;
+}
+
+function isUnsupportedMarkdownHeading(line: string) {
+  return /^#{1,6}\s+\S/.test(line);
 }
 
 function extractAssigneeCandidate(text: string): string | undefined {
