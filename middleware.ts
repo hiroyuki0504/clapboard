@@ -9,8 +9,8 @@ import {
 } from "@/lib/access-token";
 import { evaluateCsrf } from "@/lib/csrf";
 
-const PROTECTED_PAGE_PREFIXES = ["/projects", "/code-review"];
-const PROTECTED_PAGE_PATHS = new Set(["/"]);
+const PROTECTED_PAGE_PREFIXES: string[] = [];
+const PROTECTED_PAGE_PATHS = new Set<string>();
 const PROTECTED_API_PREFIXES = ["/api/"];
 const PUBLIC_API_PATHS = new Set([
   "/api/health",
@@ -33,6 +33,28 @@ function extractBearer(request: NextRequest): string | null {
 
 function hasNonEmptyBearer(request: NextRequest) {
   return extractBearer(request) !== null;
+}
+
+function firstHeaderValue(request: NextRequest, name: string): string | null {
+  const raw = request.headers.get(name);
+  if (!raw) return null;
+  const value = raw.split(",")[0]?.trim();
+  return value && value.length > 0 ? value : null;
+}
+
+function buildForwardedRequest(request: NextRequest) {
+  const forwardedProto = firstHeaderValue(request, "x-forwarded-proto");
+  const forwardedHost =
+    firstHeaderValue(request, "x-forwarded-host") ??
+    firstHeaderValue(request, "host");
+  const proto = forwardedProto ?? request.nextUrl.protocol.replace(":", "");
+  const host = forwardedHost ?? request.nextUrl.host;
+  const url = `${proto}://${host}${request.nextUrl.pathname}${request.nextUrl.search}`;
+  return {
+    method: request.method,
+    url,
+    headers: request.headers,
+  };
 }
 
 function resolveRequestRole(request: NextRequest): Role | null {
@@ -63,7 +85,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (isApiRoute && !hasNonEmptyBearer(request)) {
-    const csrf = evaluateCsrf(request);
+    const csrf = evaluateCsrf(buildForwardedRequest(request));
     if (!csrf.ok) {
       return NextResponse.json(
         { error: FORBIDDEN_MESSAGE, reason: csrf.reason },
@@ -142,5 +164,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/projects/:path*", "/code-review/:path*", "/api/:path*"],
+  matcher: ["/api/:path*"],
 };
