@@ -6,21 +6,12 @@ export const runtime = "nodejs";
 
 const CONFIGURED_ROOT_ENV = process.env.CLAPBOT_FILES_ROOT?.trim();
 
-function resolveConfiguredRoot(): string | null {
-  if (CONFIGURED_ROOT_ENV) {
-    return path.resolve(CONFIGURED_ROOT_ENV);
-  }
-  if (process.env.NODE_ENV === "production") {
-    return null;
-  }
-  return path.resolve(process.cwd(), "files");
-}
-
-const CONFIGURED_ROOT = resolveConfiguredRoot();
+const CONFIGURED_ROOT = CONFIGURED_ROOT_ENV
+  ? path.resolve(CONFIGURED_ROOT_ENV)
+  : path.resolve(process.cwd(), "files");
 
 let realRootPromise: Promise<string> | null = null;
-function getRealRoot(): Promise<string> | null {
-  if (!CONFIGURED_ROOT) return null;
+function getRealRoot(): Promise<string> {
   if (!realRootPromise) {
     const root = CONFIGURED_ROOT;
     realRootPromise = fs.realpath(root).catch(() => root);
@@ -44,17 +35,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const rel = url.searchParams.get("path") ?? "";
 
-  const realRootMaybe = getRealRoot();
-  if (!realRootMaybe) {
-    return NextResponse.json(
-      {
-        error:
-          "files root is not configured. Set CLAPBOT_FILES_ROOT to enable file listing.",
-      },
-      { status: 503 },
-    );
-  }
-  const realRoot = await realRootMaybe;
+  const realRoot = await getRealRoot();
 
   let target: string;
   try {

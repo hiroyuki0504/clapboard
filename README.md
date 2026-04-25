@@ -86,6 +86,9 @@ CLAPBOARD_API_TIMEOUT_MS=5000
 > ⚠️ **これは公開サンプル/デモ用のゲートであり、実データ保護用の認証ではありません。**
 > パスワードはリポジトリ上で公開された固定値です。production / 共有 URL でこのアプリを使う場合は、
 > `CLAPBOT_FILES_ROOT` には公開しても差し支えないデータのみを置いてください。
+> `CLAPBOT_FILES_ROOT` を未設定にした場合は production / dev とも `<cwd>/files` がデフォルトの公開対象になり、
+> ディレクトリが存在しなければ `/api/files` は 404 を返します。意図しないディレクトリを露出しないよう、
+> production では絶対パスで明示的に指定することを推奨します。
 > 実データや機微情報を扱う用途には、別途強度のある認証 (SSO / 個別アカウント / secret 化したパスワード等) を実装する必要があります。
 
 `/login`・`/api/health`・`/api/login`・`/api/logout` 以外はすべて middleware を通します。
