@@ -64,12 +64,7 @@ const tree = [
   },
 ];
 
-type AgentSummary = {
-  taskCount: number;
-  blockerCount: number;
-};
-
-export function Sidebar({ agentSummary }: { agentSummary: AgentSummary }) {
+export function Sidebar({ agentSummary }: { agentSummary: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
@@ -185,9 +180,7 @@ export function Sidebar({ agentSummary }: { agentSummary: AgentSummary }) {
             <Bot className="h-4 w-4 text-[#5f8b5b]" aria-hidden />
             <div>
               <p className="font-bold text-[#312d27]">Progress Agent</p>
-              <p className="mt-1">
-                {agentSummary.taskCount} tasks ・ {agentSummary.blockerCount} blockers
-              </p>
+              {agentSummary}
             </div>
           </div>
           <Link

@@ -306,6 +306,27 @@ function isPriorityLevelShape(value: unknown): value is ReviewPriorityLevel {
   );
 }
 
+function isPolicyShape(value: unknown) {
+  if (!isObject(value)) return false;
+  const c = value as Record<string, unknown>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.title === "string" &&
+    typeof c.value === "string" &&
+    typeof c.body === "string"
+  );
+}
+
+function isPipelineStepShape(value: unknown) {
+  if (!isObject(value)) return false;
+  const c = value as Record<string, unknown>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.title === "string" &&
+    typeof c.body === "string"
+  );
+}
+
 function isCodeReviewShape(value: unknown): value is CodeReviewSystem {
   if (!isObject(value)) return false;
   const c = value as Partial<CodeReviewSystem>;
@@ -317,8 +338,8 @@ function isCodeReviewShape(value: unknown): value is CodeReviewSystem {
     Array.isArray(c.branches) && c.branches.every(isBranchWorkstreamShape) &&
     Array.isArray(c.pullRequests) && c.pullRequests.every(isPullRequestShape) &&
     Array.isArray(c.priorityLevels) && c.priorityLevels.every(isPriorityLevelShape) &&
-    Array.isArray(c.policies) &&
-    Array.isArray(c.pipeline) &&
+    Array.isArray(c.policies) && c.policies.every(isPolicyShape) &&
+    Array.isArray(c.pipeline) && c.pipeline.every(isPipelineStepShape) &&
     Array.isArray(c.checklist) &&
     c.checklist.every((item) => typeof item === "string")
   );
