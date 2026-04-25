@@ -9,8 +9,8 @@ import {
 } from "@/lib/access-token";
 import { evaluateCsrf } from "@/lib/csrf";
 
-const PROTECTED_PAGE_PREFIXES = ["/projects", "/code-review"];
-const PROTECTED_PAGE_PATHS = new Set(["/"]);
+const PROTECTED_PAGE_PREFIXES: string[] = [];
+const PROTECTED_PAGE_PATHS = new Set<string>();
 const PROTECTED_API_PREFIXES = ["/api/"];
 const PUBLIC_API_PATHS = new Set([
   "/api/health",
@@ -164,5 +164,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/projects/:path*", "/code-review/:path*", "/api/:path*"],
+  matcher: ["/api/:path*"],
 };
