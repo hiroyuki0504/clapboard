@@ -82,7 +82,11 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
 
   useEffect(() => {
     function syncTabFromUrl() {
-      setActiveTab(getTabKeyFromSearch() ?? "overview");
+      const tab = getTabFromSearch();
+
+      if (tab) {
+        setActiveTab(tab);
+      }
     }
 
     syncTabFromUrl();
@@ -91,18 +95,18 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
     return () => window.removeEventListener("popstate", syncTabFromUrl);
   }, []);
 
-  function handleSelectTab(tabKey: TabKey) {
-    setActiveTab(tabKey);
+  function handleSelectTab(tab: TabKey) {
+    setActiveTab(tab);
 
     const url = new URL(window.location.href);
 
-    if (tabKey === "overview") {
+    if (tab === "overview") {
       url.searchParams.delete("tab");
     } else {
-      url.searchParams.set("tab", tabKey);
+      url.searchParams.set("tab", tab);
     }
 
-    window.history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
   }
 
   return (
@@ -557,4 +561,18 @@ function MarkdownLike({ body }: { body: string }) {
       })}
     </div>
   );
+}
+
+function getTabFromSearch(): TabKey | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const tab = new URLSearchParams(window.location.search).get("tab");
+
+  return isTabKey(tab) ? tab : null;
+}
+
+function isTabKey(value: string | null): value is TabKey {
+  return tabs.some((tab) => tab.key === value);
 }

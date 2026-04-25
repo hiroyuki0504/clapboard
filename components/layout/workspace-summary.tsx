@@ -1,4 +1,5 @@
 import { getProjects } from "@/lib/clapboard-api";
+import { getHighPriorityOpenTaskCount } from "@/lib/project-selectors";
 
 export async function WorkspaceStreamPill() {
   const { data: projects, error } = await getProjects();
@@ -33,9 +34,7 @@ export async function SidebarAgentSummary() {
 
   const allTasks = projects.flatMap((project) => project.tasks);
   const taskCount = allTasks.length;
-  const blockerCount = allTasks.filter(
-    (task) => !task.completed && task.priority === "high",
-  ).length;
+  const blockerCount = getHighPriorityOpenTaskCount(allTasks);
 
   return (
     <p className="mt-1">
