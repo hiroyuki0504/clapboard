@@ -1,0 +1,59 @@
+name: Deploy to Mac mini
+
+on:
+  push:
+    branches:
+      - main
+  # 手動実行も可能
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    # Mac mini に登録した self-hosted runner で実行
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".node-version"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Type check
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Reload PM2 process
+        run: |
+          # pm2 がなければインストール
+          if ! command -v pm2 &>/dev/null; then
+            npm install -g pm2
+          fi
+
+          if pm2 describe clapboard &>/dev/null; then
+            pm2 reload clapboard --update-env
+          else
+            pm2 start ecosystem.config.cjs --env production
+          fi
+
+          pm2 save
+
+      - name: Health check
+        run: |
+          sleep 3
+          curl -fsS http://localhost:3000/api/health | grep -q '"ok"' \
+            && echo "✓ health check passed" \
+            || (echo "✗ health check failed"; pm2 logs clapboard --lines 20 --nostream; exit 1)
