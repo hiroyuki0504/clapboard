@@ -168,6 +168,12 @@ export function ProjectDetailTabs({
     setReviewError("");
   }, [project.id, project.minutes]);
 
+  useEffect(() => {
+    document.querySelector<HTMLButtonElement>(
+      `[data-project-detail-tab="${activeTab}"]`,
+    )?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [activeTab]);
+
   async function handleImportChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
