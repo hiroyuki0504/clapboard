@@ -16,7 +16,7 @@ import {
   CSRF_HEADER_NAME,
   verifyDoubleSubmit,
 } from "@/lib/csrf-token";
-import { isJwtSecretStrong, verifyJwt } from "@/lib/jwt";
+import { resolveRoleFromCookieValue } from "@/lib/jwt";
 
 const PROTECTED_PAGE_PREFIXES = ["/projects", "/code-review"];
 const PROTECTED_PAGE_PATHS = new Set(["/"]);
@@ -60,47 +60,19 @@ function hasNonEmptyBearer(request: NextRequest) {
   return extractBearer(request) !== null;
 }
 
-function firstHeaderValue(request: NextRequest, name: string): string | null {
-  const raw = request.headers.get(name);
-  if (!raw) return null;
-  const value = raw.split(",")[0]?.trim();
-  return value && value.length > 0 ? value : null;
-}
-
 function buildForwardedRequest(request: NextRequest) {
-  const forwardedProto = firstHeaderValue(request, "x-forwarded-proto");
-  const forwardedHost =
-    firstHeaderValue(request, "x-forwarded-host") ??
-    firstHeaderValue(request, "host");
-  const proto = forwardedProto ?? request.nextUrl.protocol.replace(":", "");
-  const host = forwardedHost ?? request.nextUrl.host;
-  const url = `${proto}://${host}${request.nextUrl.pathname}${request.nextUrl.search}`;
   return {
     method: request.method,
-    url,
+    url: request.nextUrl.toString(),
     headers: request.headers,
   };
 }
 
-async function resolveRoleFromCookie(value: string): Promise<Role | null> {
-  const jwtSecret = process.env.CLAPBOARD_JWT_SECRET;
-  if (isJwtSecretStrong(jwtSecret) && value.split(".").length === 3) {
-    const claims = await verifyJwt<{ role?: unknown }>(value, jwtSecret);
-    if (claims) {
-      const claimedRole = claims.role;
-      if (claimedRole === "admin" || claimedRole === "viewer") {
-        return claimedRole;
-      }
-      return null;
-    }
-  }
-  return resolveRole(value);
-}
-
 async function resolveRequestRole(request: NextRequest): Promise<Role | null> {
+  const jwtSecret = process.env.CLAPBOARD_JWT_SECRET;
   const cookieValue = request.cookies.get(ACCESS_COOKIE_NAME)?.value;
   if (cookieValue) {
-    const cookieRole = await resolveRoleFromCookie(cookieValue);
+    const cookieRole = await resolveRoleFromCookieValue(cookieValue, jwtSecret);
     if (cookieRole) return cookieRole;
   }
 

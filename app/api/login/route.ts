@@ -7,7 +7,6 @@ import {
   isAccessControlConfigured,
   isProductionRuntime,
   resolveRoleFromToken,
-  verifyAccessToken,
 } from "@/lib/access-control";
 import {
   CSRF_COOKIE_MAX_AGE_SECONDS,
@@ -100,13 +99,6 @@ export async function POST(request: Request) {
   }
 
   const token = typeof payload?.token === "string" ? payload.token : "";
-  if (!verifyAccessToken(token)) {
-    return NextResponse.json(
-      { error: "unauthorized" },
-      { status: 401, headers: rateLimitHeaders(rate) },
-    );
-  }
-
   const role = resolveRoleFromToken(token);
   if (!role) {
     return NextResponse.json(
@@ -124,7 +116,7 @@ export async function POST(request: Request) {
 
   const csrfToken = generateCsrfToken();
   const response = NextResponse.json(
-    { ok: true, role, csrfToken, mode: useJwt ? "jwt" : "legacy" },
+    { ok: true, role, csrfToken },
     { status: 200, headers: rateLimitHeaders(rate) },
   );
   response.cookies.set({

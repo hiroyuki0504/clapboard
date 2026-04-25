@@ -1,3 +1,5 @@
+import { resolveRole, type Role } from "@/lib/access-token";
+
 const ENCODER = new TextEncoder();
 const DECODER = new TextDecoder();
 
@@ -116,4 +118,30 @@ export async function verifyJwt<T extends object = Record<string, unknown>>(
   if (typeof payload.iat !== "number" || payload.iat > now + 60) return null;
 
   return payload as JwtClaims<T>;
+}
+
+/**
+ * Cookie / Bearer 値から Role を解決する共通ヘルパー。
+ *
+ * - JWT_SECRET が強くかつ値が `a.b.c` 形式 → JWT として verify、成功なら claim.role を採用
+ * - JWT verify 失敗 / JWT 形式でない → legacy 生 token 比較 (resolveRole) にフォールバック
+ *
+ * middleware (edge) と access-control (server-only) の重複実装を防ぐため lib/jwt.ts に集約。
+ */
+export async function resolveRoleFromCookieValue(
+  value: string | undefined | null,
+  jwtSecret: string | undefined | null,
+): Promise<Role | null> {
+  if (!value) return null;
+  if (isJwtSecretStrong(jwtSecret) && value.split(".").length === 3) {
+    const claims = await verifyJwt<{ role?: unknown }>(value, jwtSecret);
+    if (claims) {
+      const claimedRole = claims.role;
+      if (claimedRole === "admin" || claimedRole === "viewer") {
+        return claimedRole;
+      }
+      return null;
+    }
+  }
+  return resolveRole(value);
 }
