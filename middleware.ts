@@ -16,9 +16,10 @@ import {
   CSRF_HEADER_NAME,
   verifyDoubleSubmit,
 } from "@/lib/csrf-token";
+import { isJwtSecretStrong, verifyJwt } from "@/lib/jwt";
 
-const PROTECTED_PAGE_PREFIXES: string[] = [];
-const PROTECTED_PAGE_PATHS = new Set<string>();
+const PROTECTED_PAGE_PREFIXES = ["/projects", "/code-review"];
+const PROTECTED_PAGE_PATHS = new Set(["/"]);
 const PROTECTED_API_PREFIXES = ["/api/"];
 const PUBLIC_API_PATHS = new Set([
   "/api/health",
@@ -81,16 +82,33 @@ function buildForwardedRequest(request: NextRequest) {
   };
 }
 
-function resolveRequestRole(request: NextRequest): Role | null {
+async function resolveRoleFromCookie(value: string): Promise<Role | null> {
+  const jwtSecret = process.env.CLAPBOARD_JWT_SECRET;
+  if (isJwtSecretStrong(jwtSecret) && value.split(".").length === 3) {
+    const claims = await verifyJwt<{ role?: unknown }>(value, jwtSecret);
+    if (claims) {
+      const claimedRole = claims.role;
+      if (claimedRole === "admin" || claimedRole === "viewer") {
+        return claimedRole;
+      }
+      return null;
+    }
+  }
+  return resolveRole(value);
+}
+
+async function resolveRequestRole(request: NextRequest): Promise<Role | null> {
   const cookieValue = request.cookies.get(ACCESS_COOKIE_NAME)?.value;
-  const cookieRole = cookieValue ? resolveRole(cookieValue) : null;
-  if (cookieRole) return cookieRole;
+  if (cookieValue) {
+    const cookieRole = await resolveRoleFromCookie(cookieValue);
+    if (cookieRole) return cookieRole;
+  }
 
   const bearer = extractBearer(request);
   return bearer ? resolveRole(bearer) : null;
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const isProduction = isProductionRuntime();
 
@@ -169,7 +187,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const role = resolveRequestRole(request);
+  const role = await resolveRequestRole(request);
 
   if (!role) {
     if (isProtectedApi) {
@@ -222,5 +240,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: ["/", "/projects/:path*", "/code-review/:path*", "/api/:path*"],
 };

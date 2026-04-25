@@ -2,6 +2,7 @@ export const ACCESS_COOKIE_NAME = "clapboard_access";
 export const ACCESS_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 export const MIN_ACCESS_TOKEN_LENGTH = 16;
 export const MAX_LOGIN_BODY_BYTES = 4 * 1024;
+export const JWT_COOKIE_TTL_SECONDS = 60 * 60 * 24 * 7;
 const NEXT_DEVELOPMENT_PHASE = "phase-development-server";
 
 export type Role = "admin" | "viewer";
