@@ -73,7 +73,7 @@ export default async function CommandPage() {
                 タスク抽出、レビュー投入、レポート作成などの指示を、進捗データとPR状態を見ながら実行する画面です。
               </p>
             </div>
-            <div className="flex shrink-0 overflow-hidden rounded-md border border-[#423c33]/55 text-sm font-bold">
+            <div className="flex w-full overflow-hidden rounded-md border border-[#423c33]/55 text-sm font-bold sm:w-auto sm:shrink-0">
               <span className="bg-[#312d27] px-3 py-2 text-white">Chat</span>
               <span className="px-3 py-2 text-[#70675b]">Plan</span>
               <span className="px-3 py-2 text-[#70675b]">History</span>

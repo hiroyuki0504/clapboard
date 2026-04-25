@@ -35,7 +35,7 @@ export function TodoSection({ tasks }: { tasks: TodoTask[] }) {
           <Link
             key={`${task.projectId}-${task.id}`}
             href={projectDetailHref(task.projectId, "progress")}
-            className="grid grid-cols-[24px_1fr_auto] items-start gap-3 border-b border-dashed border-[#d8d1c4] px-4 py-4 transition last:border-b-0 hover:bg-[#fbfaf5]"
+            className="grid grid-cols-[24px_1fr] items-start gap-3 border-b border-dashed border-[#d8d1c4] px-4 py-4 transition last:border-b-0 hover:bg-[#fbfaf5] sm:grid-cols-[24px_1fr_auto]"
           >
             <span className="mt-0.5 h-4 w-4 rounded-sm border border-[#777066] bg-[#fffefa]" />
             <div className="min-w-0">
@@ -47,6 +47,7 @@ export function TodoSection({ tasks }: { tasks: TodoTask[] }) {
               </p>
             </div>
             <Badge
+              className="col-start-2 w-fit sm:col-start-auto"
               tone={
                 task.priority === "high"
                   ? "red"

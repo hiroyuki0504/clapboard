@@ -55,14 +55,18 @@ export default async function TimelinePage() {
                 レーンごとにAI実行、ToDo、ファイル更新、収支イベントを並べて、今日の前後を確認します。
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center lg:shrink-0">
               <div className="flex overflow-hidden rounded-md border border-[#423c33]/55 text-sm font-bold">
                 <span className="px-3 py-2 text-[#70675b]">時</span>
                 <span className="px-3 py-2 text-[#70675b]">日</span>
                 <span className="bg-[#312d27] px-3 py-2 text-white">週</span>
                 <span className="px-3 py-2 text-[#70675b]">月</span>
               </div>
-              <ButtonLink href="/command" variant="secondary" className="h-10 px-3">
+              <ButtonLink
+                href="/command"
+                variant="secondary"
+                className="h-10 w-full px-3 sm:w-auto"
+              >
                 <CalendarPlus className="h-4 w-4" aria-hidden />
                 予定を追加
               </ButtonLink>
