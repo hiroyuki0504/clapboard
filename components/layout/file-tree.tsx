@@ -2,47 +2,23 @@
 
 import { ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  buildFileTreeNodeId,
+  fetchFileTreeDir,
+  type FileTreeEntry,
+  type FileTreeSource,
+} from "@/lib/file-tree-api";
 import { cn } from "@/lib/utils";
-
-type Entry = {
-  name: string;
-  path: string;
-  isDir: boolean;
-  size: number;
-  updatedAt: string | null;
-};
 
 type DirState = {
   loading: boolean;
   error: string | null;
-  items: Entry[] | null;
+  items: FileTreeEntry[] | null;
 };
 
-function buildTreeNodeId(path: string) {
-  return `file-tree-${path || "root"}`.replace(/[^a-zA-Z0-9_-]/g, "-");
-}
-
-async function fetchDir(rel: string): Promise<Entry[]> {
-  const res = await fetch(`/api/files?path=${encodeURIComponent(rel)}`);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error ?? `HTTP ${res.status}`);
-  }
-  const data = (await res.json()) as { items: Entry[] };
-  return data.items;
-}
-
-function DirNode({
-  entry,
-  depth,
-  filter,
-  forceOpen,
-  openMap,
-  setOpenMap,
-  cache,
-  setCache,
-}: {
-  entry: Entry;
+type DirNodeProps = {
+  entry: FileTreeEntry;
+  source: FileTreeSource;
   depth: number;
   filter: string;
   forceOpen: boolean;
@@ -50,11 +26,43 @@ function DirNode({
   setOpenMap: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   cache: Record<string, DirState>;
   setCache: React.Dispatch<React.SetStateAction<Record<string, DirState>>>;
+};
+
+function FileLeaf({
+  entry,
+  depth,
+}: {
+  entry: FileTreeEntry;
+  depth: number;
 }) {
+  return (
+    <div
+      role="treeitem"
+      aria-level={depth + 1}
+      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[#696158]"
+      style={{ paddingLeft: 8 + depth * 14 }}
+    >
+      <FileText className="h-3.5 w-3.5 text-[#9a9084]" aria-hidden />
+      <span className="truncate">{entry.name}</span>
+    </div>
+  );
+}
+
+function DirNode({
+  entry,
+  source,
+  depth,
+  filter,
+  forceOpen,
+  openMap,
+  setOpenMap,
+  cache,
+  setCache,
+}: DirNodeProps) {
   const open = forceOpen || !!openMap[entry.path];
   const dirState = cache[entry.path];
   const mountedRef = useRef(true);
-  const childrenId = buildTreeNodeId(entry.path);
+  const childrenId = buildFileTreeNodeId(entry.path, source);
 
   useEffect(() => {
     return () => {
@@ -69,7 +77,7 @@ function DirNode({
       [entry.path]: { loading: true, error: null, items: null },
     }));
     try {
-      const items = await fetchDir(entry.path);
+      const items = await fetchFileTreeDir(entry.path, source);
       if (!mountedRef.current) return;
       setCache((c) => ({
         ...c,
@@ -86,7 +94,7 @@ function DirNode({
         },
       }));
     }
-  }, [entry.path, cache, setCache]);
+  }, [entry.path, source, cache, setCache]);
 
   useEffect(() => {
     if (entry.isDir && forceOpen) {
@@ -106,17 +114,7 @@ function DirNode({
 
   if (!entry.isDir) {
     if (!matchesFilter) return null;
-    return (
-      <div
-        role="treeitem"
-        aria-level={depth + 1}
-        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[#696158]"
-        style={{ paddingLeft: 8 + depth * 14 }}
-      >
-        <FileText className="h-3.5 w-3.5 text-[#9a9084]" aria-hidden />
-        <span className="truncate">{entry.name}</span>
-      </div>
-    );
+    return <FileLeaf entry={entry} depth={depth} />;
   }
 
   const visibleChildren =
@@ -129,6 +127,8 @@ function DirNode({
   if (filter && !matchesFilter && visibleChildren?.length === 0) {
     return null;
   }
+
+  const indentStyle = { paddingLeft: 22 + depth * 14 };
 
   return (
     <div>
@@ -159,18 +159,12 @@ function DirNode({
       {open && (
         <div id={childrenId} role="group">
           {dirState?.loading && (
-            <p
-              className="px-2 py-1 text-xs text-[#9a9084]"
-              style={{ paddingLeft: 22 + depth * 14 }}
-            >
+            <p className="px-2 py-1 text-xs text-[#9a9084]" style={indentStyle}>
               読み込み中…
             </p>
           )}
           {dirState?.error && (
-            <p
-              className="px-2 py-1 text-xs text-[#b14a2c]"
-              style={{ paddingLeft: 22 + depth * 14 }}
-            >
+            <p className="px-2 py-1 text-xs text-[#b14a2c]" style={indentStyle}>
               {dirState.error}
             </p>
           )}
@@ -178,6 +172,7 @@ function DirNode({
             <DirNode
               key={child.path}
               entry={child}
+              source={source}
               depth={depth + 1}
               filter={filter}
               forceOpen={!!filter}
@@ -188,10 +183,7 @@ function DirNode({
             />
           ))}
           {!dirState?.loading && visibleChildren?.length === 0 && (
-            <p
-              className="px-2 py-1 text-xs text-[#9a9084]"
-              style={{ paddingLeft: 22 + depth * 14 }}
-            >
+            <p className="px-2 py-1 text-xs text-[#9a9084]" style={indentStyle}>
               {filter ? "(該当なし)" : "(空)"}
             </p>
           )}
@@ -203,12 +195,14 @@ function DirNode({
 
 export function FileTree({
   filter = "",
+  source = "desktop",
   onRootSummary,
 }: {
   filter?: string;
+  source?: FileTreeSource;
   onRootSummary?: (summary: { count: number; sizeBytes: number }) => void;
 }) {
-  const [root, setRoot] = useState<Entry[] | null>(null);
+  const [root, setRoot] = useState<FileTreeEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
   const [cache, setCache] = useState<Record<string, DirState>>({});
@@ -216,7 +210,12 @@ export function FileTree({
   useEffect(() => {
     let active = true;
 
-    fetchDir("")
+    setRoot(null);
+    setError(null);
+    setOpenMap({});
+    setCache({});
+
+    fetchFileTreeDir("", source)
       .then((items) => {
         if (!active) return;
         setRoot(items);
@@ -236,7 +235,7 @@ export function FileTree({
     return () => {
       active = false;
     };
-  }, [onRootSummary]);
+  }, [onRootSummary, source]);
 
   const visibleRoot = useMemo(() => {
     if (!root) return null;
@@ -247,7 +246,11 @@ export function FileTree({
   }, [root, filter]);
 
   if (error) {
-    return <p className="px-2 py-2 text-xs text-[#b14a2c]">{error}</p>;
+    const message =
+      error === "not found"
+        ? "ファイル表示は未設定です。デモではレビュー管制を優先表示しています。"
+        : error;
+    return <p className="px-2 py-2 text-xs text-[#81786d]">{message}</p>;
   }
   if (!visibleRoot) {
     return <p className="px-2 py-2 text-xs text-[#9a9084]">読み込み中…</p>;
@@ -256,13 +259,14 @@ export function FileTree({
   return (
     <div
       role="tree"
-      aria-label="ファイルツリー"
+      aria-label={source === "repository" ? "Git tree" : "ファイルツリー"}
       className="space-y-0.5 text-sm text-[#5f574d]"
     >
       {visibleRoot.map((entry) => (
         <DirNode
           key={entry.path}
           entry={entry}
+          source={source}
           depth={0}
           filter={filter}
           forceOpen={!!filter}

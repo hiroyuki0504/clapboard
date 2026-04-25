@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 const workspaceTabs = [
   {
     label: "ダッシュボード",
-    href: "/",
+    href: "/dashboard",
     icon: LayoutDashboard,
   },
   {
@@ -46,8 +46,8 @@ const workspaceTabs = [
 ];
 
 function isActive(pathname: string, href: string) {
-  if (href === "/") {
-    return pathname === "/";
+  if (href === "/dashboard") {
+    return pathname === "/dashboard";
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);

@@ -28,12 +28,17 @@ const titles = [
     caption: "PRとレビュー状態を管理",
   },
   {
+    match: "/guide",
+    label: "使い方ガイド",
+    caption: "ClawBoardの基本操作を確認",
+  },
+  {
     match: "/projects",
     label: "案件一覧",
     caption: "すべての案件と進捗を一覧",
   },
   {
-    match: "/",
+    match: "/dashboard",
     label: "ダッシュボード",
     caption: "今日の状況をひと目で把握",
   },
@@ -41,9 +46,10 @@ const titles = [
 
 export function Topbar() {
   const pathname = usePathname();
-  const dashboardTitle = titles.find((item) => item.match === "/") ?? titles[0];
+  const dashboardTitle =
+    titles.find((item) => item.match === "/dashboard") ?? titles[0];
   const title =
-    pathname === "/"
+    pathname === "/dashboard"
       ? dashboardTitle
       : pathname.startsWith("/projects/")
         ? { label: "案件の詳細", caption: "選択した案件の中身を確認" }

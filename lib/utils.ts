@@ -46,6 +46,22 @@ export function formatCurrency(value: number) {
   }).format(value);
 }
 
+export function formatCompactCurrency(value: number) {
+  if (Math.abs(value) >= 10000) {
+    return `¥${Math.round(value / 10000)}万`;
+  }
+
+  return formatCurrency(value);
+}
+
+export function formatByteSize(bytes: number) {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)}GB`;
+}
+
 export function normalizeProgressValue(value: number) {
   if (!Number.isFinite(value)) {
     return 0;
@@ -145,6 +161,37 @@ export function formatDateTime(value: string) {
     minute: "2-digit",
     timeZone: APP_TIME_ZONE,
   }).format(date);
+}
+
+export function startOfDay(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+export function addDays(value: Date, days: number) {
+  const next = new Date(value);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+export function isSameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+export function formatDayNumber(value: Date) {
+  return new Intl.DateTimeFormat("ja-JP", {
+    day: "2-digit",
+    month: "2-digit",
+  }).format(value);
+}
+
+export function formatWeekday(value: Date) {
+  return new Intl.DateTimeFormat("ja-JP", {
+    weekday: "short",
+  }).format(value);
 }
 
 export function formatLogTime(value: string | undefined) {

@@ -6,44 +6,20 @@ import { statusMeta } from "@/components/project-status-badge";
 import { ProjectTable } from "@/components/projects/project-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getHighPriorityOpenTaskCount } from "@/lib/project-selectors";
-import type { Project, ProjectStatus } from "@/lib/types";
-import { cn, safeDateTime } from "@/lib/utils";
-
-type Filter = "all" | ProjectStatus;
-type SortKey = "lastUpdated" | "dueDate" | "progress" | "blockers";
-type Density = "comfortable" | "compact";
-type BoardSettings = {
-  filter: Filter;
-  keyword: string;
-  sortKey: SortKey;
-  density: Density;
-  showRisk: boolean;
-};
-
-const filterOptions: { key: Filter; label: string }[] = [
-  { key: "all", label: "すべて" },
-  { key: "in-progress", label: "進行中" },
-  { key: "review", label: "レビュー" },
-  { key: "at-risk", label: "要注意" },
-  { key: "planning", label: "計画中" },
-  { key: "completed", label: "完了" },
-];
-
-const sortOptions: { key: SortKey; label: string }[] = [
-  { key: "lastUpdated", label: "更新が新しい" },
-  { key: "dueDate", label: "節目が近い" },
-  { key: "progress", label: "進捗が高い" },
-  { key: "blockers", label: "停滞が多い" },
-];
-
-const defaultBoardSettings: BoardSettings = {
-  filter: "all",
-  keyword: "",
-  sortKey: "lastUpdated",
-  density: "comfortable",
-  showRisk: true,
-};
+import {
+  type BoardSettings,
+  boardFilterOptions,
+  boardSortOptions,
+  compareProjects,
+  defaultBoardSettings,
+  getProjectSearchText,
+  hasCustomBoardSettings,
+  isBoardSortKey,
+  readBoardSettingsFromUrl,
+  replaceBoardUrl,
+} from "@/lib/board-settings";
+import type { Project } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export function ProjectBoardClient({
   projects,
@@ -96,7 +72,7 @@ export function ProjectBoardClient({
       <section className="rounded-lg border border-[#d8d1c4] bg-[#fffefa] p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-1.5">
-            {filterOptions.map((option) => {
+            {boardFilterOptions.map((option) => {
               const active = filter === option.key;
               const count =
                 option.key === "all"
@@ -153,12 +129,12 @@ export function ProjectBoardClient({
             className="h-10 rounded-md border border-[#c8c0b4] bg-[#fbfaf5] px-3 text-sm font-semibold text-[#312d27] outline-none"
             value={sortKey}
             onChange={(event) => {
-              if (isSortKey(event.target.value)) {
+              if (isBoardSortKey(event.target.value)) {
                 updateSettings({ sortKey: event.target.value });
               }
             }}
           >
-            {sortOptions.map((option) => (
+            {boardSortOptions.map((option) => (
               <option key={option.key} value={option.key}>
                 {option.label}
               </option>
@@ -244,137 +220,4 @@ export function ProjectBoardClient({
       </Card>
     </>
   );
-}
-
-function isFilter(value: string | null): value is Filter {
-  return filterOptions.some((option) => option.key === value);
-}
-
-function isSortKey(value: string | null): value is SortKey {
-  return sortOptions.some((option) => option.key === value);
-}
-
-function isDensity(value: string | null): value is Density {
-  return value === "comfortable" || value === "compact";
-}
-
-function readBoardSettingsFromUrl(): BoardSettings {
-  if (typeof window === "undefined") {
-    return defaultBoardSettings;
-  }
-
-  const params = new URLSearchParams(window.location.search);
-  const status = params.get("status");
-  const sort = params.get("sort");
-  const density = params.get("density");
-
-  return {
-    filter: isFilter(status) ? status : defaultBoardSettings.filter,
-    keyword: params.get("q") ?? defaultBoardSettings.keyword,
-    sortKey: isSortKey(sort) ? sort : defaultBoardSettings.sortKey,
-    density: isDensity(density) ? density : defaultBoardSettings.density,
-    showRisk: params.get("risk") !== "hidden",
-  };
-}
-
-function replaceBoardUrl(settings: BoardSettings) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const url = new URL(window.location.href);
-  setDefaultableSearchParam(
-    url.searchParams,
-    "status",
-    settings.filter,
-    defaultBoardSettings.filter,
-  );
-  setDefaultableSearchParam(
-    url.searchParams,
-    "q",
-    settings.keyword.trim(),
-    defaultBoardSettings.keyword,
-  );
-  setDefaultableSearchParam(
-    url.searchParams,
-    "sort",
-    settings.sortKey,
-    defaultBoardSettings.sortKey,
-  );
-  setDefaultableSearchParam(
-    url.searchParams,
-    "density",
-    settings.density,
-    defaultBoardSettings.density,
-  );
-
-  if (settings.showRisk) {
-    url.searchParams.delete("risk");
-  } else {
-    url.searchParams.set("risk", "hidden");
-  }
-
-  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-}
-
-function setDefaultableSearchParam(
-  params: URLSearchParams,
-  name: string,
-  value: string,
-  defaultValue: string,
-) {
-  if (value === defaultValue) {
-    params.delete(name);
-  } else {
-    params.set(name, value);
-  }
-}
-
-function hasCustomBoardSettings(settings: BoardSettings) {
-  return (
-    settings.filter !== defaultBoardSettings.filter ||
-    settings.keyword.trim() !== defaultBoardSettings.keyword ||
-    settings.sortKey !== defaultBoardSettings.sortKey ||
-    settings.density !== defaultBoardSettings.density ||
-    settings.showRisk !== defaultBoardSettings.showRisk
-  );
-}
-
-function getProjectSearchText(project: Project) {
-  return [
-    project.name,
-    project.client,
-    project.owner,
-    project.summary,
-    ...project.tasks.flatMap((task) => [task.title, task.note]),
-    ...project.updates.map((update) => update.text),
-    ...project.minutes.flatMap((minute) => [
-      minute.title,
-      minute.participants.join(" "),
-    ]),
-  ]
-    .join(" ")
-    .toLowerCase();
-}
-
-function compareProjects(a: Project, b: Project, sortKey: SortKey) {
-  if (sortKey === "dueDate") {
-    return (
-      safeDateTime(a.dueDate, Number.POSITIVE_INFINITY) -
-      safeDateTime(b.dueDate, Number.POSITIVE_INFINITY)
-    );
-  }
-
-  if (sortKey === "progress") {
-    return b.progress - a.progress;
-  }
-
-  if (sortKey === "blockers") {
-    return (
-      getHighPriorityOpenTaskCount(b.tasks) -
-      getHighPriorityOpenTaskCount(a.tasks)
-    );
-  }
-
-  return safeDateTime(b.lastUpdated, 0) - safeDateTime(a.lastUpdated, 0);
 }

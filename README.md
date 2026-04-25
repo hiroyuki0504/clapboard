@@ -65,7 +65,8 @@ ClawBoard の基本方針は次の通りです。
 
 | Route | 役割 |
 | --- | --- |
-| `/` | 進捗、ブロッカー、依頼、ファイルをまとめて見る管制トップ。 |
+| `/` | ハッカソンデモ用に `/code-review` へ遷移する入口。 |
+| `/dashboard` | 進捗、ブロッカー、依頼、ファイルをまとめて見る管制トップ。 |
 | `/code-review` | Webワークツリー、ノーコード依頼キュー、PRレビュー、PMゲート。 |
 | `/projects` | 案件一覧と進捗ボード。 |
 | `/projects/[id]` | 案件詳細、議事録、タスク、ファイル、レビュー。 |
@@ -116,7 +117,7 @@ CLAPBOARD_API_TIMEOUT_MS=5000
 
 ## 認証
 
-`/`、`/projects`、`/code-review`、`/graph`、`/command`、`/timeline`、保護対象の `/api/*` は middleware で保護します。
+`/`、`/dashboard`、`/projects`、`/code-review`、`/graph`、`/command`、`/timeline`、保護対象の `/api/*` は middleware で保護します。
 
 ```bash
 CLAPBOARD_PASSWORD=<admin password>
@@ -181,6 +182,7 @@ npm run build
 app/
   (app)/
     page.tsx
+    dashboard/page.tsx
     code-review/page.tsx
     projects/page.tsx
   api/

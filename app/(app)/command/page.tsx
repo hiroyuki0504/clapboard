@@ -12,12 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCodeReviewSystem, getProjects } from "@/lib/clapboard-api";
+import { buildAgentLog } from "@/lib/command-agent-log";
 import {
+  getAllProjectTasks,
   getCompletedTasks,
   getHighPriorityOpenTasks,
   getOpenTasks,
+  getRecentlyUpdatedProjects,
 } from "@/lib/project-selectors";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatLogTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -36,45 +39,23 @@ export default async function CommandPage() {
 
   const projects = projectsResult.data;
   const reviewSystem = reviewSystemResult.data;
-  const allTasks = projects.flatMap((project) =>
-    project.tasks.map((task) => ({
-      ...task,
-      projectId: project.id,
-      projectName: project.name,
-    })),
-  );
+  const allTasks = getAllProjectTasks(projects);
   const openTasks = getOpenTasks(allTasks);
   const blockerTasks = getHighPriorityOpenTasks(allTasks);
   const completedTasks = getCompletedTasks(allTasks);
-  const recentProjects = [...projects].sort(
-    (a, b) =>
-      new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
-  );
+  const recentProjects = getRecentlyUpdatedProjects(projects);
   const activePullRequests = reviewSystem.pullRequests.filter(
     (pullRequest) => pullRequest.reviewState !== "passed",
   );
-  const agentLog = [
-    {
-      time: recentProjects[0]?.lastUpdated,
-      name: "progress_scan",
-      body: `${projects.length}件のワークを同期`,
-    },
-    {
-      time: blockerTasks[0] ? recentProjects[0]?.lastUpdated : undefined,
-      name: "blocker_detect",
-      body: `${blockerTasks.length}件の高優先度タスクを検出`,
-    },
-    {
-      time: reviewSystem.branches[0]?.dueAt,
-      name: "review_gate",
-      body: `${activePullRequests.length}件のPRをPM確認待ちに分類`,
-    },
-    {
-      time: recentProjects[1]?.lastUpdated,
-      name: "todo_refresh",
-      body: `${completedTasks.length}件完了 / ${openTasks.length}件未完了`,
-    },
-  ];
+  const agentLog = buildAgentLog({
+    projects,
+    recentProjects,
+    reviewSystem,
+    openTasks,
+    blockerTasks,
+    completedTasks,
+    activePullRequests,
+  });
 
   return (
     <div className="space-y-4">
@@ -207,9 +188,7 @@ export default async function CommandPage() {
             <CardContent className="space-y-3 font-mono text-xs">
               {agentLog.map((entry) => (
                 <div key={entry.name} className="grid grid-cols-[48px_1fr] gap-3">
-                  <span className="text-[#81786d]">
-                    {entry.time ? formatLogTime(entry.time) : "--:--"}
-                  </span>
+                  <span className="text-[#81786d]">{formatLogTime(entry.time)}</span>
                   <span className="text-[#4f483f]">
                     {entry.name} - {entry.body}
                   </span>
@@ -286,13 +265,4 @@ function Metric({ label, value }: { label: string; value: string }) {
       </p>
     </div>
   );
-}
-
-function formatLogTime(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return formatDate(value);
-  }
-
-  return formatDateTime(value).replace(" ", "\n");
 }

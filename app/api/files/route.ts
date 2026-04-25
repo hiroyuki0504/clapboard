@@ -4,11 +4,30 @@ import path from "node:path";
 
 export const runtime = "nodejs";
 
+type FileSource = "desktop" | "repository";
+
 const CONFIGURED_ROOT_ENV = process.env.CLAPBOT_FILES_ROOT?.trim();
 const ALLOW_DEFAULT_ROOT =
   process.env.CLAPBOT_ALLOW_DEFAULT_FILES_ROOT === "1";
+const CONFIGURED_REPOSITORY_ROOT_ENV =
+  process.env.CLAPBOARD_REPOSITORY_ROOT?.trim();
+const REPOSITORY_IGNORED_NAMES = new Set([
+  "node_modules",
+  ".next",
+  "out",
+  "dist",
+  "build",
+  "coverage",
+]);
 
-function resolveConfiguredRoot(): string | null {
+function isFileSource(value: string): value is FileSource {
+  return value === "desktop" || value === "repository";
+}
+
+function resolveConfiguredRoot(source: FileSource): string | null {
+  if (source === "repository") {
+    return path.resolve(CONFIGURED_REPOSITORY_ROOT_ENV || process.cwd());
+  }
   if (CONFIGURED_ROOT_ENV) {
     return path.resolve(CONFIGURED_ROOT_ENV);
   }
@@ -18,16 +37,15 @@ function resolveConfiguredRoot(): string | null {
   return path.resolve(process.cwd(), "files");
 }
 
-const CONFIGURED_ROOT = resolveConfiguredRoot();
-
-let realRootPromise: Promise<string> | null = null;
-function getRealRoot(): Promise<string> | null {
+const realRootPromises: Partial<Record<FileSource, Promise<string>>> = {};
+function getRealRoot(source: FileSource): Promise<string> | null {
+  const CONFIGURED_ROOT = resolveConfiguredRoot(source);
   if (!CONFIGURED_ROOT) return null;
-  if (!realRootPromise) {
+  if (!realRootPromises[source]) {
     const root = CONFIGURED_ROOT;
-    realRootPromise = fs.realpath(root).catch(() => root);
+    realRootPromises[source] = fs.realpath(root).catch(() => root);
   }
-  return realRootPromise;
+  return realRootPromises[source] ?? null;
 }
 
 function isWithin(realRoot: string, candidate: string) {
@@ -42,11 +60,21 @@ function resolveSafe(realRoot: string, rel: string) {
   return target;
 }
 
+function shouldSkipEntry(source: FileSource, name: string) {
+  if (name.startsWith(".")) return true;
+  return source === "repository" && REPOSITORY_IGNORED_NAMES.has(name);
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const rel = url.searchParams.get("path") ?? "";
+  const sourceParam = url.searchParams.get("source") ?? "desktop";
 
-  const realRootMaybe = getRealRoot();
+  if (!isFileSource(sourceParam)) {
+    return NextResponse.json({ error: "invalid source" }, { status: 400 });
+  }
+
+  const realRootMaybe = getRealRoot(sourceParam);
   if (!realRootMaybe) {
     return NextResponse.json(
       {
@@ -80,7 +108,7 @@ export async function GET(req: Request) {
     const items = (
       await Promise.all(
         entries
-          .filter((e) => !e.name.startsWith("."))
+          .filter((e) => !shouldSkipEntry(sourceParam, e.name))
           .map(async (e) => {
             const full = path.join(realTarget, e.name);
             const lstat = await fs.lstat(full).catch(() => null);
@@ -105,7 +133,12 @@ export async function GET(req: Request) {
     items.sort((a, b) =>
       a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1,
     );
-    return NextResponse.json({ root: realRoot, path: rel, items });
+    return NextResponse.json({
+      root: realRoot,
+      path: rel,
+      source: sourceParam,
+      items,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "read failed";
     return NextResponse.json({ error: message }, { status: 404 });
