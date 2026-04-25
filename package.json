@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbo",
+    "dev:webpack": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "review:codex": "scripts/codex-pr-review.sh"
   },
   "dependencies": {
     "clsx": "^2.1.1",
