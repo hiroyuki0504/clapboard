@@ -84,6 +84,21 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
     writeProjectSnapshot(project.id, projectState);
   }, [isPersistenceReady, project.id, projectState]);
 
+  useEffect(() => {
+    function syncTabFromUrl() {
+      const tab = getTabKeyFromSearch();
+
+      if (tab != null) {
+        setActiveTab(tab);
+      }
+    }
+
+    syncTabFromUrl();
+    window.addEventListener("popstate", syncTabFromUrl);
+
+    return () => window.removeEventListener("popstate", syncTabFromUrl);
+  }, []);
+
   const tasks = projectState.tasks;
   const decisions = projectState.decisions;
   const ambiguities = projectState.ambiguities;
@@ -347,6 +362,20 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
     setReviewError("");
   }
 
+  function handleSelectTab(tabKey: TabKey) {
+    setActiveTab(tabKey);
+
+    const url = new URL(window.location.href);
+
+    if (tabKey === "overview") {
+      url.searchParams.delete("tab");
+    } else {
+      url.searchParams.set("tab", tabKey);
+    }
+
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
+
   function markImportReviewed(importId: string) {
     const updatedAt = new Date().toISOString();
 
@@ -379,7 +408,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleSelectTab(tab.key)}
               className={cn(
                 "inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-bold text-[#70675b] transition",
                 active && "bg-[#312d27] text-white shadow-sm",
@@ -1080,6 +1109,20 @@ function buildTaskNote(suggestion: EditableSuggestion) {
   }
 
   return parts.join(" / ");
+}
+
+function getTabKeyFromSearch(): TabKey | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const tab = new URLSearchParams(window.location.search).get("tab");
+
+  return isTabKey(tab) ? tab : null;
+}
+
+function isTabKey(value: string | null): value is TabKey {
+  return tabs.some((tab) => tab.key === value);
 }
 
 const ambiguityLabelMap: Record<ProjectAmbiguityKind, string> = {
