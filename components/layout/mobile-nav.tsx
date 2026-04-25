@@ -2,16 +2,32 @@
 
 import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SidebarContent } from "./sidebar";
+import { cn } from "@/lib/utils";
+import { railItems } from "./sidebar";
 
-export function MobileNav({ agentSummary }: { agentSummary?: React.ReactNode }) {
+export function MobileNav() {
   const [open, setOpen] = useState(false);
+  const [currentHash, setCurrentHash] = useState("");
   const pathname = usePathname();
 
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    const syncHash = () => setCurrentHash(window.location.hash);
+
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    window.addEventListener("popstate", syncHash);
+
+    return () => {
+      window.removeEventListener("hashchange", syncHash);
+      window.removeEventListener("popstate", syncHash);
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -26,6 +42,26 @@ export function MobileNav({ agentSummary }: { agentSummary?: React.ReactNode }) 
       document.body.style.overflow = prevOverflow;
     };
   }, [open]);
+
+  const isActiveItem = (item: (typeof railItems)[number]) => {
+    const baseHref = item.href.split("#")[0];
+    const itemHash = item.href.includes("#")
+      ? `#${item.href.split("#")[1]}`
+      : "";
+
+    if (item.href === "/") {
+      return pathname === "/" && currentHash === "";
+    }
+
+    if (itemHash) {
+      return pathname === baseHref && currentHash === itemHash;
+    }
+
+    return (
+      baseHref !== "" &&
+      (pathname === baseHref || pathname.startsWith(`${baseHref}/`))
+    );
+  };
 
   return (
     <>
@@ -42,7 +78,7 @@ export function MobileNav({ agentSummary }: { agentSummary?: React.ReactNode }) 
 
       {open && (
         <div
-          className="fixed inset-0 z-40 md:hidden"
+          className="fixed inset-0 z-[100] md:hidden"
           role="dialog"
           aria-modal="true"
           aria-label="ナビゲーション"
@@ -54,19 +90,41 @@ export function MobileNav({ agentSummary }: { agentSummary?: React.ReactNode }) 
             onClick={() => setOpen(false)}
             className="absolute inset-0 bg-black/40"
           />
-          <div className="absolute left-0 top-0 flex h-full w-[328px] max-w-[88vw] bg-[#f1eee5] shadow-xl">
-            <SidebarContent
-              agentSummary={agentSummary}
-              onNavigate={() => setOpen(false)}
-            />
-            <button
-              type="button"
-              aria-label="メニューを閉じる"
-              onClick={() => setOpen(false)}
-              className="absolute right-2 top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-md bg-white/95 text-[#312d27] shadow-sm transition hover:bg-white"
-            >
-              <X className="h-4 w-4" aria-hidden />
-            </button>
+          <div className="fixed left-3 right-3 top-3 z-[110] rounded-lg border border-[#423c33]/55 bg-[#f1eee5] p-3 shadow-xl">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-black text-[#312d27]">メニュー</p>
+              <button
+                type="button"
+                aria-label="メニューを閉じる"
+                onClick={() => setOpen(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-white/95 text-[#312d27] shadow-sm transition hover:bg-white"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+            <nav className="mt-3 grid gap-2" aria-label="主要ナビゲーション">
+              {railItems.map((item) => {
+                const Icon = item.icon;
+                const active = isActiveItem(item);
+
+                return (
+                  <Link
+                    key={`${item.href}-${item.label}`}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "flex h-11 items-center gap-3 rounded-md border border-[#c8c0b4] bg-[#fffefa] px-3 text-sm font-bold text-[#5f574d] transition hover:border-[#c95d3a] hover:text-[#312d27]",
+                      active &&
+                        "border-[#d66b43] bg-[#cf623d] text-white hover:bg-[#cf623d] hover:text-white",
+                    )}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
         </div>
       )}
