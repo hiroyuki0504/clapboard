@@ -426,14 +426,14 @@ function WeeklyProgressCard({
       <CardHeader>
         <div className="flex items-center gap-2">
           <TimerReset className="h-4 w-4" aria-hidden />
-          <CardTitle>今週の進捗推移</CardTitle>
+          <CardTitle>今週の進捗推移（イメージ）</CardTitle>
         </div>
-        <span className="text-xs text-[#81786d]">直近1週間（モック）</span>
+        <span className="text-xs text-[#81786d]">サンプル / 実日次データ未接続</span>
       </CardHeader>
       <CardContent>
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-bold text-[#81786d]">平均進捗</p>
+            <p className="text-xs font-bold text-[#81786d]">平均進捗（現在値）</p>
             <p className="mt-2 text-2xl font-black tracking-normal text-[#312d27]">
               {start}% → {averageProgress}%
             </p>

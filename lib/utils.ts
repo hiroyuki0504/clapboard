@@ -46,19 +46,36 @@ export function formatCurrency(value: number) {
   }).format(value);
 }
 
+const INVALID_DATE_PLACEHOLDER = "—";
+
+function safeDate(value: string): Date | null {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function formatDate(value: string) {
+  const date = safeDate(value);
+  if (!date) {
+    return INVALID_DATE_PLACEHOLDER;
+  }
+
   return new Intl.DateTimeFormat("ja-JP", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date(value));
+  }).format(date);
 }
 
 export function formatDateTime(value: string) {
+  const date = safeDate(value);
+  if (!date) {
+    return INVALID_DATE_PLACEHOLDER;
+  }
+
   return new Intl.DateTimeFormat("ja-JP", {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  }).format(date);
 }

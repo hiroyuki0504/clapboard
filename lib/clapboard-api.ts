@@ -109,20 +109,50 @@ async function fetchBackendJson<T>(path: string): Promise<BackendFetchResult<T>>
   }
 }
 
+function isProjectShape(value: unknown): value is Project {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<Project>;
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.name === "string" &&
+    Array.isArray(candidate.tasks) &&
+    Array.isArray(candidate.minutes) &&
+    Array.isArray(candidate.files)
+  );
+}
+
+function isCodeReviewShape(value: unknown): value is CodeReviewSystem {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<CodeReviewSystem>;
+  return (
+    Array.isArray(candidate.branches) &&
+    Array.isArray(candidate.pullRequests) &&
+    Array.isArray(candidate.priorityLevels) &&
+    Array.isArray(candidate.policies) &&
+    Array.isArray(candidate.pipeline)
+  );
+}
+
 function unwrapProjects(payload: ProjectsPayload): Project[] {
-  if (Array.isArray(payload)) {
-    return payload;
+  const candidate = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload.projects)
+      ? payload.projects
+      : Array.isArray(payload.data)
+        ? payload.data
+        : null;
+
+  if (!candidate || !candidate.every(isProjectShape)) {
+    throw new Error("Backend projects payload is invalid");
   }
 
-  if (Array.isArray(payload.projects)) {
-    return payload.projects;
-  }
-
-  if (Array.isArray(payload.data)) {
-    return payload.data;
-  }
-
-  throw new Error("Backend projects payload is invalid");
+  return candidate;
 }
 
 function unwrapProject(payload: ProjectPayload): Project | null {
@@ -130,23 +160,35 @@ function unwrapProject(payload: ProjectPayload): Project | null {
     return null;
   }
 
-  if ("project" in payload || "data" in payload) {
-    return payload.project ?? payload.data ?? null;
+  const candidate =
+    "project" in payload || "data" in payload
+      ? (payload.project ?? payload.data ?? null)
+      : payload;
+
+  if (candidate === null) {
+    return null;
   }
 
-  return payload as Project;
+  if (!isProjectShape(candidate)) {
+    throw new Error("Backend project payload is invalid");
+  }
+
+  return candidate;
 }
 
 function unwrapCodeReviewSystem(payload: CodeReviewPayload): CodeReviewSystem {
-  if ("reviewSystem" in payload && payload.reviewSystem) {
-    return payload.reviewSystem;
+  const candidate =
+    "reviewSystem" in payload && payload.reviewSystem
+      ? payload.reviewSystem
+      : "data" in payload && payload.data
+        ? payload.data
+        : payload;
+
+  if (!isCodeReviewShape(candidate)) {
+    throw new Error("Backend code review payload is invalid");
   }
 
-  if ("data" in payload && payload.data) {
-    return payload.data;
-  }
-
-  return payload as CodeReviewSystem;
+  return candidate;
 }
 
 export async function getProjects(): Promise<ApiResult<Project[]>> {
@@ -236,6 +278,13 @@ export async function getApiHealth() {
   const backend = await fetchBackendJson<unknown>("/health");
   const externalConfigured = Boolean(backendBaseUrl);
   const externalHealthy = !externalConfigured || backend.ok;
+  const isProduction = process.env.NODE_ENV === "production";
+  const exposedBaseUrl = isProduction ? null : (backendBaseUrl ?? null);
+  const exposedFallbackReason = backend.ok
+    ? null
+    : isProduction
+      ? "external backend unavailable"
+      : backend.reason;
 
   return {
     ok: externalHealthy,
@@ -245,9 +294,9 @@ export async function getApiHealth() {
     externalApi: {
       configured: externalConfigured,
       connected: backend.ok,
-      baseUrl: backendBaseUrl ?? null,
+      baseUrl: exposedBaseUrl,
       timeoutMs: backendTimeoutMs,
-      fallbackReason: backend.ok ? null : backend.reason,
+      fallbackReason: exposedFallbackReason,
     },
     endpoints: [
       "/api/health",
