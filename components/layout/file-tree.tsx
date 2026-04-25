@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 type Entry = {
@@ -17,6 +17,10 @@ type DirState = {
   error: string | null;
   items: Entry[] | null;
 };
+
+function buildTreeNodeId(path: string) {
+  return `file-tree-${path || "root"}`.replace(/[^a-zA-Z0-9_-]/g, "-");
+}
 
 async function fetchDir(rel: string): Promise<Entry[]> {
   const res = await fetch(`/api/files?path=${encodeURIComponent(rel)}`);
@@ -49,6 +53,14 @@ function DirNode({
 }) {
   const open = forceOpen || !!openMap[entry.path];
   const dirState = cache[entry.path];
+  const mountedRef = useRef(true);
+  const childrenId = buildTreeNodeId(entry.path);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const loadChildren = useCallback(async () => {
     if (cache[entry.path]?.items || cache[entry.path]?.loading) return;
@@ -58,11 +70,13 @@ function DirNode({
     }));
     try {
       const items = await fetchDir(entry.path);
+      if (!mountedRef.current) return;
       setCache((c) => ({
         ...c,
         [entry.path]: { loading: false, error: null, items },
       }));
     } catch (err) {
+      if (!mountedRef.current) return;
       setCache((c) => ({
         ...c,
         [entry.path]: {
@@ -94,6 +108,8 @@ function DirNode({
     if (!matchesFilter) return null;
     return (
       <div
+        role="treeitem"
+        aria-level={depth + 1}
         className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[#696158]"
         style={{ paddingLeft: 8 + depth * 14 }}
       >
@@ -119,6 +135,10 @@ function DirNode({
       <button
         type="button"
         onClick={toggle}
+        role="treeitem"
+        aria-expanded={open}
+        aria-controls={childrenId}
+        aria-level={depth + 1}
         className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition hover:bg-[#e5dfd2]"
         style={{ paddingLeft: 4 + depth * 14 }}
       >
@@ -137,7 +157,7 @@ function DirNode({
         <span className="truncate">{entry.name}</span>
       </button>
       {open && (
-        <div>
+        <div id={childrenId} role="group">
           {dirState?.loading && (
             <p
               className="px-2 py-1 text-xs text-[#9a9084]"
@@ -194,8 +214,11 @@ export function FileTree({
   const [cache, setCache] = useState<Record<string, DirState>>({});
 
   useEffect(() => {
+    let active = true;
+
     fetchDir("")
       .then((items) => {
+        if (!active) return;
         setRoot(items);
         if (onRootSummary) {
           onRootSummary({
@@ -204,7 +227,15 @@ export function FileTree({
           });
         }
       })
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => {
+        if (active) {
+          setError(e.message);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, [onRootSummary]);
 
   const visibleRoot = useMemo(() => {
@@ -223,7 +254,11 @@ export function FileTree({
   }
 
   return (
-    <div className="space-y-0.5 text-sm text-[#5f574d]">
+    <div
+      role="tree"
+      aria-label="ファイルツリー"
+      className="space-y-0.5 text-sm text-[#5f574d]"
+    >
       {visibleRoot.map((entry) => (
         <DirNode
           key={entry.path}

@@ -57,6 +57,8 @@ const backendBaseUrl = process.env.CLAPBOARD_API_BASE_URL?.replace(/\/+$/, "");
 const backendToken = process.env.CLAPBOARD_API_TOKEN;
 const backendTimeoutMs = normalizeTimeout(process.env.CLAPBOARD_API_TIMEOUT_MS);
 const NON_FALLBACK_BACKEND_STATUSES = new Set([401, 403, 404]);
+const MIN_PROGRESS = 0;
+const MAX_PROGRESS = 100;
 
 function normalizeTimeout(value: string | undefined) {
   const parsed = Number(value ?? 5000);
@@ -246,17 +248,25 @@ function isTransactionShape(value: unknown): value is FinanceTransaction {
 function isProjectShape(value: unknown): value is Project {
   if (!isObject(value)) return false;
   const c = value as Partial<Project>;
+  const progress = c.progress;
+  const revenue = c.revenue;
+  const cost = c.cost;
+
   return (
     typeof c.id === "string" &&
     typeof c.name === "string" &&
     typeof c.client === "string" &&
     typeof c.status === "string" &&
     PROJECT_STATUSES.has(c.status) &&
-    typeof c.progress === "number" &&
-    Number.isFinite(c.progress) &&
+    typeof progress === "number" &&
+    Number.isFinite(progress) &&
+    progress >= MIN_PROGRESS &&
+    progress <= MAX_PROGRESS &&
     typeof c.lastUpdated === "string" &&
-    typeof c.revenue === "number" &&
-    typeof c.cost === "number" &&
+    typeof revenue === "number" &&
+    Number.isFinite(revenue) &&
+    typeof cost === "number" &&
+    Number.isFinite(cost) &&
     typeof c.dueDate === "string" &&
     typeof c.owner === "string" &&
     typeof c.summary === "string" &&
@@ -296,6 +306,8 @@ function isPullRequestShape(value: unknown): value is PullRequestReview {
     typeof c.gate === "string" &&
     MERGE_GATES.has(c.gate) &&
     typeof c.changedFiles === "number" &&
+    Number.isInteger(c.changedFiles) &&
+    c.changedFiles >= 0 &&
     Array.isArray(c.riskAreas) &&
     c.riskAreas.every((area) => typeof area === "string") &&
     Array.isArray(c.comments) && c.comments.every(isReviewCommentShape) &&
@@ -329,6 +341,9 @@ function isPriorityLevelShape(value: unknown): value is ReviewPriorityLevel {
     typeof c.priority === "string" &&
     REVIEW_PRIORITIES.has(c.priority) &&
     typeof c.rank === "number" &&
+    Number.isInteger(c.rank) &&
+    c.rank >= 1 &&
+    c.rank <= 4 &&
     typeof c.label === "string" &&
     typeof c.owner === "string" &&
     typeof c.mergeRule === "string" &&
