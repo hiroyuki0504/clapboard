@@ -26,6 +26,7 @@ const PUBLIC_API_PATHS = new Set([
   "/api/login",
   "/api/logout",
   "/api/csrf",
+  "/api/refresh",
 ]);
 const CSRF_TOKEN_BYPASS_API_PATHS = new Set(["/api/login", "/api/csrf"]);
 

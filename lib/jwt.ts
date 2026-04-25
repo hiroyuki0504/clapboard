@@ -120,10 +120,14 @@ export async function verifyJwt<T extends object = Record<string, unknown>>(
   return payload as JwtClaims<T>;
 }
 
+export type JwtTokenType = "access" | "refresh";
+
 /**
  * Cookie / Bearer 値から Role を解決する共通ヘルパー。
  *
  * - JWT_SECRET が強くかつ値が `a.b.c` 形式 → JWT として verify、成功なら claim.role を採用
+ *   - access type であること（旧 JWT (type 未設定) は許容: type === undefined を access 扱い）
+ *   - refresh type は明示的に拒否（refresh cookie で API 認可させない）
  * - JWT verify 失敗 / JWT 形式でない → legacy 生 token 比較 (resolveRole) にフォールバック
  *
  * middleware (edge) と access-control (server-only) の重複実装を防ぐため lib/jwt.ts に集約。
@@ -134,8 +138,14 @@ export async function resolveRoleFromCookieValue(
 ): Promise<Role | null> {
   if (!value) return null;
   if (isJwtSecretStrong(jwtSecret) && value.split(".").length === 3) {
-    const claims = await verifyJwt<{ role?: unknown }>(value, jwtSecret);
+    const claims = await verifyJwt<{ role?: unknown; type?: unknown }>(
+      value,
+      jwtSecret,
+    );
     if (claims) {
+      if (claims.type !== undefined && claims.type !== "access") {
+        return null;
+      }
       const claimedRole = claims.role;
       if (claimedRole === "admin" || claimedRole === "viewer") {
         return claimedRole;
@@ -144,4 +154,15 @@ export async function resolveRoleFromCookieValue(
     }
   }
   return resolveRole(value);
+}
+
+export async function verifyTypedJwt<T extends Record<string, unknown>>(
+  token: string,
+  secret: string,
+  expectedType: JwtTokenType,
+): Promise<JwtClaims<T & { type: JwtTokenType }> | null> {
+  const claims = await verifyJwt<T & { type?: unknown }>(token, secret);
+  if (!claims) return null;
+  if (claims.type !== expectedType) return null;
+  return claims as JwtClaims<T & { type: JwtTokenType }>;
 }

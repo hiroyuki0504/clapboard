@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import {
   ACCESS_COOKIE_MAX_AGE_SECONDS,
   ACCESS_COOKIE_NAME,
+  ACCESS_JWT_TTL_SECONDS,
   JWT_COOKIE_TTL_SECONDS,
   MAX_LOGIN_BODY_BYTES,
+  REFRESH_COOKIE_NAME,
+  REFRESH_JWT_TTL_SECONDS,
   isAccessControlConfigured,
   isProductionRuntime,
   resolveRoleFromToken,
@@ -109,25 +112,50 @@ export async function POST(request: Request) {
 
   const jwtSecret = process.env.CLAPBOARD_JWT_SECRET;
   const useJwt = isJwtSecretStrong(jwtSecret);
-  const cookieValue = useJwt
-    ? await signJwt({ role }, jwtSecret as string, JWT_COOKIE_TTL_SECONDS)
+  const accessValue = useJwt
+    ? await signJwt(
+        { role, type: "access" },
+        jwtSecret as string,
+        ACCESS_JWT_TTL_SECONDS,
+      )
     : token;
-  const cookieMaxAge = useJwt ? JWT_COOKIE_TTL_SECONDS : ACCESS_COOKIE_MAX_AGE_SECONDS;
+  const accessMaxAge = useJwt
+    ? ACCESS_JWT_TTL_SECONDS
+    : ACCESS_COOKIE_MAX_AGE_SECONDS;
+  const refreshValue = useJwt
+    ? await signJwt(
+        { role, type: "refresh" },
+        jwtSecret as string,
+        REFRESH_JWT_TTL_SECONDS,
+      )
+    : null;
+  void JWT_COOKIE_TTL_SECONDS; // 後方互換用に残す
 
   const csrfToken = generateCsrfToken();
   const response = NextResponse.json(
-    { ok: true, role, csrfToken },
+    { ok: true, role, csrfToken, mode: useJwt ? "jwt" : "legacy" },
     { status: 200, headers: rateLimitHeaders(rate) },
   );
   response.cookies.set({
     name: ACCESS_COOKIE_NAME,
-    value: cookieValue,
+    value: accessValue,
     httpOnly: true,
     sameSite: "lax",
     secure: isProductionRuntime(),
     path: "/",
-    maxAge: cookieMaxAge,
+    maxAge: accessMaxAge,
   });
+  if (useJwt && refreshValue) {
+    response.cookies.set({
+      name: REFRESH_COOKIE_NAME,
+      value: refreshValue,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: isProductionRuntime(),
+      path: "/api/refresh",
+      maxAge: REFRESH_JWT_TTL_SECONDS,
+    });
+  }
   response.cookies.set({
     name: CSRF_COOKIE_NAME,
     value: csrfToken,
