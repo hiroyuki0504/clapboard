@@ -7,7 +7,7 @@ import {
   getOpenTaskCount,
 } from "@/lib/project-selectors";
 import type { Project } from "@/lib/types";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, normalizeProgressValue } from "@/lib/utils";
 
 type ProjectTableProps = {
   projects: Project[];
@@ -61,6 +61,7 @@ export function ProjectTable({
           {projects.map((project) => {
             const blockers = getHighPriorityOpenTaskCount(project.tasks);
             const openTasks = getOpenTaskCount(project.tasks);
+            const progressValue = normalizeProgressValue(project.progress);
 
             return (
               <tr
@@ -85,9 +86,9 @@ export function ProjectTable({
                 </td>
                 <td className={cn("border-t border-[#ded6ca] px-5", rowPadding)}>
                   <div className="flex min-w-36 items-center gap-3">
-                    <Progress value={project.progress} />
+                    <Progress value={progressValue} />
                     <span className="w-10 text-right font-mono text-sm font-bold text-[#70675b]">
-                      {project.progress}%
+                      {progressValue}%
                     </span>
                   </div>
                 </td>
