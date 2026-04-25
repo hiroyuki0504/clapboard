@@ -9,47 +9,48 @@ import {
   Gamepad2,
   LayoutDashboard,
   Network,
-  PanelLeft,
+  GitPullRequest,
   Search,
   Settings,
   Sparkles,
   SquareTerminal,
-  JapaneseYen,
+  TimerReset,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const railItems = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { label: "案件グラフ", href: "/projects", icon: Network },
+  { label: "進捗ダッシュボード", href: "/", icon: LayoutDashboard },
+  { label: "進捗ボード", href: "/projects", icon: Network },
+  { label: "Code Review", href: "/code-review", icon: GitPullRequest },
   { label: "Files", href: "/projects", icon: Folder },
   { label: "ToDo", href: "/#todo", icon: Check },
   { label: "Agent", href: "/#agent", icon: Bot },
-  { label: "Finance", href: "/#finance", icon: JapaneseYen },
-  { label: "Sandbox", href: "/projects/ai-minutes", icon: Gamepad2 },
+  { label: "Timeline", href: "/#timeline", icon: TimerReset },
+  { label: "Simulation", href: "/projects/ai-minutes", icon: Gamepad2 },
 ];
 
 const tree = [
   {
-    label: "01_案件・リサーチ",
+    label: "01_進行中ワーク",
     open: true,
-    children: ["クラウドワークス_抽出", "Lancers_抽出", "案件サマリ_0423.md"],
+    children: ["UI実装_進捗.md", "AI議事録_検証.md", "進捗サマリ_0425.md"],
   },
   {
-    label: "02_ナレッジ",
+    label: "02_マイルストーン",
     open: true,
-    children: ["議事録_音声起こし", "product_spec.pdf", "競合比較.xlsx"],
+    children: ["今週レビュー", "product_spec.pdf", "依存タスク一覧.xlsx"],
   },
   {
-    label: "03_収支・日報",
+    label: "03_ブロッカー",
     open: false,
     children: [],
   },
   {
-    label: "04_開発",
-    open: false,
-    children: [],
+    label: "04_開発レビュー",
+    open: true,
+    children: ["PM_main_gate.md", "codex_review.md", "branch_split_policy.md"],
   },
   {
     label: "05_共有_大容量",
@@ -63,7 +64,7 @@ const tree = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ agentSummary }: { agentSummary: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
@@ -79,10 +80,13 @@ export function Sidebar() {
         <nav className="flex flex-1 flex-col items-center gap-2">
           {railItems.map((item) => {
             const Icon = item.icon;
+            const baseHref = item.href.split("#")[0];
             const active =
-              item.href === "/"
+              item.href.includes("#")
+                ? pathname === baseHref
+                : item.href === "/"
                 ? pathname === "/"
-                : pathname.startsWith(item.href.split("#")[0]);
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
             return (
               <Link
@@ -112,7 +116,7 @@ export function Sidebar() {
 
       <div className="thin-scrollbar w-[242px] overflow-y-auto border-r border-[#d2c8b8] bg-[#f1eee5]/94 px-3 py-4">
         <div className="mb-3 flex items-center justify-between text-xs font-bold uppercase tracking-[0.18em] text-[#71685d]">
-          <span>Files</span>
+          <span>Progress</span>
           <div className="flex items-center gap-2">
             <Search className="h-3.5 w-3.5" aria-hidden />
             <span>+</span>
@@ -140,11 +144,21 @@ export function Sidebar() {
               {folder.open && (
                 <div className="ml-5 space-y-1 border-l border-[#ddd5c8] pl-2">
                   {folder.children.map((child) => {
-                    const selected = child.includes("案件サマリ");
+                    const reviewChild =
+                      child.includes("main_gate") ||
+                      child.includes("codex_review") ||
+                      child.includes("branch_split");
+                    const selected = child.includes("進捗サマリ") || reviewChild;
                     return (
                       <Link
                         key={child}
-                        href={selected ? "/projects/ai-minutes" : "/projects"}
+                        href={
+                          reviewChild
+                            ? "/code-review"
+                            : selected
+                              ? "/projects/ai-minutes"
+                              : "/projects"
+                        }
                         className={cn(
                           "flex items-center gap-2 rounded-md px-2 py-1.5 text-[#696158] transition hover:bg-[#e5dfd2]",
                           selected && "bg-[#f1cfc2] text-[#9a4a31]",
@@ -165,8 +179,8 @@ export function Sidebar() {
           <div className="flex items-center gap-2 rounded-lg border border-[#c8c0b4] bg-[#fffefa] p-3">
             <Bot className="h-4 w-4 text-[#5f8b5b]" aria-hidden />
             <div>
-              <p className="font-bold text-[#312d27]">OpenClaw Ready</p>
-              <p className="mt-1">42 items ・ 1.2GB</p>
+              <p className="font-bold text-[#312d27]">Progress Agent</p>
+              {agentSummary}
             </div>
           </div>
           <Link

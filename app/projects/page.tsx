@@ -2,21 +2,26 @@ import { Filter, Plus, SlidersHorizontal } from "lucide-react";
 import { ProjectTable } from "@/components/projects/project-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { projects } from "@/lib/mock-data";
+import { getProjects } from "@/lib/clapboard-api";
 
-export default function ProjectsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ProjectsPage() {
+  const projectsResult = await getProjects();
+  const projects = projectsResult.data;
+
   return (
     <div className="space-y-4">
       <section className="flex flex-col gap-4 rounded-lg border border-[#423c33]/55 bg-[#fffefa] p-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-[#81786d]">
-            PROJECTS
+            PROGRESS BOARD
           </p>
           <h2 className="mt-2 text-2xl font-black tracking-normal text-[#2f2b25]">
-            案件一覧
+            進捗一覧
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6f665b]">
-            進捗、最終更新、収支、ステータスを横断して確認できます。詳細画面から議事録・ファイル・タスクを管理します。
+            ワークストリームごとの進捗率、次の節目、停滞リスク、未完了タスクを横断して確認できます。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -30,7 +35,7 @@ export default function ProjectsPage() {
           </Button>
           <Button>
             <Plus className="h-4 w-4" aria-hidden />
-            新規案件
+            進捗追加
           </Button>
         </div>
       </section>
@@ -38,9 +43,10 @@ export default function ProjectsPage() {
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>管理中の案件</CardTitle>
+            <CardTitle>進行中ワークストリーム</CardTitle>
             <p className="mt-1 text-sm text-[#81786d]">
-              {projects.length}件のモック案件を表示しています。
+              {projects.length}件の
+              {projectsResult.connected ? "API連携" : "ローカルAPI"}データを表示しています。
             </p>
           </div>
         </CardHeader>

@@ -13,12 +13,12 @@ export const projects: Project[] = [
     dueDate: "2026-05-20",
     owner: "山田 / 佐藤",
     summary:
-      "ymt-systems.com のブランド更新に合わせたWeb制作案件。情報設計、UI刷新、問い合わせ導線の改善を中心に進行中。",
+      "ymt-systems.com のブランド更新に合わせたWeb制作ワーク。情報設計、UI刷新、問い合わせ導線の改善を中心に進行中。",
     updates: [
       {
         id: "u1",
         date: "2026-04-24T16:20:00+09:00",
-        text: "トップページのワイヤーを確定。CTA文言のA案/B案をクライアント確認へ。",
+        text: "トップページのワイヤーを確定。CTA文言のA案/B案を確認待ちへ。",
       },
       {
         id: "u2",
@@ -110,7 +110,7 @@ export const projects: Project[] = [
     dueDate: "2026-05-10",
     owner: "高橋 / AI Agent Team",
     summary:
-      "会議音声から議事録、TODO、決定事項を抽出し、案件進捗へ反映する自動化PoC。OpenClaw連携を前提に設計。",
+      "会議音声から議事録、TODO、決定事項を抽出し、進捗ボードへ反映する自動化PoC。OpenClaw連携を前提に設計。",
     updates: [
       {
         id: "u3",

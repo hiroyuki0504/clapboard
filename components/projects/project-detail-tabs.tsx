@@ -18,7 +18,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import type { Project } from "@/lib/types";
-import { cn, formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import {
+  cn,
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  safeFileUrl,
+} from "@/lib/utils";
 
 type TabKey = "overview" | "progress" | "minutes" | "finance" | "files";
 
@@ -26,7 +32,7 @@ const tabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "overview", label: "Overview", icon: FileText },
   { key: "progress", label: "Progress", icon: ListChecks },
   { key: "minutes", label: "Minutes", icon: UsersRound },
-  { key: "finance", label: "Finance", icon: Landmark },
+  { key: "finance", label: "Budget", icon: Landmark },
   { key: "files", label: "Files", icon: FolderOpen },
 ];
 
@@ -34,6 +40,9 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const profit = project.revenue - project.cost;
   const completion = useMemo(() => {
+    if (project.tasks.length === 0) {
+      return 0;
+    }
     const completed = project.tasks.filter((task) => task.completed).length;
     return Math.round((completed / project.tasks.length) * 100);
   }, [project.tasks]);
@@ -68,9 +77,9 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
           <Card>
             <CardHeader>
               <div>
-                <CardTitle>案件概要</CardTitle>
+                <CardTitle>進捗概要</CardTitle>
                 <p className="mt-1 text-sm text-[#81786d]">
-                  ステータス、進捗、期限、担当者を確認します。
+                  状態、進捗率、次の節目、担当者を確認します。
                 </p>
               </div>
               <ProjectStatusBadge status={project.status} />
@@ -80,7 +89,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
               <div className="grid gap-3 sm:grid-cols-2">
                 <InfoTile
                   icon={CalendarClock}
-                  label="期限"
+                  label="次の節目"
                   value={formatDate(project.dueDate)}
                 />
                 <InfoTile icon={UsersRound} label="担当者" value={project.owner} />
@@ -99,7 +108,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
 
           <Card>
             <CardHeader>
-              <CardTitle>直近の更新</CardTitle>
+              <CardTitle>進捗ログ</CardTitle>
               <span className="text-xs text-[#81786d]">live</span>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -125,7 +134,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>タスク一覧</CardTitle>
+              <CardTitle>進捗タスク</CardTitle>
               <p className="mt-1 text-sm text-[#81786d]">
                 完了率 {completion}% ・ 未完了{" "}
                 {project.tasks.filter((task) => !task.completed).length}件
@@ -196,14 +205,14 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
       {activeTab === "finance" && (
         <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]" id="finance">
           <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-            <FinanceTile label="売上" value={formatCurrency(project.revenue)} tone="blue" />
-            <FinanceTile label="支出" value={formatCurrency(project.cost)} tone="amber" />
-            <FinanceTile label="利益" value={formatCurrency(profit)} tone="green" />
+            <FinanceTile label="予算" value={formatCurrency(project.revenue)} tone="blue" />
+            <FinanceTile label="消化" value={formatCurrency(project.cost)} tone="amber" />
+            <FinanceTile label="余力" value={formatCurrency(profit)} tone="green" />
           </div>
           <Card>
             <CardHeader>
-              <CardTitle>取引履歴</CardTitle>
-              <Button variant="secondary">取引追加</Button>
+              <CardTitle>予算メモ</CardTitle>
+              <Button variant="secondary">メモ追加</Button>
             </CardHeader>
             <CardContent className="overflow-x-auto p-0">
               <table className="w-full min-w-[620px]">
@@ -226,7 +235,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
                       </td>
                       <td className="border-t border-[#ded6ca] px-5 py-4">
                         <Badge tone={transaction.type === "revenue" ? "green" : "amber"}>
-                          {transaction.type === "revenue" ? "売上" : "支出"}
+                          {transaction.type === "revenue" ? "予算" : "消化"}
                         </Badge>
                       </td>
                       <td className="border-t border-[#ded6ca] px-5 py-4 text-right font-bold text-[#312d27]">
@@ -247,20 +256,17 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
             <div>
               <CardTitle>Google Drive URL管理</CardTitle>
               <p className="mt-1 text-sm text-[#81786d]">
-                MVPでは外部URLの表示と整理に絞っています。
+                MVPでは進捗に紐づく外部URLの表示と整理に絞っています。
               </p>
             </div>
             <Button variant="secondary">URL追加</Button>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
-            {project.files.map((file) => (
-              <a
-                key={file.id}
-                href={file.url}
-                target="_blank"
-                rel="noreferrer"
-                className="group rounded-md border border-[#d8d1c4] bg-[#fbfaf5] p-4 transition hover:border-[#c95d3a]"
-              >
+            {project.files.map((file) => {
+              const safeUrl = safeFileUrl(file.url);
+              const cardClass =
+                "group rounded-md border border-[#d8d1c4] bg-[#fbfaf5] p-4 transition hover:border-[#c95d3a]";
+              const inner = (
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <Badge tone="blue">{file.type.toUpperCase()}</Badge>
@@ -268,11 +274,36 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
                     <p className="mt-1 text-sm text-[#70675b]">
                       更新日 {formatDateTime(file.updatedAt)}
                     </p>
+                    {!safeUrl && (
+                      <p className="mt-2 text-xs font-bold text-[#9a4a31]">
+                        URL不正のためリンクを無効化しています
+                      </p>
+                    )}
                   </div>
                   <ArrowUpRight className="h-5 w-5 text-[#9a9084] transition group-hover:text-[#c95d3a]" />
                 </div>
-              </a>
-            ))}
+              );
+
+              if (!safeUrl) {
+                return (
+                  <div key={file.id} className={cardClass}>
+                    {inner}
+                  </div>
+                );
+              }
+
+              return (
+                <a
+                  key={file.id}
+                  href={safeUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className={cardClass}
+                >
+                  {inner}
+                </a>
+              );
+            })}
           </CardContent>
         </Card>
       )}
