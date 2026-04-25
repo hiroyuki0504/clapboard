@@ -5,6 +5,7 @@ import {
   sanitizeRedirectPath,
   timingSafeEquals,
 } from "@/lib/access-token";
+import { evaluateCsrf } from "@/lib/csrf";
 
 const PROTECTED_PAGE_PREFIXES = ["/projects", "/code-review"];
 const PROTECTED_PAGE_PATHS = new Set(["/"]);
@@ -17,13 +18,19 @@ const PUBLIC_API_PATHS = new Set([
 
 const SERVICE_UNAVAILABLE_MESSAGE = "service configuration error";
 const UNAUTHORIZED_MESSAGE = "unauthorized";
+const FORBIDDEN_MESSAGE = "forbidden";
 
 function extractBearer(request: NextRequest) {
   const header = request.headers.get("authorization");
   if (!header || !header.toLowerCase().startsWith("bearer ")) {
     return null;
   }
-  return header.slice(7).trim();
+  const value = header.slice(7).trim();
+  return value.length > 0 ? value : null;
+}
+
+function hasNonEmptyBearer(request: NextRequest) {
+  return extractBearer(request) !== null;
 }
 
 function isAuthorized(request: NextRequest, expected: string) {
@@ -45,14 +52,35 @@ export function middleware(request: NextRequest) {
   const expected = process.env.CLAPBOARD_ACCESS_TOKEN;
   const isProduction = process.env.NODE_ENV === "production";
 
+  const isApiRoute = PROTECTED_API_PREFIXES.some((prefix) =>
+    pathname.startsWith(prefix),
+  );
   const isProtectedPage =
     PROTECTED_PAGE_PATHS.has(pathname) ||
     PROTECTED_PAGE_PREFIXES.some(
       (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
     );
-  const isProtectedApi =
-    PROTECTED_API_PREFIXES.some((prefix) => pathname.startsWith(prefix)) &&
-    !PUBLIC_API_PATHS.has(pathname);
+  const isProtectedApi = isApiRoute && !PUBLIC_API_PATHS.has(pathname);
+
+  if (!isProtectedPage && !isApiRoute) {
+    return NextResponse.next();
+  }
+
+  if (isApiRoute && !hasNonEmptyBearer(request)) {
+    const csrf = evaluateCsrf(request);
+    if (!csrf.ok) {
+      return NextResponse.json(
+        { error: FORBIDDEN_MESSAGE, reason: csrf.reason },
+        {
+          status: 403,
+          headers: {
+            "cache-control": "no-store",
+            "vary": "origin",
+          },
+        },
+      );
+    }
+  }
 
   if (!isProtectedPage && !isProtectedApi) {
     return NextResponse.next();

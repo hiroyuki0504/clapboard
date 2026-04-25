@@ -95,6 +95,61 @@ CLAPBOARD_ACCESS_TOKEN=<openssl rand -base64 32>
 - API クライアントは `Authorization: Bearer <token>` でも認証できます。
 - Cookie は7日で失効します。ログアウトする場合は `POST /api/logout` を呼び出してください。
 
+## Team Roles
+
+| Role | Responsibility |
+|---|---|
+| PM / Tech Lead | 仕様整理、タスク分解、PRレビュー、統合、デモ設計 |
+| Developer | 機能実装、UI実装、バグ修正 |
+| UI / Presentation | UI確認、動作テスト、スライド作成、発表補助 |
+
+## Development Workflow
+
+このプロジェクトでは、短時間で安全に開発を進めるため、Pull Request ベースで開発します。
+
+### Branch Rule
+
+- `main` への直接 push は禁止
+- 作業ごとに `feature/*` または `fix/*` ブランチを作成
+- 1機能・1修正ごとに小さく Pull Request を作成
+
+例:
+
+```bash
+git checkout -b feature/input-form
+git checkout -b feature/ai-processing
+git checkout -b fix/demo-layout
+```
+
+### Pull Request Rule
+
+- PRは小さく出す
+- 30〜60分ごとに進捗単位でPRを作成
+- PRはPM / Tech Leadが確認してから `main` へマージ
+- デモ前は動作確認済みのPRのみマージ
+- デモ前は `main` が常に起動できる状態を保つ
+
+### Review Checklist
+
+PRでは以下を確認します。
+
+- [ ] アプリが起動する
+- [ ] デモに必要な機能か
+- [ ] `main` を壊さない
+- [ ] 画面表示が大きく崩れていない
+- [ ] 不要なコードやログが残っていない
+
+### Commit / PR Naming
+
+PRタイトルは以下の形式を基本にします。
+
+```text
+feat: 入力フォームを追加
+feat: AI処理APIを追加
+fix: デモ画面のレイアウト崩れを修正
+docs: READMEを更新
+```
+
 ## PM / Codexレビュー運用
 
 PRブランチ上で、mainとの差分をCodex CLIの標準モデルでレビューします。
