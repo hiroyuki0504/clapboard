@@ -22,6 +22,11 @@ import {
   extractMinuteSuggestions,
   type ExtractionSuggestion,
 } from "@/lib/mock-extraction";
+import {
+  getOpenTaskCount,
+  getProjectBudgetBalance,
+  getTaskCompletion,
+} from "@/lib/project-selectors";
 import type { Project, ProjectMinute, ProjectTask } from "@/lib/types";
 import {
   cn,
@@ -100,8 +105,16 @@ const reviewFilterOptions: { key: ReviewFilter; label: string }[] = [
   { key: "rejected", label: "却下済み" },
 ];
 
-export function ProjectDetailTabs({ project }: { project: Project }) {
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
+export function ProjectDetailTabs({
+  project,
+  initialTab,
+}: {
+  project: Project;
+  initialTab?: string;
+}) {
+  const [activeTab, setActiveTab] = useState<TabKey>(() =>
+    getTabFromValue(initialTab),
+  );
   const [reviewError, setReviewError] = useState("");
   const [reviewSources, setReviewSources] = useState<ReviewSource[]>(() =>
     createReviewSources(project.minutes),
@@ -112,12 +125,9 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("pending");
   const acceptedReviewTasks = getAcceptedReviewTasks(reviewSources, project.tasks);
   const tasks = [...acceptedReviewTasks, ...project.tasks];
-  const profit = project.revenue - project.cost;
-  const completion = useMemo(() => {
-    if (tasks.length === 0) return 0;
-    const completed = tasks.filter((task) => task.completed).length;
-    return Math.round((completed / tasks.length) * 100);
-  }, [tasks]);
+  const profit = getProjectBudgetBalance(project);
+  const completion = useMemo(() => getTaskCompletion(tasks), [tasks]);
+  const openTaskCount = getOpenTaskCount(tasks);
   const activeTabMeta = tabs.find((tab) => tab.key === activeTab)!;
   const selectedReviewSource =
     reviewSources.find((source) => source.id === selectedReviewSourceId) ??
@@ -140,7 +150,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
 
   useEffect(() => {
     function syncTabFromUrl() {
-      setActiveTab(getTabKeyFromSearch() ?? "overview");
+      setActiveTab(getTabFromSearch());
     }
 
     syncTabFromUrl();
@@ -199,6 +209,10 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
   }
 
   function handleSelectTab(tabKey: TabKey) {
+    if (tabKey === activeTab) {
+      return;
+    }
+
     setActiveTab(tabKey);
 
     const url = new URL(window.location.href);
@@ -209,7 +223,11 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
       url.searchParams.set("tab", tabKey);
     }
 
-    window.history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    window.history.pushState(
+      null,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
   }
 
   function handleSelectReviewSource(sourceId: string) {
@@ -570,8 +588,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
             <div>
               <CardTitle>進捗タスク</CardTitle>
               <p className="mt-1 text-sm text-[#81786d]">
-                完了率 {completion}% ・ 未完了{" "}
-                {tasks.filter((task) => !task.completed).length}件
+                完了率 {completion}% ・ 未完了 {openTaskCount}件
               </p>
             </div>
           </CardHeader>
@@ -989,20 +1006,6 @@ function SuggestionSection({
   );
 }
 
-function getTabKeyFromSearch(): TabKey | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const tab = new URLSearchParams(window.location.search).get("tab");
-
-  return isTabKey(tab) ? tab : null;
-}
-
-function isTabKey(value: string | null): value is TabKey {
-  return tabs.some((tab) => tab.key === value);
-}
-
 function InfoTile({
   icon: Icon,
   label,
@@ -1285,3 +1288,21 @@ const statusLabelMap = {
   accepted: "採用済み",
   rejected: "却下済み",
 } as const;
+
+function getTabFromSearch(): TabKey {
+  if (typeof window === "undefined") {
+    return "overview";
+  }
+
+  const tab = new URLSearchParams(window.location.search).get("tab");
+
+  return isTabKey(tab) ? tab : "overview";
+}
+
+function getTabFromValue(value: string | null | undefined): TabKey {
+  return isTabKey(value) ? value : "overview";
+}
+
+function isTabKey(value: string | null | undefined): value is TabKey {
+  return tabs.some((tab) => tab.key === value);
+}
