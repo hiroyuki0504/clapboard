@@ -1,7 +1,22 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { projects } from "@/lib/mock-data";
+import { readProjectsWithSnapshots } from "@/lib/project-persistence";
+import type { Project } from "@/lib/types";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const [projectList, setProjectList] = useState<Project[]>(projects);
+  const reviewCount = getReviewCount(projectList);
+  const unresolvedCount = getUnresolvedCount(projectList);
+  const attentionCount = reviewCount + unresolvedCount;
+
+  useEffect(() => {
+    setProjectList(readProjectsWithSnapshots(projects));
+  }, []);
+
   return (
     <div className="min-h-screen overflow-hidden bg-[#f4f1e8] text-[#312d27]">
       <div className="grid h-9 grid-cols-[1fr_auto_1fr] items-center border-b border-[#cfc6b8] bg-[#e8e2d7] px-4 text-xs text-[#70675b]">
@@ -15,10 +30,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="flex justify-end gap-2">
           <span className="rounded-full border border-[#a8bed4] bg-[#eef4f8] px-3 py-1 text-[#315a78]">
-            Agent: 待機中
+            Agent: {attentionCount > 0 ? `確認 ${attentionCount}件` : "待機中"}
           </span>
           <span className="rounded-full border border-[#c8c0b3] bg-[#fffefa] px-3 py-1">
-            4 projects
+            {projectList.length} projects
           </span>
         </div>
       </div>
@@ -32,5 +47,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function getReviewCount(projects: Project[]) {
+  return projects.reduce((total, project) => {
+    const pendingImports = project.imports.filter(
+      (entry) => entry.extractionStatus !== "reviewed",
+    ).length;
+    const pendingSuggestions = project.imports.reduce(
+      (count, entry) =>
+        count +
+        (entry.suggestions ?? []).filter((suggestion) => suggestion.status === "pending")
+          .length,
+      0,
+    );
+
+    return total + pendingImports + pendingSuggestions;
+  }, 0);
+}
+
+function getUnresolvedCount(projects: Project[]) {
+  return projects.reduce(
+    (total, project) =>
+      total + project.ambiguities.filter((ambiguity) => !ambiguity.resolved).length,
+    0,
   );
 }

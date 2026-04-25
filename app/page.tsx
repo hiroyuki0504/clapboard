@@ -107,6 +107,7 @@ export default function DashboardPage() {
         projectId: project.id,
         projectName: project.name,
         priority: project.status === "review" ? "high" : "medium",
+        targetTab: "review" as const,
       },
     ];
   });
@@ -121,6 +122,7 @@ export default function DashboardPage() {
         id: `ambiguity-${ambiguity.id}`,
         projectId: project.id,
         projectName: project.name,
+        targetTab: "overview" as const,
       }),
     ),
   );
@@ -143,6 +145,7 @@ export default function DashboardPage() {
         projectId: project.id,
         projectName: project.name,
         priority: task.priority,
+        targetTab: "overview" as const,
       })),
   );
   const reviewQueue = [...pendingReviews, ...unresolvedAmbiguities, ...followUpTasks]
@@ -159,13 +162,40 @@ export default function DashboardPage() {
       (item, index, array) =>
         array.findIndex((candidate) => candidate.id === item.id) === index,
     );
+  const latestActivityAt = getLatestActivityAt(dashboardProjects);
+  const dashboardDateLabel = formatDashboardDate(latestActivityAt);
+  const graphProject = focusProjects[0] ?? recentProjects[0];
+  const financeSummary = getFinanceSummary(dashboardProjects);
+  const agentEvents = [
+    ...importFeed.slice(0, 3).map((minuteImport) => ({
+      id: `import-${minuteImport.id}`,
+      createdAt: minuteImport.createdAt,
+      action: "minute_import",
+      detail: `${minuteImport.filename} / ${getExtractionStatusLabel(
+        minuteImport.extractionStatus,
+      )}`,
+    })),
+    ...reviewQueue.slice(0, 2).map((item) => ({
+      id: `queue-${item.id}`,
+      createdAt: item.createdAt,
+      action: item.id.startsWith("ambiguity-")
+        ? "ambiguity_flag"
+        : "review_queue",
+      detail: `${item.projectName} / ${item.title}`,
+    })),
+  ]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    .slice(0, 5);
 
   return (
     <div className="space-y-4">
       <section className="grid gap-4 xl:grid-cols-[1fr_420px]">
         <div className="rounded-lg border border-[#423c33]/55 bg-[#fffefa] p-5">
           <p className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-[#81786d]">
-            2026/04/25 SAT
+            {dashboardDateLabel}
           </p>
           <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -227,7 +257,7 @@ export default function DashboardPage() {
                 {importFeed.slice(0, 3).map((minuteImport) => (
                   <Link
                     key={minuteImport.id}
-                    href={`/projects/${minuteImport.projectId}`}
+                    href={projectTabHref(minuteImport.projectId, "review")}
                     className="block border-b border-dashed border-[#d8d1c4] pb-3 last:border-b-0 last:pb-0"
                   >
                     <p className="text-sm font-bold text-[#312d27]">
@@ -288,7 +318,7 @@ export default function DashboardPage() {
             {reviewQueue.slice(0, 6).map((item) => (
               <Link
                 key={item.id}
-                href={`/projects/${item.projectId}`}
+                href={projectTabHref(item.projectId, item.targetTab)}
                 className="grid grid-cols-[24px_1fr_auto] items-start gap-3 border-b border-dashed border-[#d8d1c4] px-4 py-4 transition hover:bg-[#fbfaf5] last:border-b-0"
               >
                 <span
@@ -340,7 +370,7 @@ export default function DashboardPage() {
             ))}
             <div className="p-4">
               <Link
-                href="/projects"
+                href="/projects?status=review"
                 className="flex h-10 w-full items-center rounded-md border border-[#d8d1c4] bg-[#fffefa] px-4 text-sm text-[#9a9084]"
               >
                 レビュー対象の案件を開く...
@@ -363,7 +393,7 @@ export default function DashboardPage() {
             {importFeed.slice(0, 4).map((minuteImport) => (
               <Link
                 key={minuteImport.id}
-                href={`/projects/${minuteImport.projectId}`}
+                href={projectTabHref(minuteImport.projectId, "review")}
                 className="block border-b border-dashed border-[#d8d1c4] pb-3 last:border-b-0 last:pb-0"
               >
                 <p className="text-sm font-bold text-[#312d27]">
@@ -384,15 +414,20 @@ export default function DashboardPage() {
               <SquareTerminal className="h-4 w-4" aria-hidden />
               <CardTitle>Review Agent Log</CardTitle>
             </div>
-            <Badge tone="green">running</Badge>
+            <Badge tone={reviewQueue.length > 0 ? "amber" : "green"}>
+              {reviewQueue.length > 0 ? "review-needed" : "clear"}
+            </Badge>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 border-l-2 border-[#6e9a66] pl-3 font-mono text-xs leading-6 text-[#4f483f]">
-              <p><span className="text-[#8b8175]">08:02</span> cw_scraper → 3 items</p>
-              <p><span className="text-[#8b8175]">08:03</span> minute_import → queued</p>
-              <p><span className="text-[#8b8175]">10:15</span> ai_extract → review-needed</p>
-              <p><span className="text-[#8b8175]">10:16</span> ambiguity_flag → owner missing</p>
-              <p><span className="text-[#8b8175]">11:32</span> review_apply → project updated</p>
+              {agentEvents.map((event) => (
+                <p key={event.id}>
+                  <span className="text-[#8b8175]">
+                    {formatEventTime(event.createdAt)}
+                  </span>{" "}
+                  {event.action} → {event.detail}
+                </p>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -408,7 +443,10 @@ export default function DashboardPage() {
               .map((project) => (
               <Link
                 key={project.id}
-                href={`/projects/${project.id}`}
+                href={projectTabHref(
+                  project.id,
+                  getProjectFocusTab(project, explicitUnresolvedCount === 0),
+                )}
                 className="block rounded-md border border-[#d8d1c4] bg-[#fbfaf5] p-3 transition hover:border-[#c95d3a]"
               >
                 <div className="mb-2 flex items-center justify-between gap-2">
@@ -439,9 +477,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <GraphCard />
+        <GraphCard project={graphProject} files={allFiles.slice(0, 2)} />
 
-        <FinanceCard profit={monthlyProfit} />
+        <FinanceCard summary={financeSummary} />
 
         <Card>
           <CardHeader>
@@ -511,6 +549,18 @@ type DashboardProject = (typeof projects)[number] & {
   unresolved?: DashboardAmbiguity[];
   extractionStatus?: DashboardExtractionStatus;
   suggestions?: DashboardSuggestion[];
+};
+
+type ProjectDetailTab = "overview" | "review" | "minutes" | "finance" | "files";
+
+type FinanceSummary = {
+  revenue: number;
+  cost: number;
+  profit: number;
+  margin: number;
+  transactionCount: number;
+  latestDate?: string;
+  bars: number[];
 };
 
 const priorityRank: Record<string, number> = {
@@ -647,6 +697,126 @@ function getProjectUnresolvedItems(
     }));
 }
 
+function projectTabHref(projectId: string, tab: ProjectDetailTab) {
+  return tab === "overview"
+    ? `/projects/${projectId}`
+    : `/projects/${projectId}?tab=${tab}`;
+}
+
+function getProjectFocusTab(
+  project: DashboardProject,
+  allowUnresolvedFallback: boolean,
+): ProjectDetailTab {
+  if (getProjectReviewPendingCount(project) > 0) {
+    return "review";
+  }
+
+  if (getProjectUnresolvedItems(project, allowUnresolvedFallback).length > 0) {
+    return "overview";
+  }
+
+  return "overview";
+}
+
+function getLatestActivityAt(projects: DashboardProject[]) {
+  const dates = projects.flatMap((project) => [
+    project.lastUpdated,
+    ...project.updates.map((update) => update.date),
+    ...project.imports.map((entry) => entry.createdAt),
+    ...project.minutes.map((minute) => minute.createdAt),
+    ...project.files.map((file) => file.updatedAt),
+    ...project.transactions.map((transaction) =>
+      `${transaction.date}T00:00:00+09:00`,
+    ),
+  ]);
+
+  return dates.sort(
+    (a, b) => new Date(b).getTime() - new Date(a).getTime(),
+  )[0];
+}
+
+function formatDashboardDate(value?: string) {
+  if (!value) {
+    return "NO ACTIVITY";
+  }
+
+  const date = new Date(value);
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    timeZone: "Asia/Tokyo",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value ?? "";
+  const month = parts.find((part) => part.type === "month")?.value ?? "";
+  const day = parts.find((part) => part.type === "day")?.value ?? "";
+  const weekday = parts.find((part) => part.type === "weekday")?.value ?? "";
+
+  return `${year}/${month}/${day} (${weekday})`;
+}
+
+function formatEventTime(value: string) {
+  return new Intl.DateTimeFormat("ja-JP", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Tokyo",
+  }).format(new Date(value));
+}
+
+function getExtractionStatusLabel(status?: DashboardExtractionStatus) {
+  if (status == null) {
+    return "reviewed";
+  }
+
+  if (typeof status === "string") {
+    return status;
+  }
+
+  return status.status ?? (status.reviewed === false ? "review-needed" : "reviewed");
+}
+
+function getFinanceSummary(projects: DashboardProject[]): FinanceSummary {
+  const transactions = projects.flatMap((project) => project.transactions);
+  const revenue = projects.reduce((total, project) => total + project.revenue, 0);
+  const cost = projects.reduce((total, project) => total + project.cost, 0);
+  const profit = revenue - cost;
+  const maxProjectProfit = Math.max(
+    ...projects.map((project) => Math.max(project.revenue - project.cost, 0)),
+    1,
+  );
+  const latestDate = transactions
+    .map((transaction) => `${transaction.date}T00:00:00+09:00`)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+
+  return {
+    revenue,
+    cost,
+    profit,
+    margin: revenue > 0 ? Math.round((profit / revenue) * 100) : 0,
+    transactionCount: transactions.length,
+    latestDate,
+    bars: projects.map((project) =>
+      Math.max(Math.round(((project.revenue - project.cost) / maxProjectProfit) * 100), 12),
+    ),
+  };
+}
+
+function formatMonthLabel(value?: string) {
+  if (!value) {
+    return "全期間";
+  }
+
+  const date = new Date(value);
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    month: "long",
+    timeZone: "Asia/Tokyo",
+  }).format(date);
+}
+
 function StatPill({
   label,
   value,
@@ -680,7 +850,19 @@ function ambiguityLabel(kind: string) {
   return labels[kind] ?? "未確定事項";
 }
 
-function GraphCard() {
+function GraphCard({
+  project,
+  files,
+}: {
+  project?: DashboardProject;
+  files: typeof allFiles;
+}) {
+  const sourceMinute = project?.minutes[0];
+  const relationCount =
+    (project?.minutes.length ?? 0) +
+    (project?.imports.length ?? 0) +
+    (project?.files.length ?? files.length);
+
   return (
     <Card>
       <CardHeader>
@@ -688,21 +870,23 @@ function GraphCard() {
           <Network className="h-4 w-4" aria-hidden />
           <CardTitle>ファイル関係グラフ</CardTitle>
         </div>
-        <span className="text-xs text-[#81786d]">最近7日</span>
+        <span className="text-xs text-[#81786d]">
+          関連 {relationCount}件
+        </span>
       </CardHeader>
       <CardContent>
         <div className="dotted-canvas relative h-52 overflow-hidden rounded-md border border-[#d8d1c4] bg-[#fffefa]">
           <div className="absolute left-6 top-9 z-10 rounded-full border border-[#d66b43] bg-[#fffefa] px-3 py-1 text-xs font-bold text-[#9a4a31]">
-            案件サマリ
+            {project?.name ?? "案件"}
           </div>
           <div className="absolute left-32 top-28 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            議事録
+            {sourceMinute?.title ?? "議事録"}
           </div>
           <div className="absolute right-8 top-20 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            LP_design
+            {files[0]?.name ?? "関連ファイル"}
           </div>
           <div className="absolute left-48 top-14 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            spec.pdf
+            {files[1]?.name ?? "共有資料"}
           </div>
           <span className="absolute left-[82px] top-[78px] h-px w-24 rotate-45 bg-[#c8c0b4]" />
           <span className="absolute left-[178px] top-[94px] h-px w-20 -rotate-45 bg-[#c8c0b4]" />
@@ -716,40 +900,46 @@ function GraphCard() {
   );
 }
 
-function FinanceCard({ profit }: { profit: number }) {
-  const bars = [34, 48, 38, 58, 46, 67, 78, 92];
-
+function FinanceCard({ summary }: { summary: FinanceSummary }) {
   return (
     <Card id="finance">
       <CardHeader>
         <div className="flex items-center gap-2">
           <JapaneseYen className="h-4 w-4" aria-hidden />
-          <CardTitle>収支・4月</CardTitle>
+          <CardTitle>収支・{formatMonthLabel(summary.latestDate)}</CardTitle>
         </div>
-        <span className="text-xs text-[#81786d]">更新: 今</span>
+        <span className="text-xs text-[#81786d]">
+          更新: {summary.latestDate ? formatDateTime(summary.latestDate) : "-"}
+        </span>
       </CardHeader>
       <CardContent>
         <div className="flex items-end justify-between gap-4">
           <div>
             <p className="text-xs font-bold text-[#81786d]">粗利</p>
             <p className="mt-2 text-2xl font-black tracking-normal text-[#312d27]">
-              {formatCurrency(profit)}
+              {formatCurrency(summary.profit)}
             </p>
           </div>
           <div className="text-right text-sm font-bold text-[#5f8b5b]">
-            +18.2%
+            粗利率 {summary.margin}%
           </div>
         </div>
         <div className="mt-6 flex h-24 items-end gap-2">
-          {bars.map((bar, index) => (
+          {summary.bars.map((bar, index) => (
             <span
-              key={bar}
-              className={index > 5 ? "flex-1 rounded-t-sm bg-[#cf623d]" : "flex-1 rounded-t-sm bg-[#cfc5b4]"}
+              key={`${bar}-${index}`}
+              className={
+                index === summary.bars.length - 1
+                  ? "flex-1 rounded-t-sm bg-[#cf623d]"
+                  : "flex-1 rounded-t-sm bg-[#cfc5b4]"
+              }
               style={{ height: `${bar}%` }}
             />
           ))}
         </div>
-        <p className="mt-3 text-xs text-[#81786d]">今週の日報: 4/5投稿済み</p>
+        <p className="mt-3 text-xs text-[#81786d]">
+          取引 {summary.transactionCount}件 ・ 支出 {formatCurrency(summary.cost)}
+        </p>
       </CardContent>
     </Card>
   );
