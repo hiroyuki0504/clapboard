@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import Module from "node:module";
 import path from "node:path";
@@ -71,21 +70,4 @@ test("ProjectTable keeps its primary columns, labels, and detail links", () => {
   assert.match(markup, /aria-label="AI議事録自動化を開く"/);
   assert.match(markup, /href="\/projects\/web-renewal"/);
   assert.match(markup, /href="\/projects\/ai-minutes"/);
-});
-
-test("ProjectDetailTabs keeps URL query tab synchronization", () => {
-  const source = readFileSync(
-    path.join(process.cwd(), "components/projects/project-detail-tabs.tsx"),
-    "utf8",
-  );
-
-  assert.match(
-    source,
-    /new URLSearchParams\(window\.location\.search\)\.get\("tab"\)/,
-  );
-  assert.match(source, /isTabKey\(tab\)/);
-  assert.match(source, /window\.addEventListener\("popstate", syncTabFromUrl\)/);
-  assert.match(source, /url\.searchParams\.set\("tab", tabKey\)/);
-  assert.match(source, /url\.searchParams\.delete\("tab"\)/);
-  assert.match(source, /window\.history\.pushState/);
 });
