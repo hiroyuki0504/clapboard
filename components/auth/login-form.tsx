@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { LockKeyhole } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 
 export function LoginForm({ redirectTo }: { redirectTo: string }) {
@@ -27,12 +28,22 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
       });
 
       if (response.status === 401) {
-        setError("パスワードが違います。もう一度お試しください。");
+        setError("パスワードが一致しません。");
+        return;
+      }
+
+      if (response.status === 413) {
+        setError("入力が大きすぎます。");
+        return;
+      }
+
+      if (response.status === 503) {
+        setError("ログイン設定が未完了です。管理者に確認してください。");
         return;
       }
 
       if (!response.ok) {
-        setError("ログインに失敗しました。時間をおいて再試行してください。");
+        setError("ログインに失敗しました。もう一度お試しください。");
         return;
       }
 
@@ -48,14 +59,14 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
   return (
     <form className="mt-5 space-y-3" onSubmit={handleSubmit} noValidate>
       <label className="block text-xs font-bold uppercase tracking-[0.14em] text-[#81786d]">
-        パスワード
+        Password
         <input
           type="password"
           autoComplete="current-password"
           required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="mt-2 h-10 w-full rounded-md border border-[#c8c0b4] bg-[#fbfaf5] px-3 font-mono text-sm tracking-wider text-[#312d27] outline-none focus:border-[#c95d3a]"
+          className="mt-2 h-11 w-full rounded-md border border-[#c8c0b4] bg-[#fbfaf5] px-3 text-sm text-[#312d27] outline-none focus:border-[#c95d3a] focus:ring-2 focus:ring-[#c95d3a]/15"
         />
       </label>
       {error && (
@@ -66,7 +77,8 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
           {error}
         </p>
       )}
-      <Button type="submit" className="h-10 w-full" disabled={submitting}>
+      <Button type="submit" className="h-11 w-full" disabled={submitting || !password}>
+        <LockKeyhole className="h-4 w-4" aria-hidden />
         {submitting ? "確認中..." : "ログイン"}
       </Button>
     </form>

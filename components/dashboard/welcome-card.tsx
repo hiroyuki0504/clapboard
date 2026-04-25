@@ -13,12 +13,12 @@ export function WelcomeCard() {
             ようこそ ClawBoard へ
           </h3>
           <p className="mt-1.5 text-sm leading-6 text-[#3f5e3d]">
-            進捗・タスク・レビュー・デスクトップのファイルを 1 つの画面で確認できます。
-            初めての方は「
-            <Link href="#guide" className="font-bold underline">
-              使い方ガイド
+            AIエージェントの依頼、Webワークツリー、PRレビュー、案件進捗をブラウザで確認できます。
+            実装依頼や統合判断は「
+            <Link href="/code-review" className="font-bold underline">
+              レビュー管制
             </Link>
-            」から見ると全体像をつかみやすいです。
+            」から進めます。
           </p>
         </div>
       </div>

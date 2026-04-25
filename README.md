@@ -1,80 +1,65 @@
 # ClawBoard
 
-Next.js App Router + TypeScript + Tailwind CSS で作成した、進捗管理ダッシュボードMVPです。
+ClawBoard は、AIエージェントによる開発作業をブラウザ上で受け付け、Webワークツリー、プレビュー、PR、レビュー判断までを一画面で扱うための開発管制MVPです。
 
-## ディレクトリ構成
+従来の「進捗管理ダッシュボード」ではなく、運用方針を **ターミナルを開かないノーコードAI開発管制** に寄せます。PMや非エンジニアは自然言語、GitHub Issue、レビュー結果を依頼として投入し、AIエージェントが作業ブランチ、検証、PR下書き、残リスクを返す前提です。
 
-```text
-app/
-  layout.tsx
-  page.tsx
-  globals.css
-  api/
-    health/
-    projects/
-    code-review/
-  code-review/
-    page.tsx
-  projects/
-    page.tsx
-    [id]/page.tsx
-components/
-  dashboard/
-  layout/
-  projects/
-  ui/
-lib/
-  clapboard-api.ts
-  mock-data.ts
-  types.ts
-  utils.ts
-```
+## 運用方針
 
-## 実装ファイル
+ClawBoard の基本方針は次の通りです。
 
-- `app/page.tsx` - 進捗ダッシュボードトップ
-- `app/api/*` - 進捗・レビュー管制データのAPI Route
-- `app/code-review/page.tsx` - PM向けブランチ/PR/Codexレビュー管理
-- `app/projects/page.tsx` - 進捗一覧
-- `app/projects/[id]/page.tsx` - 進捗詳細
-- `components/layout/*` - macOS風トップバー、アイコンレール、FILESツリー
-- `components/projects/*` - 進捗テーブル、詳細タブ
-- `components/ui/*` - Button、Card、Badge、Progress
-- `docs/pm-codex-review-system.md` - main管理とCodexレビュー運用案
-- `scripts/codex-pr-review.sh` - Codexレビュー投入スクリプト
-- `lib/clapboard-api.ts` - 外部バックエンド接続とモック退避をまとめたデータ層
-- `lib/code-review-system.ts` - ブランチ/PRレビュー管理のモックデータ
-- `lib/mock-data.ts` - モック進捗データ
-- `lib/types.ts` - 型定義
-- `lib/utils.ts` - 表示整形ユーティリティ
+| 原則 | 方針 |
+| --- | --- |
+| Browser first | 作業依頼、状態確認、プレビュー確認、レビュー判断は `/code-review` を起点にする。 |
+| Terminal as runner | ターミナルはAI実行基盤や保守用に限定し、通常の依頼者は直接触らない。 |
+| OAuth first | Codex は API キーではなく ChatGPT/OAuth ログイン済み CLI を使う。 |
+| One request, one worktree | 1つの依頼は1つのWebワークツリー、1つの作業ブランチ、1つのPR候補に閉じる。 |
+| Main protected | `main` への直接反映は禁止し、PM承認とレビューを通ったPRだけを取り込む。 |
+| PM gate | AIは実装とレビュー材料を作る。最終判断はPM / Tech Leadがブラウザ上で行う。 |
 
-## 起動
+## ノーコード開発フロー
 
-```bash
-npm install
-npm run dev
-```
+1. PMまたは依頼者が、自然言語、GitHub Issue、レビュー結果をClawBoardに投入する。
+2. AIエージェントが依頼を小さな作業単位に分け、`codex/<topic>` ブランチ相当のWebワークツリーを作る。
+3. Webワークツリーには、対象リポジトリ、ブランチ、プレビュー、PR下書き、現在のAI作業、次アクションを表示する。
+4. PMはプレビューと差分レビューを見て、承認、追加指示、保留を選ぶ。
+5. `Crucial` / `High Priority` のレビュー指摘が解消され、CIやビルドの最低限の確認が通ったものだけを `main` へ入れる。
 
 ## 主要ルート
 
-- `/` - 進捗ダッシュボードトップ
-- `/graph` - ワーク・タスク・ファイルの関係グラフ
-- `/command` - AIエージェントの指示・実行ログ
-- `/timeline` - 予定と実行履歴のタイムライン
-- `/code-review` - PM main gate / Codexレビュー管理
-- `/projects` - 進捗一覧
-- `/projects/[id]` - 進捗詳細タブ
+| Route | 役割 |
+| --- | --- |
+| `/` | 進捗、ブロッカー、依頼、ファイルをまとめて見る管制トップ。 |
+| `/code-review` | Webワークツリー、ノーコード依頼キュー、PRレビュー、PMゲート。 |
+| `/projects` | 案件一覧と進捗ボード。 |
+| `/projects/[id]` | 案件詳細、議事録、タスク、ファイル、レビュー。 |
+| `/login` | ブラウザ利用者向けログイン。 |
 
-## API接続
+## 現在のMVP範囲
 
-Next.js API Route を追加済みです。外部バックエンドが未設定の環境では、既存のモックデータをローカルAPI経由で返します。
+実装済み:
 
-- `GET /api/health` - API接続状態。外部API設定済みで接続失敗した場合は `503`。
-- `GET /api/projects` - 進捗一覧
-- `GET /api/projects/[id]` - 進捗詳細
-- `GET /api/code-review` - ブランチ/PRレビュー管制データ
+- Next.js App Router + TypeScript + Tailwind CSS の画面実装
+- `/code-review` のWebワークツリー管制UI
+- ノーコード依頼キューのモックデータ
+- PM向けPRレビューゲート
+- Codexレビュー投入スクリプト
+- ChatGPT/OAuthログイン前提のCodex CLI運用
+- API Route経由のデータ取得と外部バックエンド fallback
+- ログイン、Cookie認証、admin/viewer ロール
+- `/api/files` のルート制限付きファイル一覧
 
-外部バックエンドへ接続する場合は、`.env.local` に以下を設定してください。
+未接続または今後の実装:
+
+- GitHub APIからのIssue / Branch / PR実データ同期
+- Codex Cloudまたは常駐runnerによるWebワークツリー実行
+- プレビューURLの自動発行
+- DB永続化
+- Google Drive OAuth接続
+
+## データ接続
+
+外部バックエンド未設定時は、ローカルのモックデータを返します。外部バックエンドへ接続する場合は `.env.local` に設定します。
 
 ```bash
 CLAPBOARD_API_BASE_URL=https://example.com
@@ -82,143 +67,170 @@ CLAPBOARD_API_TOKEN=optional-token
 CLAPBOARD_API_TIMEOUT_MS=5000
 ```
 
-バックエンドは `/health`、`/projects`、`/projects/:id`、`/code-review` を返す想定です。取得に失敗した場合やタイムアウトした場合は既存モックデータへ退避します。APIデータを静的生成で固定しないよう、データ取得画面とAPI Routeは動的レンダリングにしています。ただし、外部バックエンドが `401` / `403` / `404` を返した場合は認可拒否・存在なしを隠さないため、モックへ退避せずエラーとして返します。
+想定API:
 
-## アクセス制御 (デモ用ゲート)
+- `GET /health`
+- `GET /projects`
+- `GET /projects/:id`
+- `GET /code-review`
 
-> ⚠️ **これは公開サンプル/デモ用のゲートであり、実データ保護用の認証ではありません。**
-> パスワードはリポジトリ上で公開された固定値です。production / 共有 URL でこのアプリを使う場合は、
-> `CLAPBOT_FILES_ROOT` には公開しても差し支えないデータのみを置いてください。
-> production では `CLAPBOT_FILES_ROOT` 未設定時に `/api/files` が 503 を返します。
-> デモ用に `<cwd>/files` fallback を使う場合だけ `CLAPBOT_ALLOW_DEFAULT_FILES_ROOT=1` を明示してください。
-> 実データや機微情報を扱う用途には、別途強度のある認証 (SSO / 個別アカウント / secret 化したパスワード等) を実装する必要があります。
+`/code-review` payload には、既存の `branches` / `pullRequests` に加えて、今後の実データ接続用に `agentWorktrees` / `noCodeRequests` を含めます。
 
-`/login`・`/api/health`・`/api/login`・`/api/logout` 以外はすべて middleware を通します。
-ブラウザで `/login` にアクセスし、パスワードを入力してください。
+## 認証
 
-```bash
-# .env.local
-# Cookie の署名鍵 (必須、推奨: openssl rand -hex 32)
-CLAPBOARD_SESSION_SECRET=<ランダムな秘密鍵>
-```
-
-- `CLAPBOARD_SESSION_SECRET` が未設定の場合、`/api/login` は 503 (`session-secret-not-configured`) を返し、Cookie 検証も常に失敗します。production では必ず設定してください。
-- ログインに成功すると HMAC-SHA256 署名付き Cookie（`clapbot-auth`）が7日間有効でセットされます。Cookie の発行時刻も検証され、未来値・改ざん値・7日超過は middleware で拒否します。
-- ログアウトは `POST /api/logout` で Cookie を削除します。
-- **デモ用パスワードは `password` に固定 (公開済み)** です。実データの保護には使えません。
-- ローカル開発時は `npm run dev` (= `CLAPBOARD_DEV_AUTH_BYPASS=1 next dev`) で middleware の認証を bypass できます。`NODE_ENV=production` ではこの bypass は無視されます。
-
-## Team Roles
-
-| Role | Responsibility |
-|---|---|
-| PM / Tech Lead | 仕様整理、タスク分解、PRレビュー、統合、デモ設計 |
-| Developer | 機能実装、UI実装、バグ修正 |
-| UI / Presentation | UI確認、動作テスト、スライド作成、発表補助 |
-
-## ハッカソン審査基準に沿った運用方針
-
-今回のテーマは「AIエージェントの可能性を拡張せよ」です。実装・レビュー・デモ準備では、単なる進捗管理ツールではなく、AIエージェントがチーム開発の判断、レビュー、統合、発表準備をどう拡張するかが伝わる体験を優先します。
-
-| 審査項目 | 運用で意識すること |
-|---|---|
-| テーマ適合性 | 各機能・各PRが「AIエージェントの可能性をどう広げるか」を説明できる状態にする。進捗表示だけでなく、AIによるレビュー支援、統合判断、リスク検知、次アクション提示につながる変更を優先する。 |
-| AIエージェントならではの体験 | 人間が手で見るダッシュボードに留めず、Codexレビュー、PRゲート、進捗要約、ブロッカー検知など、エージェントが開発チームの一員として働く動線をデモで見せられるようにする。 |
-| 課題設定 | 解決する課題を「短時間開発でmainが壊れる」「PR状況が追えない」「レビュー判断が属人化する」「デモ直前に統合状況が見えない」など、ユーザーにとって価値のある開発運用課題として明確にする。 |
-| 新規性 | 既存のタスク管理やCI表示の焼き直しではなく、AIレビュー結果・進捗・統合可否を同じ画面で扱い、PMとAIエージェントが一緒に開発管制する体験として見せる。 |
-| 完成度 | デモで通す主要導線を絞り、`main` が常に起動できる状態、PRレビュー運用、API fallback、表示崩れの少なさを重視する。見せない機能より、見せる機能の安定性を優先する。 |
-
-### 実装・PR判断のチェック
-
-新しいタスクやPRを作る前に、以下の観点を確認します。
-
-- この変更はハッカソンのテーマに対して説明しやすいか
-- AIエージェントが関与する必然性があるか
-- デモでユーザー課題と解決の流れを短く見せられるか
-- 既存の進捗管理・PRレビュー運用とつながっているか
-- 完成度を下げる未完成な導線や見せない機能を増やしていないか
-
-### デモで見せるべき体験
-
-デモでは、以下の流れを基本にします。
-
-1. 開発チームの進捗・ブロッカー・PR状況をClawBoardで確認する
-2. AIエージェントによるレビューやリスク検知で、次に見るべきPRや作業を判断する
-3. PM / Tech Lead がAIの提案をもとに統合可否を決める
-4. `main` を壊さず、短時間開発でもデモ可能な状態を維持できることを示す
-
-## Development Workflow
-
-このプロジェクトでは、短時間で安全に開発を進めるため、Pull Request ベースで開発します。
-
-### Branch Rule
-
-- `main` への直接 push は禁止
-- 作業ごとに `feature/*` または `fix/*` ブランチを作成
-- 1機能・1修正ごとに小さく Pull Request を作成
-
-例:
+`/`、`/projects`、`/code-review`、`/graph`、`/command`、`/timeline`、保護対象の `/api/*` は middleware で保護します。
 
 ```bash
-git checkout -b feature/input-form
-git checkout -b feature/ai-processing
-git checkout -b fix/demo-layout
+CLAPBOARD_PASSWORD=<admin password>
+CLAPBOARD_ACCESS_TOKEN=<admin token>
+CLAPBOARD_VIEWER_TOKEN=<viewer token>
+CLAPBOARD_JWT_SECRET=<optional signing secret>
 ```
 
-### Pull Request Rule
+- local dev で未設定の場合のみ、adminパスワード `password` が使えます。
+- 本番では `CLAPBOARD_PASSWORD` または `CLAPBOARD_ACCESS_TOKEN` を必ず設定してください。
+- viewer は閲覧とGET APIのみ許可します。
+- admin は全Page/APIと書き込み系APIを許可します。
+- `NODE_ENV=production` で認証情報が未設定の場合、保護対象は `503` を返します。
 
-- PRは小さく出す
-- 30〜60分ごとに進捗単位でPRを作成
-- PRはPM / Tech Leadが確認してから `main` へマージ
-- デモ前は動作確認済みのPRのみマージ
-- デモ前は `main` が常に起動できる状態を保つ
+## Codex / OAuth運用
 
-### Review Checklist
+このプロジェクトのCodexレビューは API キーを使わず、ChatGPT/OAuthログイン済みのCodex CLIをrunnerとして使います。
 
-PRでは以下を確認します。
+初回または API キー運用から切り替える場合:
 
-- [ ] アプリが起動する
-- [ ] デモに必要な機能か
-- [ ] `main` を壊さない
-- [ ] 画面表示が大きく崩れていない
-- [ ] 不要なコードやログが残っていない
-
-### Commit / PR Naming
-
-PRタイトルは以下の形式を基本にします。
-
-```text
-feat: 入力フォームを追加
-feat: AI処理APIを追加
-fix: デモ画面のレイアウト崩れを修正
-docs: READMEを更新
+```bash
+codex logout
+codex login
+codex login status
 ```
 
-## PM / Codexレビュー運用
+`codex login status` が `Logged in using ChatGPT` を返す状態にしてください。ブラウザログインできないターミナルでは次を使います。
 
-PRブランチ上で、mainとの差分をCodex CLIの標準モデルでレビューします。
+```bash
+codex login --device-auth
+```
+
+レビュー投入:
 
 ```bash
 npm run review:codex -- --base main --title "PRタイトル"
-```
-
-未コミット差分も含める場合:
-
-```bash
 npm run review:codex -- --uncommitted --title "作業中レビュー"
 ```
 
-CLI側で利用できるモデルを明示したい場合だけ `--model <model-id>` を追加してください。
+`scripts/codex-pr-review.sh` は ChatGPT/OAuth ログイン以外の状態では停止します。`OPENAI_API_KEY` をこのレビュー運用に使う必要はありません。
 
-詳しい運用案は `docs/pm-codex-review-system.md` を参照してください。
+## 開発コマンド
 
-Codexレビュアーのコメントは `1. Crucial`、`2. High Priority`、`3. Medium`、`4. Low` の4段階で扱います。PR作成者の必須対応範囲は `Crucial` と `High Priority` までです。
+```bash
+npm install
+npm run dev
+npm run dev:bypass
+npm run lint
+npm test
+npm run build
+```
+
+- `npm run dev`: 通常の開発サーバー。ログイン画面を通す。
+- `npm run dev:bypass`: local dev の確認用。認証をバイパスする。
+- `npm run lint`: TypeScript型チェック。
+- `npm test`: テスト用tsconfigでビルドしてNode testを実行。
+- `npm run build`: 本番ビルド確認。
+
+## ディレクトリ構成
+
+```text
+app/
+  (app)/
+    page.tsx
+    code-review/page.tsx
+    projects/page.tsx
+  api/
+    code-review/
+    files/
+    health/
+    login/
+    logout/
+    projects/
+  login/page.tsx
+components/
+  auth/
+  dashboard/
+  layout/
+  projects/
+  ui/
+lib/
+  auth.ts
+  clapboard-api.ts
+  code-review-system.ts
+  mock-data.ts
+  project-selectors.ts
+  types.ts
+docs/
+  pm-codex-review-system.md
+scripts/
+  codex-pr-review.sh
+  codex-pr-review-comment.sh
+```
+
+## 実装判断
+
+新しい機能は次の順で判断します。
+
+1. `/code-review` のWebワークツリー運用に乗るか。
+2. 依頼者がターミナルなしで状態を理解できるか。
+3. AIが実行した作業、検証、残リスクがPM判断に使える形で残るか。
+4. `main` に直接触らず、PRとレビューを経由できるか。
+5. デモで「AIエージェントが開発チームの一員として働く」ことが説明できるか。
+
+進捗表示だけの機能や、ターミナル操作を前提にした機能は優先度を下げます。ClawBoardの中心価値は、AIエージェントの作業をWeb上の管制対象に変えることです。
+
+## PRルール
+
+- `main` への直接pushは禁止。
+- 原則 `codex/<topic>` ブランチで作業する。
+- 1依頼 = 1 Webワークツリー = 1 PR。
+- PR本文には変更概要、検証、残リスク、PM判断ポイントを書く。
+- `Crucial` / `High Priority` の指摘はマージ前に対応する。
+- `Medium` / `Low` はPMが今回対応、後続Issue化、許容を判断する。
+
+PR本文テンプレート:
+
+```markdown
+## 概要
+-
+
+## Webワークツリー
+- 依頼:
+- ブランチ:
+- プレビュー:
+
+## 変更範囲
+-
+
+## 検証
+- [ ] npm run lint
+- [ ] npm test
+- [ ] npm run build
+- [ ] Codex review
+
+## PM判断ポイント
+- mainへの影響:
+- 残リスク:
+- 追加指示が必要な点:
+
+## Codexレビュー結果
+- Crucial:
+- High Priority:
+- Medium / Low:
+- 対応状況:
+```
 
 ## 本番運用
 
 - 公開URL: `https://clapbot.ymt-systems.com`
 - Build Command: `npm run build`
 - Output Directory: `.next`
-- `package-lock.json` をコミットして、Next.js 15.5.15 と PostCSS override の組み合わせを固定します。
-- DNSは `clapbot.ymt-systems.com` を運用環境の案内に従って CNAME または A レコードで設定してください。
-- Vercel前提の `pm.ymt-systems.com` 設定は使用しません。
+- 本番では認証情報と `CLAPBOT_FILES_ROOT` を必ず設定する。
+- GitHub連携を入れる場合、GitHub Appまたは最小権限tokenでIssue / Branch / PRを同期する。
+- Codex実行runnerはChatGPT/OAuthログイン済みCLIを前提にし、APIキーをブラウザやリポジトリへ置かない。

@@ -1,50 +1,79 @@
 import { NextResponse } from "next/server";
-import { SESSION_COOKIE, createSessionValue } from "@/middleware";
+import {
+  ACCESS_COOKIE_MAX_AGE_SECONDS,
+  ACCESS_COOKIE_NAME,
+  hasAnyConfiguredCredential,
+  isProductionRuntime,
+  resolveRoleFromSecret,
+} from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-// デモ用簡易パスワード認証
-const PASSWORD = "password";
+const RESPONSE_HEADERS = { "cache-control": "no-store" } as const;
+const MAX_LOGIN_BODY_BYTES = 4 * 1024;
+
+type LoginPayload = {
+  password?: unknown;
+  token?: unknown;
+};
+
+function unauthorized() {
+  return NextResponse.json(
+    { error: "unauthorized" },
+    { status: 401, headers: RESPONSE_HEADERS },
+  );
+}
 
 export async function POST(request: Request) {
-  let body: { password?: unknown } | null = null;
+  if (!hasAnyConfiguredCredential()) {
+    return NextResponse.json(
+      { error: "service-unavailable", message: "service configuration error" },
+      { status: 503, headers: RESPONSE_HEADERS },
+    );
+  }
+
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(contentLength) && contentLength > MAX_LOGIN_BODY_BYTES) {
+    return NextResponse.json(
+      { error: "payload-too-large" },
+      { status: 413, headers: RESPONSE_HEADERS },
+    );
+  }
+
+  let payload: LoginPayload;
   try {
-    body = (await request.json()) as { password?: unknown };
+    payload = (await request.json()) as LoginPayload;
   } catch {
     return NextResponse.json(
       { error: "invalid-payload" },
-      { status: 400, headers: { "cache-control": "no-store" } },
+      { status: 400, headers: RESPONSE_HEADERS },
     );
   }
 
-  if (body?.password !== PASSWORD) {
-    return NextResponse.json(
-      { error: "unauthorized" },
-      { status: 401, headers: { "cache-control": "no-store" } },
-    );
-  }
+  const secret =
+    typeof payload.password === "string"
+      ? payload.password
+      : typeof payload.token === "string"
+        ? payload.token
+        : "";
+  const role = resolveRoleFromSecret(secret);
 
-  // SESSION_SECRET 未設定だと verifySessionValue が常に false → 検証不能な
-  // Cookie で擬似ログイン成功する状態を防ぐため、ここで fail-closed にする。
-  if (!process.env.CLAPBOARD_SESSION_SECRET) {
-    return NextResponse.json(
-      { error: "session-secret-not-configured" },
-      { status: 503, headers: { "cache-control": "no-store" } },
-    );
+  if (!role) {
+    return unauthorized();
   }
 
   const response = NextResponse.json(
-    { ok: true },
-    { status: 200, headers: { "cache-control": "no-store" } },
+    { ok: true, role },
+    { status: 200, headers: RESPONSE_HEADERS },
   );
   response.cookies.set({
-    name: SESSION_COOKIE,
-    value: await createSessionValue(),
+    name: ACCESS_COOKIE_NAME,
+    value: secret,
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isProductionRuntime(),
     path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7日
+    maxAge: ACCESS_COOKIE_MAX_AGE_SECONDS,
   });
   return response;
 }

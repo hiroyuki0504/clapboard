@@ -8,6 +8,8 @@ import {
   GitMerge,
   GitPullRequest,
   LockKeyhole,
+  MousePointerClick,
+  PlayCircle,
   ShieldCheck,
   SquareTerminal,
   UserCheck,
@@ -16,7 +18,10 @@ import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCodeReviewSystem } from "@/lib/clapboard-api";
 import {
+  type AgentWorktreeMode,
+  type AgentWorktreeStatus,
   type BranchWorkstreamStatus,
+  type NoCodeRequestStatus,
   type ReviewCommentStatus,
   type MergeGate,
   type ReviewPriority,
@@ -54,6 +59,32 @@ const mergeGateMeta: Record<
   ready: { label: "マージ可", tone: "green" },
 };
 
+const agentWorktreeStatusMeta: Record<
+  AgentWorktreeStatus,
+  { label: string; tone: BadgeTone }
+> = {
+  queued: { label: "投入待ち", tone: "amber" },
+  building: { label: "AI作業中", tone: "blue" },
+  "preview-ready": { label: "プレビュー可", tone: "purple" },
+  "pr-ready": { label: "PR準備完了", tone: "green" },
+};
+
+const agentWorktreeModeMeta: Record<AgentWorktreeMode, string> = {
+  "prompt-to-branch": "Prompt -> Branch",
+  "issue-to-pr": "Issue -> PR",
+  "design-to-ui": "Design -> UI",
+};
+
+const noCodeRequestStatusMeta: Record<
+  NoCodeRequestStatus,
+  { label: string; tone: BadgeTone }
+> = {
+  intake: { label: "受付", tone: "slate" },
+  scoped: { label: "範囲確定", tone: "purple" },
+  building: { label: "AI作業中", tone: "blue" },
+  ready: { label: "投入可", tone: "green" },
+};
+
 const riskMeta = {
   low: { label: "低", className: "text-[#426c3d]" },
   medium: { label: "中", className: "text-[#7c5a18]" },
@@ -87,6 +118,10 @@ function isAuthorRequiredPriority(priority: ReviewPriority) {
   return priority === "crucial" || priority === "high";
 }
 
+function isActiveAgentWorktreeStatus(status: AgentWorktreeStatus) {
+  return status !== "pr-ready";
+}
+
 export default async function CodeReviewPage() {
   const reviewSystemResult = await getCodeReviewSystem();
   if (reviewSystemResult.error) {
@@ -95,6 +130,12 @@ export default async function CodeReviewPage() {
 
   const reviewSystem = reviewSystemResult.data;
   const activeBranches = reviewSystem.branches.length;
+  const activeAgentWorktrees = reviewSystem.agentWorktrees.filter(
+    (worktree) => isActiveAgentWorktreeStatus(worktree.status),
+  ).length;
+  const readyNoCodeRequests = reviewSystem.noCodeRequests.filter(
+    (request) => request.status === "ready",
+  ).length;
   const queuedReviews = reviewSystem.pullRequests.filter(
     (pullRequest) => pullRequest.reviewState === "queued",
   ).length;
@@ -116,16 +157,17 @@ export default async function CodeReviewPage() {
       <section className="grid gap-4 xl:grid-cols-[1fr_380px]">
         <div className="rounded-lg border border-[#423c33]/55 bg-[#fffefa] p-5">
           <p className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-[#81786d]">
-            CODE REVIEW CONTROL ・ PM MAIN GATE
+            AI WORKTREE CONTROL ・ NO-CODE DEV GATE
           </p>
           <div className="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="text-2xl font-black tracking-normal text-[#2f2b25] sm:text-3xl">
-                mainをPMが守るブランチ/PRレビュー管制
+                WebワークツリーでAI開発をブラウザ管制
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                作業ブランチを目的別に分け、PR作成時にCodex {reviewSystem.reviewModel}
-                レビューを投入し、PM承認までの状態を追跡します。
+                自然言語やGitHub IssueをAI作業依頼に変換し、Webワークツリー、
+                プレビュー、PR下書き、Codex {reviewSystem.reviewModel}
+                レビューをPM承認まで追跡します。
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -142,9 +184,147 @@ export default async function CodeReviewPage() {
 
         <div className="grid grid-cols-2 gap-2">
           <MetricTile label="main" value={reviewSystem.mainBranch} icon={LockKeyhole} />
+          <MetricTile
+            label="Webワークツリー"
+            value={`${activeAgentWorktrees}`}
+            icon={MousePointerClick}
+          />
           <MetricTile label="作業ブランチ" value={`${activeBranches}`} icon={GitBranch} />
-          <MetricTile label="未解決PR" value={`${unresolvedReviews}`} icon={Bot} />
           <MetricTile label="High以上未対応" value={`${authorBlockingComments}`} icon={AlertTriangle} />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex flex-col gap-2 rounded-lg border border-[#423c33]/55 bg-[#f3f0e7] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <MousePointerClick className="h-4 w-4" aria-hidden />
+            <h2 className="text-sm font-bold tracking-normal text-[#312d27]">
+              AIワークツリー管制
+            </h2>
+          </div>
+          <Badge tone="purple">
+            Webワークツリー {activeAgentWorktrees}件 / 投入可 {readyNoCodeRequests}件
+          </Badge>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Bot className="h-4 w-4" aria-hidden />
+                <CardTitle>Webワークツリー</CardTitle>
+              </div>
+              <Badge tone="blue">GitHub worktree</Badge>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-dashed divide-[#d8d1c4]">
+                {reviewSystem.agentWorktrees.map((worktree) => {
+                  const status = agentWorktreeStatusMeta[worktree.status];
+                  return (
+                    <article key={worktree.id} className="px-4 py-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge tone={status.tone}>{status.label}</Badge>
+                            <Badge tone="slate">
+                              {agentWorktreeModeMeta[worktree.mode]}
+                            </Badge>
+                          </div>
+                          <h3 className="mt-3 font-black tracking-normal text-[#312d27]">
+                            {worktree.title}
+                          </h3>
+                          <p className="mt-1 font-mono text-xs text-[#81786d]">
+                            {worktree.repository} ・ {worktree.branch} {"->"}{" "}
+                            {worktree.base}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                          <a
+                            className="inline-flex h-9 items-center justify-center rounded-md border border-[#bfb6a8] bg-[#fffefa] px-3 text-xs font-bold text-[#312d27] hover:border-[#8f8678] hover:bg-[#f6f1e7]"
+                            href={worktree.previewUrl}
+                          >
+                            プレビュー
+                          </a>
+                          <span className="inline-flex h-9 items-center justify-center rounded-md border border-[#c8c0b3] bg-[#f7f3ea] px-3 text-xs font-bold text-[#625a50]">
+                            {worktree.pullRequest}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#81786d]">
+                            Current
+                          </p>
+                          <p className="mt-1 text-sm leading-6 text-[#70675b]">
+                            {worktree.currentStep}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#81786d]">
+                            Next
+                          </p>
+                          <p className="mt-1 text-sm leading-6 text-[#70675b]">
+                            {worktree.nextAction}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#81786d]">
+                            Human
+                          </p>
+                          <p className="mt-1 text-sm font-bold leading-6 text-[#312d27]">
+                            {worktree.humanAction}
+                          </p>
+                          <p className="mt-1 text-xs text-[#81786d]">
+                            {formatDateTime(worktree.updatedAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <PlayCircle className="h-4 w-4" aria-hidden />
+                <CardTitle>ノーコード依頼キュー</CardTitle>
+              </div>
+              <Badge tone="green">terminal free</Badge>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {reviewSystem.noCodeRequests.map((request) => {
+                const status = noCodeRequestStatusMeta[request.status];
+                return (
+                  <section
+                    key={request.id}
+                    className="border-b border-dashed border-[#d8d1c4] pb-4 last:border-b-0 last:pb-0"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge tone={status.tone}>{status.label}</Badge>
+                      <span className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-[#81786d]">
+                        {request.source}
+                      </span>
+                    </div>
+                    <h3 className="mt-2 font-black tracking-normal text-[#312d27]">
+                      {request.title}
+                    </h3>
+                    <p className="mt-1 text-xs text-[#81786d]">
+                      {request.requester} ・ {request.targetRepository}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-[#70675b]">
+                      {request.expectedOutcome}
+                    </p>
+                    <p className="mt-3 rounded-md border border-[#d8d1c4] bg-[#fffefa] p-3 text-xs leading-5 text-[#5f574d]">
+                      {request.agentPrompt}
+                    </p>
+                  </section>
+                );
+              })}
+            </CardContent>
+          </Card>
         </div>
       </section>
 
@@ -200,7 +380,7 @@ export default async function CodeReviewPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4" aria-hidden />
-              <CardTitle>運用ルール案</CardTitle>
+              <CardTitle>ノーコード運用ルール</CardTitle>
             </div>
             <Badge tone="green">PM gate</Badge>
           </CardHeader>
@@ -226,7 +406,7 @@ export default async function CodeReviewPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <GitMerge className="h-4 w-4" aria-hidden />
-              <CardTitle>レビュー投入フロー</CardTitle>
+              <CardTitle>ノーコード開発フロー</CardTitle>
             </div>
             <Badge tone="purple">{reviewSystem.reviewModel}</Badge>
           </CardHeader>
@@ -319,14 +499,14 @@ export default async function CodeReviewPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <SquareTerminal className="h-4 w-4" aria-hidden />
-              <CardTitle>Codexレビューコマンド</CardTitle>
+              <CardTitle>OAuth runner コマンド</CardTitle>
             </div>
             <Badge tone="slate">local CLI</Badge>
           </CardHeader>
           <CardContent>
             <p className="text-sm leading-6 text-[#70675b]">
-              PRブランチ上で以下を実行すると、mainとの差分を
-              {reviewSystem.reviewModel}でレビューします。
+              WebワークツリーのPR候補に対して以下を実行すると、mainとの差分を
+              ChatGPT/OAuthログイン済みの{reviewSystem.reviewModel}でレビューします。
             </p>
             <pre className="mt-4 overflow-x-auto rounded-md border border-[#d8d1c4] bg-[#221d38] p-4 text-xs leading-6 text-[#f6f1e7]">
               <code>{reviewSystem.codexReviewCommand}</code>

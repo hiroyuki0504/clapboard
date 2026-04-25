@@ -13,6 +13,19 @@ export type ReviewPriority = "crucial" | "high" | "medium" | "low";
 
 export type ReviewCommentStatus = "open" | "fixed" | "accepted-risk";
 
+export type AgentWorktreeStatus =
+  | "queued"
+  | "building"
+  | "preview-ready"
+  | "pr-ready";
+
+export type AgentWorktreeMode =
+  | "prompt-to-branch"
+  | "issue-to-pr"
+  | "design-to-ui";
+
+export type NoCodeRequestStatus = "intake" | "scoped" | "building" | "ready";
+
 export type ReviewPriorityLevel = {
   priority: ReviewPriority;
   rank: 1 | 2 | 3 | 4;
@@ -55,6 +68,33 @@ export type PullRequestReview = {
   riskAreas: string[];
   comments: CodexReviewComment[];
   codexCommand: string;
+};
+
+export type AgentWorktree = {
+  id: string;
+  title: string;
+  repository: string;
+  branch: string;
+  base: string;
+  status: AgentWorktreeStatus;
+  mode: AgentWorktreeMode;
+  previewUrl: string;
+  pullRequest: string;
+  currentStep: string;
+  nextAction: string;
+  humanAction: string;
+  updatedAt: string;
+};
+
+export type NoCodeDevRequest = {
+  id: string;
+  title: string;
+  requester: string;
+  source: string;
+  targetRepository: string;
+  status: NoCodeRequestStatus;
+  expectedOutcome: string;
+  agentPrompt: string;
 };
 
 export const reviewSystem = {
@@ -104,54 +144,137 @@ export const reviewSystem = {
       id: "main-lock",
       title: "main はPM承認のみ",
       value: "direct push 0件",
-      body: "main への変更はPR経由に限定し、PM承認とレビュー完了をマージ条件にする。",
+      body: "AIエージェントの作業もmainへ直接入れず、Webワークツリー、PR、PM承認をマージ条件にする。",
     },
     {
       id: "branch-split",
-      title: "作業単位でブランチ分離",
-      value: "1目的 = 1PR",
-      body: "機能、修正、調査を混ぜず、差分の責任範囲を追いやすくする。",
+      title: "Webワークツリー単位で分離",
+      value: "1依頼 = 1WT",
+      body: "自然言語やGitHub Issueの依頼を1つのWebワークツリーに閉じ、ブランチ、プレビュー、PR候補を追えるようにする。",
     },
     {
       id: "codex-review",
-      title: "PRごとにCodexレビュー",
-      value: "Codex CLI標準",
-      body: "PR送信時にCodex reviewを投入し、コメントには必ず4段階の優先度を付ける。",
+      title: "OAuth runnerでAI実行",
+      value: "ChatGPT/OAuth",
+      body: "APIキーではなくChatGPT/OAuthログイン済みのCodex CLIをrunnerとして使い、実装とレビュー材料を生成する。",
     },
     {
       id: "author-response",
-      title: "作成者の必須対応範囲",
-      value: "1-2 必須",
-      body: "PR作成者にはCrucialとHigh Priorityまでを対応してもらい、Medium以下はPMが判断する。",
+      title: "PMがブラウザで承認",
+      value: "PM gate",
+      body: "PMはプレビュー、差分、レビュー指摘、残リスクを見て、承認、追加指示、保留を判断する。",
     },
   ],
   pipeline: [
     {
       id: "intake",
-      title: "PM受付",
-      body: "要望をmainへ直接入れず、目的と完了条件を1つに絞る。",
+      title: "依頼受付",
+      body: "自然言語、GitHub Issue、レビュー結果をノーコード依頼として受け付ける。",
     },
     {
       id: "branch",
-      title: "ブランチ分け",
-      body: "codex/<scope>-<topic> で作業ブランチを作る。",
+      title: "Webワークツリー化",
+      body: "1依頼を1つの作業ブランチ、プレビュー、PR候補として管制対象にする。",
     },
     {
       id: "pull-request",
-      title: "PR作成",
-      body: "変更範囲、確認観点、残リスクをPR本文に固定で残す。",
+      title: "AI実行",
+      body: "ChatGPT/OAuthログイン済みのCodex runnerが実装、検証、PR下書きを進める。",
     },
     {
       id: "codex-review",
       title: "Codex Review",
-      body: "codex review --base main を実行し、Crucial / High Priorityを先に潰す。",
+      body: "CodexレビューでCrucial / High Priorityを抽出し、マージ前の必須対応にする。",
     },
     {
       id: "pm-merge",
-      title: "PM承認/マージ",
-      body: "レビュー通過、CI通過、目的達成を確認してmainへ入れる。",
+      title: "PM承認",
+      body: "PMがブラウザ上で承認、追加指示、保留を判断し、PR経由でmainへ入れる。",
     },
   ],
+  agentWorktrees: [
+    {
+      id: "wt-no-code-board",
+      title: "ノーコード依頼ボード",
+      repository: "ymt-systems/clapboard",
+      branch: "codex/no-code-worktree-board",
+      base: "main",
+      status: "preview-ready",
+      mode: "prompt-to-branch",
+      previewUrl: "/code-review?preview=wt-no-code-board",
+      pullRequest: "draft",
+      currentStep:
+        "ブラウザ入力から作業ブランチを生成し、画面プレビューをPM確認待ちにする。",
+      nextAction: "PMがプレビューを確認し、差分レビュー投入か追加指示を選ぶ。",
+      humanAction: "承認 / 追加指示",
+      updatedAt: "2026-04-25T20:40:00+09:00",
+    },
+    {
+      id: "wt-github-issue",
+      title: "GitHub Issueから修正PR化",
+      repository: "ymt-systems/clapboard",
+      branch: "codex/issue-28-mobile-review",
+      base: "main",
+      status: "building",
+      mode: "issue-to-pr",
+      previewUrl: "/code-review?preview=wt-github-issue",
+      pullRequest: "未作成",
+      currentStep: "Issue本文と関連差分を読み、モバイル表示の修正候補を作業中。",
+      nextAction: "AIがlintと表示確認結果を添えてPR下書きを作成する。",
+      humanAction: "待機",
+      updatedAt: "2026-04-25T20:15:00+09:00",
+    },
+    {
+      id: "wt-figma-ui",
+      title: "Figma指示からUI反映",
+      repository: "ymt-systems/clapboard",
+      branch: "codex/figma-agent-panel",
+      base: "main",
+      status: "queued",
+      mode: "design-to-ui",
+      previewUrl: "/code-review?preview=wt-figma-ui",
+      pullRequest: "未作成",
+      currentStep: "対象画面と反映範囲を整理し、作業ブランチ作成待ち。",
+      nextAction: "デザイン差分を小さなUI変更に分解してAIに投入する。",
+      humanAction: "範囲確定",
+      updatedAt: "2026-04-25T19:50:00+09:00",
+    },
+  ] satisfies AgentWorktree[],
+  noCodeRequests: [
+    {
+      id: "req-web-intake",
+      title: "Webから自然言語で実装依頼",
+      requester: "PM",
+      source: "ブラウザ入力",
+      targetRepository: "ymt-systems/clapboard",
+      status: "ready",
+      expectedOutcome:
+        "依頼内容から作業ブランチ、プレビュー、PR下書きまでを自動生成する。",
+      agentPrompt: "ターミナルなしで依頼を受け、必要な差分と検証結果をWebに返す。",
+    },
+    {
+      id: "req-github-issue",
+      title: "GitHub IssueをAI作業に変換",
+      requester: "Tech Lead",
+      source: "GitHub Issue",
+      targetRepository: "ymt-systems/clapboard",
+      status: "building",
+      expectedOutcome: "Issueを読み、再現条件、修正差分、PR本文を生成する。",
+      agentPrompt: "Issue本文を仕様として扱い、mainから作業ブランチを切って修正する。",
+    },
+    {
+      id: "req-review-gate",
+      title: "PRレビュー結果をPM判断に変換",
+      requester: "PM",
+      source: "Codex Review",
+      targetRepository: "ymt-systems/clapboard",
+      status: "scoped",
+      expectedOutcome:
+        "Crucial / High Priorityを作成者対応、Medium以下をPM判断に分ける。",
+      agentPrompt:
+        "レビューコメントを優先度順に整理し、マージ可否と残リスクを要約する。",
+    },
+  ] satisfies NoCodeDevRequest[],
   branches: [
     {
       id: "progress-rebrand",
@@ -280,8 +403,10 @@ export const reviewSystem = {
     },
   ] satisfies PullRequestReview[],
   checklist: [
-    "mainとの差分が1つの目的に閉じている",
+    "Webワークツリーが1つの目的に閉じている",
+    "依頼者がターミナルなしで現在状態を理解できる",
     "PR本文にPM判断用の要約、検証、残リスクがある",
+    "Codex CLIがChatGPT/OAuthログイン済み",
     "CodexレビューのCrucial / High PriorityがPR作成者により対応済み",
     "CI、型チェック、ビルドのいずれかで最低限の検証が通っている",
     "PMがリリース順序と依存PRを確認している",
