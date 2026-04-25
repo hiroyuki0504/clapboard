@@ -4,7 +4,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ClawBoard | 進捗管理ダッシュボード",
-  description: "pm.ymt-systems.com で運用予定の進捗管理ダッシュボードMVP",
+  description:
+    "進捗、レビュー、ファイルを一画面で追える初心者にも扱いやすい進捗管理ダッシュボードMVPです。",
 };
 
 export default function RootLayout({
