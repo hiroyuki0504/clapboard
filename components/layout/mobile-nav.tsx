@@ -54,7 +54,7 @@ export function MobileNav({ agentSummary }: { agentSummary?: React.ReactNode }) 
             onClick={() => setOpen(false)}
             className="absolute inset-0 bg-black/40"
           />
-          <div className="absolute left-0 top-0 flex h-full w-[328px] max-w-[88vw] bg-[#f1eee5] shadow-xl">
+          <div className="absolute left-0 top-0 flex h-full w-[320px] max-w-[88vw] bg-[#f1eee5] shadow-xl">
             <SidebarContent
               agentSummary={agentSummary}
               onNavigate={() => setOpen(false)}
