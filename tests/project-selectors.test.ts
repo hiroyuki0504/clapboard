@@ -6,11 +6,17 @@ import {
   getCompletedTasks,
   getHighPriorityOpenTaskCount,
   getHighPriorityOpenTasks,
+  getLatestTaskProjectDate,
+  getNextMilestoneDate,
   getOpenTaskCount,
   getOpenTasks,
   getProjectBudgetBalance,
   getTaskCompletion,
 } from "../lib/project-selectors";
+import {
+  getProjectDashboardTab,
+  projectDetailHref,
+} from "../lib/project-href";
 import type { Project, ProjectTask } from "../lib/types";
 
 const tasks: ProjectTask[] = [
@@ -63,4 +69,120 @@ test("project selectors summarize project list state", () => {
   assert.deepEqual(getActiveProjects(projects), [projects[0], projects[2]]);
   assert.equal(getAverageProgress(projects), 61);
   assert.equal(getAverageProgress([]), 0);
+});
+
+function makeProject(partial: Partial<Project> & Pick<Project, "id">): Project {
+  return {
+    name: partial.name ?? partial.id,
+    client: "client",
+    status: "in-progress",
+    progress: 0,
+    lastUpdated: "2026-01-01T00:00:00Z",
+    revenue: 0,
+    cost: 0,
+    dueDate: "2026-12-31",
+    owner: "owner",
+    summary: "",
+    updates: [],
+    tasks: [],
+    minutes: [],
+    transactions: [],
+    files: [],
+    ...partial,
+  };
+}
+
+test("getLatestTaskProjectDate picks the most recently updated project containing the priority", () => {
+  const projects: Project[] = [
+    makeProject({
+      id: "old-blocker",
+      lastUpdated: "2026-03-01T00:00:00Z",
+      tasks: [
+        {
+          id: "t1",
+          title: "古いブロッカー",
+          completed: false,
+          priority: "high",
+          note: "",
+        },
+      ],
+    }),
+    makeProject({
+      id: "newer-blocker",
+      lastUpdated: "2026-04-01T00:00:00Z",
+      tasks: [
+        {
+          id: "t2",
+          title: "新しいブロッカー",
+          completed: false,
+          priority: "high",
+          note: "",
+        },
+      ],
+    }),
+    makeProject({
+      id: "no-blocker",
+      lastUpdated: "2026-05-01T00:00:00Z",
+      tasks: [
+        {
+          id: "t3",
+          title: "通常",
+          completed: false,
+          priority: "medium",
+          note: "",
+        },
+      ],
+    }),
+  ];
+
+  assert.equal(
+    getLatestTaskProjectDate(projects, "high"),
+    "2026-04-01T00:00:00Z",
+  );
+  assert.equal(getLatestTaskProjectDate([], "high"), undefined);
+});
+
+test("getNextMilestoneDate returns the earliest valid due date and skips invalid ones", () => {
+  const projects: Project[] = [
+    makeProject({ id: "a", dueDate: "2026-08-01" }),
+    makeProject({ id: "b", dueDate: "invalid-date" }),
+    makeProject({ id: "c", dueDate: "2026-05-15" }),
+  ];
+
+  assert.equal(getNextMilestoneDate(projects), "2026-05-15");
+  assert.equal(getNextMilestoneDate([]), undefined);
+});
+
+test("projectDetailHref omits the tab query for overview", () => {
+  assert.equal(projectDetailHref("p-1", "overview"), "/projects/p-1");
+  assert.equal(
+    projectDetailHref("p-1", "progress"),
+    "/projects/p-1?tab=progress",
+  );
+});
+
+test("getProjectDashboardTab prefers progress for blockers, then minutes", () => {
+  const blocking = makeProject({
+    id: "blocker",
+    tasks: [
+      { id: "t", title: "B", completed: false, priority: "high", note: "" },
+    ],
+  });
+  const meeting = makeProject({
+    id: "meeting",
+    minutes: [
+      {
+        id: "m",
+        title: "週次",
+        createdAt: "",
+        participants: [],
+        body: "",
+      },
+    ],
+  });
+  const empty = makeProject({ id: "empty" });
+
+  assert.equal(getProjectDashboardTab(blocking), "progress");
+  assert.equal(getProjectDashboardTab(meeting), "minutes");
+  assert.equal(getProjectDashboardTab(empty), "overview");
 });

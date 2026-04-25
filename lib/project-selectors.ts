@@ -1,4 +1,5 @@
-import type { Project, ProjectTask } from "@/lib/types";
+import type { Project, ProjectTask } from "./types";
+import { safeDate, safeDateTime } from "./utils";
 
 export function getProjectBudgetBalance(
   project: Pick<Project, "revenue" | "cost">,
@@ -57,4 +58,29 @@ export function getTaskCompletion(tasks: ProjectTask[]) {
   const completed = tasks.filter((task) => task.completed).length;
 
   return Math.round((completed / tasks.length) * 100);
+}
+
+export function getLatestTaskProjectDate(
+  projects: Project[],
+  priority: ProjectTask["priority"],
+) {
+  return projects
+    .filter((project) =>
+      project.tasks.some(
+        (task) => !task.completed && task.priority === priority,
+      ),
+    )
+    .sort(
+      (a, b) => safeDateTime(b.lastUpdated, 0) - safeDateTime(a.lastUpdated, 0),
+    )[0]?.lastUpdated;
+}
+
+export function getNextMilestoneDate(projects: Project[]) {
+  return projects
+    .filter((project) => safeDate(project.dueDate) !== null)
+    .sort(
+      (a, b) =>
+        safeDateTime(a.dueDate, Number.POSITIVE_INFINITY) -
+        safeDateTime(b.dueDate, Number.POSITIVE_INFINITY),
+    )[0]?.dueDate;
 }
