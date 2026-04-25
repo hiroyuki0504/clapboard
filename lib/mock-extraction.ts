@@ -36,6 +36,7 @@ export function extractMinuteSuggestions(text: string): ExtractionSuggestion[] {
   const lines = text.split(/\r?\n/);
   const suggestions: ExtractionSuggestion[] = [];
   let currentSection: SuggestionSection = null;
+  let currentSectionAmbiguityKind: ProjectAmbiguityKind | undefined;
 
   lines.forEach((rawLine, index) => {
     const line = rawLine.trim();
@@ -48,6 +49,7 @@ export function extractMinuteSuggestions(text: string): ExtractionSuggestion[] {
 
     if (headingMatch) {
       currentSection = headingMatch.type;
+      currentSectionAmbiguityKind = headingMatch.ambiguityKind;
 
       if (headingMatch.content) {
         suggestions.push(
@@ -65,6 +67,7 @@ export function extractMinuteSuggestions(text: string): ExtractionSuggestion[] {
 
     if (isUnsupportedMarkdownHeading(line)) {
       currentSection = null;
+      currentSectionAmbiguityKind = undefined;
       return;
     }
 
@@ -80,7 +83,8 @@ export function extractMinuteSuggestions(text: string): ExtractionSuggestion[] {
           currentSection,
           itemText,
           index,
-          inferAmbiguityKind(itemText, currentSection),
+          currentSectionAmbiguityKind ??
+            inferAmbiguityKind(itemText, currentSection),
         ),
       );
       return;

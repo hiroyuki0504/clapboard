@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "lint": "tsc --noEmit --incremental false",
+    "test": "tsc -p tsconfig.test.json && node --test out/test-build/tests/*.test.js",
     "start": "next start"
   },
   "dependencies": {
