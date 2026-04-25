@@ -11,7 +11,7 @@ import {
   JapaneseYen,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 import { FileTree } from "./file-tree";
@@ -64,6 +64,7 @@ export function SidebarContent({
   agentSummary?: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [filter, setFilter] = useState("");
   const [rootSummary, setRootSummary] = useState<{
     count: number;
@@ -72,6 +73,34 @@ export function SidebarContent({
   const handleSummary = useCallback(
     (summary: { count: number; sizeBytes: number }) => setRootSummary(summary),
     [],
+  );
+
+  const handleNavClick = useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+      onNavigate?.();
+      if (!href.includes("#")) return;
+      if (
+        event.defaultPrevented ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        event.button !== 0
+      ) {
+        return;
+      }
+      event.preventDefault();
+      const [base, hash] = href.split("#");
+      const targetPath = base === "" ? "/" : base;
+      if (pathname === targetPath) {
+        const nextUrl = `${window.location.pathname}${window.location.search}#${hash}`;
+        window.history.pushState(null, "", nextUrl);
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+        return;
+      }
+      router.push(href, { scroll: false });
+    },
+    [onNavigate, pathname, router],
   );
 
   return (
@@ -100,7 +129,8 @@ export function SidebarContent({
               <Link
                 key={`${item.href}-${item.label}`}
                 href={item.href}
-                onClick={onNavigate}
+                scroll={false}
+                onClick={(event) => handleNavClick(event, item.href)}
                 className={cn(
                   "flex w-12 flex-col items-center gap-1 rounded-lg border border-white/12 bg-white/7 px-1.5 py-2 text-center text-[10px] font-bold leading-tight text-[#d8d0c6] transition hover:bg-white/14 hover:text-white",
                   active &&
