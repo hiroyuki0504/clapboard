@@ -138,4 +138,22 @@ TODO: 佐藤さんが 5月1日までに議事録を共有
       },
     ]);
   });
+
+  it("extracts risk headings as PM review ambiguities", () => {
+    const suggestions = extractMinuteSuggestions(`
+## リスク
+- 参加者名が省略された会話で担当者推定が弱い
+`);
+
+    assert.deepEqual(suggestions, [
+      {
+        id: "suggestion-3-0-ambiguity",
+        type: "ambiguity",
+        text: "risk: 参加者名が省略された会話で担当者推定が弱い",
+        assigneeCandidate: undefined,
+        dueDateCandidate: undefined,
+        status: "pending",
+      },
+    ]);
+  });
 });
