@@ -99,19 +99,19 @@ export function ProjectDetailTabs({
     return () => window.removeEventListener("popstate", syncTabFromUrl);
   }, []);
 
-  function handleSelectTab(tab: TabKey) {
-    if (tab === activeTab) {
+  function handleSelectTab(tabKey: TabKey) {
+    if (tabKey === activeTab) {
       return;
     }
 
-    setActiveTab(tab);
+    setActiveTab(tabKey);
 
     const url = new URL(window.location.href);
 
-    if (tab === "overview") {
+    if (tabKey === "overview") {
       url.searchParams.delete("tab");
     } else {
-      url.searchParams.set("tab", tab);
+      url.searchParams.set("tab", tabKey);
     }
 
     window.history.pushState(
@@ -568,7 +568,7 @@ function getTabFromSearch(): TabKey {
 
   const tab = new URLSearchParams(window.location.search).get("tab");
 
-  return getTabFromValue(tab);
+  return isTabKey(tab) ? tab : "overview";
 }
 
 function getTabFromValue(value: string | null | undefined): TabKey {
