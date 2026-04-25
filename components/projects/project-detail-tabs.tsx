@@ -467,20 +467,6 @@ export function ProjectDetailTabs({
   );
 }
 
-function getTabKeyFromSearch(): TabKey | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const tab = new URLSearchParams(window.location.search).get("tab");
-
-  return isTabKey(tab) ? tab : null;
-}
-
-function isTabKey(value: string | null): value is TabKey {
-  return tabs.some((tab) => tab.key === value);
-}
-
 function InfoTile({
   icon: Icon,
   label,
