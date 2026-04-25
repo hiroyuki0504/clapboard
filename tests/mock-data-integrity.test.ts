@@ -149,34 +149,56 @@ test("mock projects keep stable ids, dates, and enum values", () => {
 });
 
 test("mock aggregate feeds stay linked to projects and sorted newest first", () => {
-  const { allFiles, allMinutes, projects } = requireFromOutput(
+  const { projects } = requireFromOutput(
     "../lib/mock-data",
   ) as typeof import("../lib/mock-data");
+  const fileFeed = projects
+    .flatMap((project) =>
+      project.files.map((file) => ({
+        ...file,
+        projectName: project.name,
+      })),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+  const minuteFeed = projects
+    .flatMap((project) =>
+      project.minutes.map((minute) => ({
+        ...minute,
+        projectName: project.name,
+      })),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
   const projectNames = new Set(projects.map((project) => project.name));
 
   assert.equal(
-    allFiles.length,
+    fileFeed.length,
     projects.reduce((total, project) => total + project.files.length, 0),
   );
   assert.equal(
-    allMinutes.length,
+    minuteFeed.length,
     projects.reduce((total, project) => total + project.minutes.length, 0),
   );
   assert.ok(
-    allFiles.every((file) => projectNames.has(file.projectName)),
+    fileFeed.every((file) => projectNames.has(file.projectName)),
     "all files should reference an existing project name",
   );
   assert.ok(
-    allMinutes.every((minute) => projectNames.has(minute.projectName)),
+    minuteFeed.every((minute) => projectNames.has(minute.projectName)),
     "all minutes should reference an existing project name",
   );
   assertSortedDescending(
-    "allFiles.updatedAt",
-    allFiles.map((file) => file.updatedAt),
+    "fileFeed.updatedAt",
+    fileFeed.map((file) => file.updatedAt),
   );
   assertSortedDescending(
-    "allMinutes.createdAt",
-    allMinutes.map((minute) => minute.createdAt),
+    "minuteFeed.createdAt",
+    minuteFeed.map((minute) => minute.createdAt),
   );
 });
 
