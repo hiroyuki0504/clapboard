@@ -6,12 +6,14 @@ import {
   Folder,
   HelpCircle,
   LayoutDashboard,
-  Search,
-  Sparkles,
   JapaneseYen,
+  Network,
+  Search,
+  SquareTerminal,
+  TimerReset,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 import { FileTree } from "./file-tree";
@@ -26,30 +28,56 @@ function formatSize(bytes: number) {
 export const railItems = [
   {
     label: "ダッシュボード",
+    shortLabel: "ホーム",
     description: "全体の状況を確認",
     href: "/",
     icon: LayoutDashboard,
   },
   {
     label: "案件一覧",
+    shortLabel: "案件",
     description: "すべての案件",
     href: "/projects",
     icon: Folder,
   },
   {
+    label: "グラフ",
+    shortLabel: "グラフ",
+    description: "関係性を可視化",
+    href: "/graph",
+    icon: Network,
+  },
+  {
+    label: "コマンド",
+    shortLabel: "コマンド",
+    description: "AI実行ログと指示",
+    href: "/command",
+    icon: SquareTerminal,
+  },
+  {
+    label: "タイムライン",
+    shortLabel: "タイム",
+    description: "予定と実行履歴",
+    href: "/timeline",
+    icon: TimerReset,
+  },
+  {
     label: "今日のタスク",
+    shortLabel: "今日",
     description: "未処理タスク",
     href: "/#todo",
     icon: Check,
   },
   {
     label: "今月の収支",
+    shortLabel: "収支",
     description: "売上と支出",
     href: "/#finance",
     icon: JapaneseYen,
   },
   {
     label: "使い方ガイド",
+    shortLabel: "ガイド",
     description: "初めての方はこちら",
     href: "/#guide",
     icon: HelpCircle,
@@ -64,6 +92,7 @@ export function SidebarContent({
   agentSummary?: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [filter, setFilter] = useState("");
   const [rootSummary, setRootSummary] = useState<{
     count: number;
@@ -72,6 +101,34 @@ export function SidebarContent({
   const handleSummary = useCallback(
     (summary: { count: number; sizeBytes: number }) => setRootSummary(summary),
     [],
+  );
+
+  const handleNavClick = useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+      onNavigate?.();
+      if (!href.includes("#")) return;
+      if (
+        event.defaultPrevented ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        event.button !== 0
+      ) {
+        return;
+      }
+      event.preventDefault();
+      const [base, hash] = href.split("#");
+      const targetPath = base === "" ? "/" : base;
+      if (pathname === targetPath) {
+        const nextUrl = `${window.location.pathname}${window.location.search}#${hash}`;
+        window.history.pushState(null, "", nextUrl);
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+        return;
+      }
+      router.push(href, { scroll: false });
+    },
+    [onNavigate, pathname, router],
   );
 
   return (
@@ -83,9 +140,14 @@ export function SidebarContent({
           className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-[#fffefa] text-[#221d38] shadow-[0_1px_0_rgba(0,0,0,0.22)]"
           aria-label="ホームに戻る"
         >
-          <Sparkles className="h-5 w-5" aria-hidden />
+          <img
+            src="/icon.png"
+            alt=""
+            className="h-8 w-8 rounded-md object-cover"
+            aria-hidden
+          />
         </Link>
-        <nav className="flex flex-1 flex-col items-center gap-2">
+        <nav className="thin-scrollbar flex flex-1 flex-col items-center gap-2 overflow-y-auto">
           {railItems.map((item) => {
             const Icon = item.icon;
             const baseHref = item.href.split("#")[0];
@@ -100,7 +162,8 @@ export function SidebarContent({
               <Link
                 key={`${item.href}-${item.label}`}
                 href={item.href}
-                onClick={onNavigate}
+                scroll={false}
+                onClick={(event) => handleNavClick(event, item.href)}
                 className={cn(
                   "flex w-[76px] flex-col items-center justify-center gap-1 rounded-lg border border-white/12 bg-white/7 px-2 py-2 text-[11px] font-bold leading-tight text-[#d8d0c6] transition hover:bg-white/14 hover:text-white",
                   active &&
@@ -110,7 +173,7 @@ export function SidebarContent({
                 title={`${item.label}\n${item.description}`}
               >
                 <Icon className="h-5 w-5" aria-hidden />
-                <span className="block w-full text-center">{item.label}</span>
+                <span className="block w-full text-center leading-tight">{item.label}</span>
               </Link>
             );
           })}
@@ -148,7 +211,12 @@ export function SidebarContent({
             </div>
           )}
           <div className="flex items-center gap-2 rounded-lg border border-[#c8c0b4] bg-[#fffefa] p-3">
-            <Sparkles className="h-4 w-4 text-[#5f8b5b]" aria-hidden />
+            <img
+              src="/icon.png"
+              alt=""
+              className="h-4 w-4 rounded-sm object-cover"
+              aria-hidden
+            />
             <div>
               <p className="font-bold text-[#312d27]">デスクトップ概要</p>
               <p className="mt-1">

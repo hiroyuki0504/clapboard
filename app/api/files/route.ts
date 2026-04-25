@@ -5,12 +5,14 @@ import path from "node:path";
 export const runtime = "nodejs";
 
 const CONFIGURED_ROOT_ENV = process.env.CLAPBOT_FILES_ROOT?.trim();
+const ALLOW_DEFAULT_ROOT =
+  process.env.CLAPBOT_ALLOW_DEFAULT_FILES_ROOT === "1";
 
 function resolveConfiguredRoot(): string | null {
   if (CONFIGURED_ROOT_ENV) {
     return path.resolve(CONFIGURED_ROOT_ENV);
   }
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === "production" && !ALLOW_DEFAULT_ROOT) {
     return null;
   }
   return path.resolve(process.cwd(), "files");
