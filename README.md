@@ -58,6 +58,9 @@ npm run dev
 ## 主要ルート
 
 - `/` - 進捗ダッシュボードトップ
+- `/graph` - ワーク・タスク・ファイルの関係グラフ
+- `/command` - AIエージェントの指示・実行ログ
+- `/timeline` - 予定と実行履歴のタイムライン
 - `/code-review` - PM main gate / Codexレビュー管理
 - `/projects` - 進捗一覧
 - `/projects/[id]` - 進捗詳細タブ
@@ -81,17 +84,29 @@ CLAPBOARD_API_TIMEOUT_MS=5000
 
 バックエンドは `/health`、`/projects`、`/projects/:id`、`/code-review` を返す想定です。取得に失敗した場合やタイムアウトした場合は既存モックデータへ退避します。APIデータを静的生成で固定しないよう、データ取得画面とAPI Routeは動的レンダリングにしています。ただし、外部バックエンドが `401` / `403` / `404` を返した場合は認可拒否・存在なしを隠さないため、モックへ退避せずエラーとして返します。
 
-## MVP範囲と未実装の領域
+## アクセス制御 (デモ用ゲート)
 
-MVPでは、Next.js API Route経由の進捗データ取得と外部URL表示まで対応しています。外部バックエンドが未設定の環境では、既存のモックデータをローカルAPI経由で表示します。
+> ⚠️ **これは公開サンプル/デモ用のゲートであり、実データ保護用の認証ではありません。**
+> パスワードはリポジトリ上で公開された固定値です。production / 共有 URL でこのアプリを使う場合は、
+> `CLAPBOT_FILES_ROOT` には公開しても差し支えないデータのみを置いてください。
+> production では `CLAPBOT_FILES_ROOT` 未設定時に `/api/files` が 503 を返します。
+> デモ用に `<cwd>/files` fallback を使う場合だけ `CLAPBOT_ALLOW_DEFAULT_FILES_ROOT=1` を明示してください。
+> 実データや機微情報を扱う用途には、別途強度のある認証 (SSO / 個別アカウント / secret 化したパスワード等) を実装する必要があります。
 
-以下は未実装です。
+`/login`・`/api/health`・`/api/login`・`/api/logout` 以外はすべて middleware を通します。
+ブラウザで `/login` にアクセスし、パスワードを入力してください。
 
-- 認証 / ログイン / 権限制御
-- DB永続化
-- Google Drive OAuth接続
+```bash
+# .env.local
+# Cookie の署名鍵 (必須、推奨: openssl rand -hex 32)
+CLAPBOARD_SESSION_SECRET=<ランダムな秘密鍵>
+```
 
-本番運用で公開範囲を制限する場合は、アプリ側の認証が入るまで、運用環境のリバースプロキシやホスティング側のアクセス制御で保護してください。
+- `CLAPBOARD_SESSION_SECRET` が未設定の場合、`/api/login` は 503 (`session-secret-not-configured`) を返し、Cookie 検証も常に失敗します。production では必ず設定してください。
+- ログインに成功すると HMAC-SHA256 署名付き Cookie（`clapbot-auth`）が7日間有効でセットされます。Cookie の発行時刻も検証され、未来値・改ざん値・7日超過は middleware で拒否します。
+- ログアウトは `POST /api/logout` で Cookie を削除します。
+- **デモ用パスワードは `password` に固定 (公開済み)** です。実データの保護には使えません。
+- ローカル開発時は `npm run dev` (= `CLAPBOARD_DEV_AUTH_BYPASS=1 next dev`) で middleware の認証を bypass できます。`NODE_ENV=production` ではこの bypass は無視されます。
 
 ## Team Roles
 

@@ -99,9 +99,9 @@ PRを出した人には、`Crucial` と `High Priority` までを対応しても
 
 ## アクセス制御
 
-- `/`、`/projects`、`/code-review` と `/api/*`（health/login/logout を除く）は `middleware.ts` で `CLAPBOARD_ACCESS_TOKEN` を必須にしています。
-- ブラウザは `/login` ページから Cookie を取得、CI や外部スクリプトは `Authorization: Bearer <token>` で接続します。
-- 本番では `CLAPBOARD_ACCESS_TOKEN` を Secrets/環境変数で配布してください。未設定のまま `NODE_ENV=production` で起動すると保護対象は 503 を返します。
+- `/login`・`/api/health`・`/api/login`・`/api/logout` 以外は `middleware.ts` で保護されています。
+- ブラウザは `/login` ページでパスワードを入力してログインしてください（デモ用パスワード: `password`）。
+- Cookie は `CLAPBOARD_SESSION_SECRET` で HMAC-SHA256 署名されます。`.env.local` に設定してください。
 
 ## マージ条件
 

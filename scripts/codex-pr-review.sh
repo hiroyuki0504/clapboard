@@ -58,6 +58,18 @@ if ! command -v codex >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! git rev-parse --verify --quiet "$BASE_BRANCH^{commit}" >/dev/null; then
+  echo "codex-pr-review: base branch '$BASE_BRANCH' was not found" >&2
+  exit 1
+fi
+
+echo "codex-pr-review: files changed against $BASE_BRANCH" >&2
+git diff --name-status "$BASE_BRANCH"...HEAD >&2
+if [[ "$INCLUDE_UNCOMMITTED" == true ]]; then
+  echo "codex-pr-review: uncommitted files" >&2
+  git diff --name-status HEAD >&2
+fi
+
 PROMPT="あなたはPMのためにmainマージ前のコードレビューを行います。各レビューコメントには必ず優先度を付けてください。優先度は 1. Crucial、2. High Priority、3. Medium、4. Low の4段階です。1と2はPR作成者がマージ前に対応すべき指摘として扱い、3と4はPMが後続対応または許容を判断できる指摘として扱ってください。重大な不具合、回帰、セキュリティ/データ破損リスク、テスト不足を優先して指摘してください。指摘はファイル/行、理由、修正方針が分かる形にし、問題がない場合は残リスクだけを簡潔に報告してください。"
 
 if [[ "$INCLUDE_UNCOMMITTED" == true ]]; then
