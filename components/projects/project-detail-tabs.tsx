@@ -16,6 +16,11 @@ import { PriorityBadge, ProjectStatusBadge } from "@/components/project-status-b
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import {
+  getOpenTaskCount,
+  getProjectBudgetBalance,
+  getTaskCompletion,
+} from "@/lib/project-selectors";
 import type { Project } from "@/lib/types";
 import {
   cn,
@@ -65,19 +70,27 @@ const tabs: {
   },
 ];
 
-export function ProjectDetailTabs({ project }: { project: Project }) {
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
-  const profit = project.revenue - project.cost;
-  const completion = useMemo(() => {
-    if (project.tasks.length === 0) return 0;
-    const completed = project.tasks.filter((task) => task.completed).length;
-    return Math.round((completed / project.tasks.length) * 100);
-  }, [project.tasks]);
+export function ProjectDetailTabs({
+  project,
+  initialTab,
+}: {
+  project: Project;
+  initialTab?: string;
+}) {
+  const [activeTab, setActiveTab] = useState<TabKey>(() =>
+    getTabFromValue(initialTab),
+  );
+  const profit = getProjectBudgetBalance(project);
+  const completion = useMemo(
+    () => getTaskCompletion(project.tasks),
+    [project.tasks],
+  );
+  const openTaskCount = getOpenTaskCount(project.tasks);
   const activeTabMeta = tabs.find((tab) => tab.key === activeTab)!;
 
   useEffect(() => {
     function syncTabFromUrl() {
-      setActiveTab(getTabKeyFromSearch() ?? "overview");
+      setActiveTab(getTabFromSearch());
     }
 
     syncTabFromUrl();
@@ -87,6 +100,10 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
   }, []);
 
   function handleSelectTab(tabKey: TabKey) {
+    if (tabKey === activeTab) {
+      return;
+    }
+
     setActiveTab(tabKey);
 
     const url = new URL(window.location.href);
@@ -97,7 +114,11 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
       url.searchParams.set("tab", tabKey);
     }
 
-    window.history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    window.history.pushState(
+      null,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
   }
 
   return (
@@ -210,8 +231,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
             <div>
               <CardTitle>進捗タスク</CardTitle>
               <p className="mt-1 text-sm text-[#81786d]">
-                完了率 {completion}% ・ 未完了{" "}
-                {project.tasks.filter((task) => !task.completed).length}件
+                完了率 {completion}% ・ 未完了 {openTaskCount}件
               </p>
             </div>
           </CardHeader>
@@ -447,20 +467,6 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
   );
 }
 
-function getTabKeyFromSearch(): TabKey | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const tab = new URLSearchParams(window.location.search).get("tab");
-
-  return isTabKey(tab) ? tab : null;
-}
-
-function isTabKey(value: string | null): value is TabKey {
-  return tabs.some((tab) => tab.key === value);
-}
-
 function InfoTile({
   icon: Icon,
   label,
@@ -553,4 +559,22 @@ function MarkdownLike({ body }: { body: string }) {
       })}
     </div>
   );
+}
+
+function getTabFromSearch(): TabKey {
+  if (typeof window === "undefined") {
+    return "overview";
+  }
+
+  const tab = new URLSearchParams(window.location.search).get("tab");
+
+  return isTabKey(tab) ? tab : "overview";
+}
+
+function getTabFromValue(value: string | null | undefined): TabKey {
+  return isTabKey(value) ? value : "overview";
+}
+
+function isTabKey(value: string | null | undefined): value is TabKey {
+  return tabs.some((tab) => tab.key === value);
 }

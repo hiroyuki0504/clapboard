@@ -12,16 +12,25 @@ import { ProjectStatusBadge } from "@/components/project-status-badge";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { getProject } from "@/lib/clapboard-api";
+import {
+  getHighPriorityOpenTaskCount,
+  getOpenTasks,
+  getProjectBudgetBalance,
+} from "@/lib/project-selectors";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 }) {
   const { id } = await params;
+  const { tab } = await searchParams;
+  const initialTab = Array.isArray(tab) ? tab[0] : tab;
   const projectResult = await getProject(id);
   if (projectResult.error) {
     if (projectResult.error.status === 404) {
@@ -36,11 +45,9 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const openTasks = project.tasks.filter((task) => !task.completed);
-  const blockerCount = openTasks.filter(
-    (task) => task.priority === "high",
-  ).length;
-  const budgetBalance = project.revenue - project.cost;
+  const openTasks = getOpenTasks(project.tasks);
+  const blockerCount = getHighPriorityOpenTaskCount(project.tasks);
+  const budgetBalance = getProjectBudgetBalance(project);
 
   return (
     <div className="space-y-4">
@@ -138,7 +145,7 @@ export default async function ProjectDetailPage({
         </Card>
       </section>
 
-      <ProjectDetailTabs project={project} />
+      <ProjectDetailTabs project={project} initialTab={initialTab} />
     </div>
   );
 }
