@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { formatDate, formatDateTime, formatLogTime } from "../lib/utils";
+import {
+  formatDate,
+  formatDateTime,
+  formatLogTime,
+  normalizeProgressValue,
+  safeFileUrl,
+} from "../lib/utils";
 
 describe("date formatting", () => {
   it("formats date-only values without timezone drift", () => {
@@ -20,5 +26,32 @@ describe("date formatting", () => {
     assert.equal(formatDate("2026-13-40"), "—");
     assert.equal(formatDateTime("not-a-date"), "—");
     assert.equal(formatLogTime("not-a-date"), "--:--");
+  });
+});
+
+describe("safeFileUrl", () => {
+  it("allows absolute http and https URLs", () => {
+    assert.equal(
+      safeFileUrl("https://example.com/report.pdf?download=1"),
+      "https://example.com/report.pdf?download=1",
+    );
+    assert.equal(safeFileUrl("http://example.com/"), "http://example.com/");
+  });
+
+  it("rejects non-web and relative URLs", () => {
+    assert.equal(safeFileUrl("javascript:alert(1)"), null);
+    assert.equal(safeFileUrl("ftp://example.com/report.pdf"), null);
+    assert.equal(safeFileUrl("/local/report.pdf"), null);
+    assert.equal(safeFileUrl("not a url"), null);
+  });
+});
+
+describe("progress normalization", () => {
+  it("keeps finite progress values inside the accessible range", () => {
+    assert.equal(normalizeProgressValue(42), 42);
+    assert.equal(normalizeProgressValue(-20), 0);
+    assert.equal(normalizeProgressValue(150), 100);
+    assert.equal(normalizeProgressValue(Number.NaN), 0);
+    assert.equal(normalizeProgressValue(Number.POSITIVE_INFINITY), 0);
   });
 });

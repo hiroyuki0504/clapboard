@@ -46,6 +46,14 @@ export function formatCurrency(value: number) {
   }).format(value);
 }
 
+export function normalizeProgressValue(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, value));
+}
+
 const INVALID_DATE_PLACEHOLDER = "—";
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
 const APP_TIME_ZONE = "Asia/Tokyo";
