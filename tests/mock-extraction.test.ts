@@ -107,4 +107,35 @@ TODO: 田中さんが 4/30までにQA観点を整理
       },
     ]);
   });
+
+  it("does not carry a known section through an unsupported markdown heading", () => {
+    const suggestions = extractMinuteSuggestions(`
+## TODO
+- 担当: 山田 来週中に確認観点をまとめる
+
+## メモ
+- この行はタスク候補にしない
+
+TODO: 佐藤さんが 5月1日までに議事録を共有
+`);
+
+    assert.deepEqual(suggestions, [
+      {
+        id: "suggestion-3-0-task",
+        type: "task",
+        text: "担当: 山田 来週中に確認観点をまとめる",
+        assigneeCandidate: "山田",
+        dueDateCandidate: "来週中",
+        status: "pending",
+      },
+      {
+        id: "suggestion-8-0-task",
+        type: "task",
+        text: "佐藤さんが 5月1日までに議事録を共有",
+        assigneeCandidate: "佐藤さん",
+        dueDateCandidate: "5月1日",
+        status: "pending",
+      },
+    ]);
+  });
 });

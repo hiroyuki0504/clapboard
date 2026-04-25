@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import Module from "node:module";
 import path from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -41,6 +41,10 @@ moduleWithResolver._resolveFilename = function resolveWithTestAliases(
 
   return originalResolveFilename.call(this, request, parent, isMain, options);
 };
+
+after(() => {
+  moduleWithResolver._resolveFilename = originalResolveFilename;
+});
 
 test("ProjectTable keeps its primary columns, labels, and detail links", () => {
   const { ProjectTable } = requireFromOutput(
