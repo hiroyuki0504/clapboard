@@ -969,7 +969,7 @@ function SuggestionSection({
                 />
               ) : (
                 <p className="mt-3 text-sm leading-6 text-[#5f574d]">
-                  {suggestion.draftText}
+                  {formatSuggestionText(suggestion.draftText)}
                 </p>
               )}
 
@@ -1275,6 +1275,15 @@ function normalizeContextSearchText(text: string) {
     .replace(/^\[[ x]\]\s*/i, "")
     .trim()
     .toLowerCase();
+}
+
+function formatSuggestionText(text: string) {
+  return text
+    .replace(/^missing-assignee:\s*/, "担当未設定: ")
+    .replace(/^missing-due-date:\s*/, "期限未設定: ")
+    .replace(/^unresolved-decision:\s*/, "未確定判断: ")
+    .replace(/^unclear-dependency:\s*/, "依存関係: ")
+    .replace(/^risk:\s*/, "リスク確認: ");
 }
 
 const statusToneMap = {
