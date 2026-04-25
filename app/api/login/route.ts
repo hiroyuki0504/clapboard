@@ -24,6 +24,15 @@ export async function POST(request: Request) {
     );
   }
 
+  // SESSION_SECRET 未設定だと verifySessionValue が常に false → 検証不能な
+  // Cookie で擬似ログイン成功する状態を防ぐため、ここで fail-closed にする。
+  if (!process.env.CLAPBOARD_SESSION_SECRET) {
+    return NextResponse.json(
+      { error: "session-secret-not-configured" },
+      { status: 503, headers: { "cache-control": "no-store" } },
+    );
+  }
+
   const response = NextResponse.json(
     { ok: true },
     { status: 200, headers: { "cache-control": "no-store" } },

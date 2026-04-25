@@ -97,10 +97,11 @@ CLAPBOARD_API_TIMEOUT_MS=5000
 CLAPBOARD_SESSION_SECRET=<ランダムな秘密鍵>
 ```
 
-- `CLAPBOARD_SESSION_SECRET` が未設定の場合、署名検証が常に失敗して全アクセスがログインページにリダイレクトされます。必ず設定してください。
-- ログインに成功すると HMAC-SHA256 署名付き Cookie（`clapbot-auth`）が7日間有効でセットされます。
+- `CLAPBOARD_SESSION_SECRET` が未設定の場合、`/api/login` は 503 (`session-secret-not-configured`) を返し、Cookie 検証も常に失敗します。production では必ず設定してください。
+- ログインに成功すると HMAC-SHA256 署名付き Cookie（`clapbot-auth`）が7日間有効でセットされます。Cookie の発行時刻も検証され、未来値・改ざん値・7日超過は middleware で拒否します。
 - ログアウトは `POST /api/logout` で Cookie を削除します。
 - **デモ用パスワードは `password` に固定 (公開済み)** です。実データの保護には使えません。
+- ローカル開発時は `npm run dev` (= `CLAPBOARD_DEV_AUTH_BYPASS=1 next dev`) で middleware の認証を bypass できます。`NODE_ENV=production` ではこの bypass は無視されます。
 
 ## Team Roles
 

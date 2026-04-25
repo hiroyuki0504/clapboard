@@ -12,7 +12,8 @@
     "tsBuildInfoFile": "out/test-build/tsconfig.test.tsbuildinfo"
   },
   "include": [
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    "lib/session.ts"
   ],
   "exclude": [
     "node_modules",
