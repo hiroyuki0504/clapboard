@@ -23,6 +23,25 @@ export type ProjectMinute = {
   body: string;
 };
 
+export type ProjectAmbiguityKind =
+  | "missing-assignee"
+  | "missing-due-date"
+  | "unresolved-decision"
+  | "unclear-dependency";
+
+export type ExtractionSuggestionType = "decision" | "task" | "ambiguity";
+
+export type ExtractionSuggestionStatus = "pending" | "accepted" | "rejected";
+
+export type ExtractionSuggestion = {
+  id: string;
+  type: ExtractionSuggestionType;
+  text: string;
+  assigneeCandidate?: string;
+  dueDateCandidate?: string;
+  status: ExtractionSuggestionStatus;
+};
+
 export type FinanceTransaction = {
   id: string;
   date: string;
