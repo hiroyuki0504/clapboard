@@ -49,7 +49,13 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           }
         />
         <div className="flex min-w-0 flex-1 flex-col bg-[#fbfaf5]">
-          <Topbar />
+          <Topbar
+            agentSummary={
+              <Suspense fallback={<SidebarAgentSummaryFallback />}>
+                <SidebarAgentSummary />
+              </Suspense>
+            }
+          />
           <main className="thin-scrollbar min-h-0 flex-1 overflow-auto p-3 sm:p-4 lg:p-5">
             {children}
           </main>
