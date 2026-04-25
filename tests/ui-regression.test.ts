@@ -74,25 +74,38 @@ test("ProjectTable keeps its primary columns, labels, and detail links", () => {
 });
 
 test("ProjectDetailTabs keeps URL query tab synchronization", () => {
-  const source = readFileSync(
+  const tabsSource = readFileSync(
     path.join(process.cwd(), "components/projects/project-detail-tabs.tsx"),
+    "utf8",
+  );
+  const tabConfigSource = readFileSync(
+    path.join(
+      process.cwd(),
+      "components/projects/detail-tabs/tab-config.ts",
+    ),
     "utf8",
   );
 
   assert.match(
-    source,
+    tabConfigSource,
     /new URLSearchParams\(window\.location\.search\)\.get\("tab"\)/,
   );
-  assert.match(source, /isTabKey\(tab\)/);
-  assert.match(source, /window\.addEventListener\("popstate", syncTabFromUrl\)/);
-  assert.match(source, /url\.searchParams\.set\("tab", tabKey\)/);
-  assert.match(source, /url\.searchParams\.delete\("tab"\)/);
-  assert.match(source, /window\.history\.pushState/);
-  assert.match(source, /onKeyDown=\{\(event\) => handleTabKeyDown\(event, tab\.key\)\}/);
-  assert.match(source, /event\.key === "ArrowRight"/);
-  assert.match(source, /event\.key === "ArrowLeft"/);
-  assert.match(source, /event\.key === "Home"/);
-  assert.match(source, /event\.key === "End"/);
-  assert.match(source, /tabIndex=\{active \? 0 : -1\}/);
-  assert.match(source, /whitespace-nowrap/);
+  assert.match(tabConfigSource, /isTabKey\(tab\)/);
+  assert.match(
+    tabsSource,
+    /window\.addEventListener\("popstate", syncTabFromUrl\)/,
+  );
+  assert.match(tabsSource, /url\.searchParams\.set\("tab", tabKey\)/);
+  assert.match(tabsSource, /url\.searchParams\.delete\("tab"\)/);
+  assert.match(tabsSource, /window\.history\.pushState/);
+  assert.match(
+    tabsSource,
+    /onKeyDown=\{\(event\) => handleTabKeyDown\(event, tab\.key\)\}/,
+  );
+  assert.match(tabsSource, /event\.key === "ArrowRight"/);
+  assert.match(tabsSource, /event\.key === "ArrowLeft"/);
+  assert.match(tabsSource, /event\.key === "Home"/);
+  assert.match(tabsSource, /event\.key === "End"/);
+  assert.match(tabsSource, /tabIndex=\{active \? 0 : -1\}/);
+  assert.match(tabsSource, /whitespace-nowrap/);
 });
