@@ -4,6 +4,7 @@ import {
   hasAnyConfiguredCredential,
   resolveRoleFromSecret,
   sanitizeRedirectPath,
+  shouldUseSecureAccessCookie,
 } from "../lib/auth";
 
 function withAuthEnv<T>(env: Record<string, string | undefined>, run: () => T) {
@@ -84,4 +85,34 @@ test("redirect paths stay internal", () => {
   assert.equal(sanitizeRedirectPath("/projects?id=1"), "/projects?id=1");
   assert.equal(sanitizeRedirectPath("https://example.com"), "/");
   assert.equal(sanitizeRedirectPath("//example.com"), "/");
+});
+
+test("access cookie secure flag follows request protocol", () => {
+  assert.equal(
+    shouldUseSecureAccessCookie(new Request("http://localhost:3000/api/login")),
+    false,
+  );
+  assert.equal(
+    shouldUseSecureAccessCookie(new Request("https://pm.ymt-systems.com/api/login")),
+    true,
+  );
+});
+
+test("access cookie secure flag respects proxy protocol headers", () => {
+  assert.equal(
+    shouldUseSecureAccessCookie(
+      new Request("http://localhost:3000/api/login", {
+        headers: { "x-forwarded-proto": "https" },
+      }),
+    ),
+    true,
+  );
+  assert.equal(
+    shouldUseSecureAccessCookie(
+      new Request("http://localhost:3000/api/logout", {
+        headers: { forwarded: 'for=127.0.0.1;proto="http";host=localhost:3000' },
+      }),
+    ),
+    false,
+  );
 });
