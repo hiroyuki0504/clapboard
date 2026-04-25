@@ -87,7 +87,7 @@ CLAPBOARD_VIEWER_TOKEN=<viewer token>
 CLAPBOARD_JWT_SECRET=<optional signing secret>
 ```
 
-- local dev で未設定の場合のみ、adminパスワード `password` が使えます。
+- local dev で未設定の場合のみ、adminパスワード `passwor` が使えます。
 - 本番では `CLAPBOARD_PASSWORD` または `CLAPBOARD_ACCESS_TOKEN` を必ず設定してください。
 - viewer は閲覧とGET APIのみ許可します。
 - admin は全Page/APIと書き込み系APIを許可します。

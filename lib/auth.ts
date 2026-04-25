@@ -1,7 +1,7 @@
 export const ACCESS_COOKIE_NAME = "clapboard_access";
 export const ACCESS_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
-const DEV_DEFAULT_PASSWORD = "password";
+const DEV_DEFAULT_PASSWORD = "passwor";
 
 export type Role = "admin" | "viewer";
 
