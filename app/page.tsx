@@ -16,6 +16,13 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { getProjectMinutes, getProjects } from "@/lib/clapboard-api";
+import {
+  getActiveProjects,
+  getAverageProgress,
+  getCompletedTasks,
+  getHighPriorityOpenTasks,
+  getOpenTasks,
+} from "@/lib/project-selectors";
 import type { Project } from "@/lib/types";
 import { buildDateLabel, formatDate, formatDateTime } from "@/lib/utils";
 
@@ -29,9 +36,7 @@ export default async function DashboardPage() {
 
   const projectList = projectsResult.data;
   const allMinutes = getProjectMinutes(projectList);
-  const activeWorkstreams = projectList.filter(
-    (project) => project.status !== "completed",
-  );
+  const activeWorkstreams = getActiveProjects(projectList);
   const allTasks = projectList.flatMap((project) =>
     project.tasks.map((task) => ({
       ...task,
@@ -39,16 +44,10 @@ export default async function DashboardPage() {
       projectName: project.name,
     })),
   );
-  const incompleteTasks = allTasks.filter((task) => !task.completed);
-  const blockerTasks = incompleteTasks.filter((task) => task.priority === "high");
-  const completedTasks = allTasks.filter((task) => task.completed);
-  const averageProgress =
-    projectList.length === 0
-      ? 0
-      : Math.round(
-          projectList.reduce((total, project) => total + project.progress, 0) /
-            projectList.length,
-        );
+  const incompleteTasks = getOpenTasks(allTasks);
+  const blockerTasks = getHighPriorityOpenTasks(allTasks);
+  const completedTasks = getCompletedTasks(allTasks);
+  const averageProgress = getAverageProgress(projectList);
   const recentWorkstreams = [...projectList].sort(
     (a, b) =>
       new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
@@ -230,7 +229,6 @@ export default async function DashboardPage() {
             ))}
           </CardContent>
         </Card>
-
       </section>
     </div>
   );
