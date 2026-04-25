@@ -1,11 +1,25 @@
 import "server-only";
 
-import { reviewSystem } from "@/lib/code-review-system";
+import { cache } from "react";
+import {
+  reviewSystem,
+  type BranchWorkstream,
+  type CodexReviewComment,
+  type PullRequestReview,
+  type ReviewPriorityLevel,
+} from "@/lib/code-review-system";
 import {
   getProjectById as getMockProjectById,
   projects as mockProjects,
 } from "@/lib/mock-data";
-import type { Project, ProjectFile, ProjectMinute } from "@/lib/types";
+import type {
+  FinanceTransaction,
+  Project,
+  ProjectFile,
+  ProjectMinute,
+  ProjectTask,
+  ProjectUpdate,
+} from "@/lib/types";
 
 export type ApiDataSource = "backend" | "mock";
 
@@ -109,33 +123,204 @@ async function fetchBackendJson<T>(path: string): Promise<BackendFetchResult<T>>
   }
 }
 
-function isProjectShape(value: unknown): value is Project {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
+const TASK_PRIORITIES = new Set(["high", "medium", "low"]);
+const FILE_TYPES = new Set(["docs", "sheet", "slide", "folder", "pdf"]);
+const PROJECT_STATUSES = new Set([
+  "planning",
+  "in-progress",
+  "review",
+  "at-risk",
+  "completed",
+]);
+const TRANSACTION_TYPES = new Set(["revenue", "expense"]);
+const REVIEW_PRIORITIES = new Set(["crucial", "high", "medium", "low"]);
+const REVIEW_COMMENT_STATUSES = new Set(["open", "fixed", "accepted-risk"]);
+const REVIEW_STATES = new Set(["queued", "running", "needs-fix", "passed"]);
+const MERGE_GATES = new Set(["open", "blocked", "ready"]);
+const BRANCH_STATUSES = new Set([
+  "design",
+  "implementing",
+  "review-ready",
+  "changes-requested",
+  "approved",
+]);
+const RISK_LEVELS = new Set(["low", "medium", "high"]);
 
-  const candidate = value as Partial<Project>;
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
+}
+
+function isTaskShape(value: unknown): value is ProjectTask {
+  if (!isObject(value)) return false;
+  const c = value as Partial<ProjectTask>;
   return (
-    typeof candidate.id === "string" &&
-    typeof candidate.name === "string" &&
-    Array.isArray(candidate.tasks) &&
-    Array.isArray(candidate.minutes) &&
-    Array.isArray(candidate.files)
+    typeof c.id === "string" &&
+    typeof c.title === "string" &&
+    typeof c.completed === "boolean" &&
+    typeof c.priority === "string" &&
+    TASK_PRIORITIES.has(c.priority) &&
+    typeof c.note === "string"
+  );
+}
+
+function isMinuteShape(value: unknown): value is ProjectMinute {
+  if (!isObject(value)) return false;
+  const c = value as Partial<ProjectMinute>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.title === "string" &&
+    typeof c.createdAt === "string" &&
+    Array.isArray(c.participants) &&
+    c.participants.every((participant) => typeof participant === "string") &&
+    typeof c.body === "string"
+  );
+}
+
+function isFileShape(value: unknown): value is ProjectFile {
+  if (!isObject(value)) return false;
+  const c = value as Partial<ProjectFile>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.name === "string" &&
+    typeof c.type === "string" &&
+    FILE_TYPES.has(c.type) &&
+    typeof c.updatedAt === "string" &&
+    typeof c.url === "string"
+  );
+}
+
+function isUpdateShape(value: unknown): value is ProjectUpdate {
+  if (!isObject(value)) return false;
+  const c = value as Partial<ProjectUpdate>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.date === "string" &&
+    typeof c.text === "string"
+  );
+}
+
+function isTransactionShape(value: unknown): value is FinanceTransaction {
+  if (!isObject(value)) return false;
+  const c = value as Partial<FinanceTransaction>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.date === "string" &&
+    typeof c.label === "string" &&
+    typeof c.type === "string" &&
+    TRANSACTION_TYPES.has(c.type) &&
+    typeof c.amount === "number" &&
+    Number.isFinite(c.amount)
+  );
+}
+
+function isProjectShape(value: unknown): value is Project {
+  if (!isObject(value)) return false;
+  const c = value as Partial<Project>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.name === "string" &&
+    typeof c.client === "string" &&
+    typeof c.status === "string" &&
+    PROJECT_STATUSES.has(c.status) &&
+    typeof c.progress === "number" &&
+    Number.isFinite(c.progress) &&
+    typeof c.lastUpdated === "string" &&
+    typeof c.revenue === "number" &&
+    typeof c.cost === "number" &&
+    typeof c.dueDate === "string" &&
+    typeof c.owner === "string" &&
+    typeof c.summary === "string" &&
+    Array.isArray(c.updates) && c.updates.every(isUpdateShape) &&
+    Array.isArray(c.tasks) && c.tasks.every(isTaskShape) &&
+    Array.isArray(c.minutes) && c.minutes.every(isMinuteShape) &&
+    Array.isArray(c.transactions) && c.transactions.every(isTransactionShape) &&
+    Array.isArray(c.files) && c.files.every(isFileShape)
+  );
+}
+
+function isReviewCommentShape(value: unknown): value is CodexReviewComment {
+  if (!isObject(value)) return false;
+  const c = value as Partial<CodexReviewComment>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.priority === "string" &&
+    REVIEW_PRIORITIES.has(c.priority) &&
+    typeof c.status === "string" &&
+    REVIEW_COMMENT_STATUSES.has(c.status) &&
+    typeof c.title === "string" &&
+    typeof c.body === "string"
+  );
+}
+
+function isPullRequestShape(value: unknown): value is PullRequestReview {
+  if (!isObject(value)) return false;
+  const c = value as Partial<PullRequestReview>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.title === "string" &&
+    typeof c.branch === "string" &&
+    typeof c.base === "string" &&
+    typeof c.author === "string" &&
+    typeof c.reviewState === "string" &&
+    REVIEW_STATES.has(c.reviewState) &&
+    typeof c.gate === "string" &&
+    MERGE_GATES.has(c.gate) &&
+    typeof c.changedFiles === "number" &&
+    Array.isArray(c.riskAreas) &&
+    c.riskAreas.every((area) => typeof area === "string") &&
+    Array.isArray(c.comments) && c.comments.every(isReviewCommentShape) &&
+    typeof c.codexCommand === "string"
+  );
+}
+
+function isBranchWorkstreamShape(value: unknown): value is BranchWorkstream {
+  if (!isObject(value)) return false;
+  const c = value as Partial<BranchWorkstream>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.title === "string" &&
+    typeof c.branch === "string" &&
+    typeof c.base === "string" &&
+    typeof c.owner === "string" &&
+    typeof c.status === "string" &&
+    BRANCH_STATUSES.has(c.status) &&
+    typeof c.pullRequest === "string" &&
+    typeof c.dueAt === "string" &&
+    typeof c.risk === "string" &&
+    RISK_LEVELS.has(c.risk) &&
+    typeof c.nextAction === "string"
+  );
+}
+
+function isPriorityLevelShape(value: unknown): value is ReviewPriorityLevel {
+  if (!isObject(value)) return false;
+  const c = value as Partial<ReviewPriorityLevel>;
+  return (
+    typeof c.priority === "string" &&
+    REVIEW_PRIORITIES.has(c.priority) &&
+    typeof c.rank === "number" &&
+    typeof c.label === "string" &&
+    typeof c.owner === "string" &&
+    typeof c.mergeRule === "string" &&
+    typeof c.body === "string"
   );
 }
 
 function isCodeReviewShape(value: unknown): value is CodeReviewSystem {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const candidate = value as Partial<CodeReviewSystem>;
+  if (!isObject(value)) return false;
+  const c = value as Partial<CodeReviewSystem>;
   return (
-    Array.isArray(candidate.branches) &&
-    Array.isArray(candidate.pullRequests) &&
-    Array.isArray(candidate.priorityLevels) &&
-    Array.isArray(candidate.policies) &&
-    Array.isArray(candidate.pipeline)
+    typeof c.repository === "string" &&
+    typeof c.mainBranch === "string" &&
+    typeof c.pmOwner === "string" &&
+    typeof c.reviewModel === "string" &&
+    Array.isArray(c.branches) && c.branches.every(isBranchWorkstreamShape) &&
+    Array.isArray(c.pullRequests) && c.pullRequests.every(isPullRequestShape) &&
+    Array.isArray(c.priorityLevels) && c.priorityLevels.every(isPriorityLevelShape) &&
+    Array.isArray(c.policies) &&
+    Array.isArray(c.pipeline) &&
+    Array.isArray(c.checklist) &&
+    c.checklist.every((item) => typeof item === "string")
   );
 }
 
@@ -191,53 +376,68 @@ function unwrapCodeReviewSystem(payload: CodeReviewPayload): CodeReviewSystem {
   return candidate;
 }
 
-export async function getProjects(): Promise<ApiResult<Project[]>> {
-  const backend = await fetchBackendJson<ProjectsPayload>("/projects");
+export const getProjects = cache(
+  async (): Promise<ApiResult<Project[]>> => {
+    const backend = await fetchBackendJson<ProjectsPayload>("/projects");
 
-  if (!backend.ok) {
-    return mockResult(mockProjects, backend.reason);
-  }
+    if (!backend.ok) {
+      return mockResult(mockProjects, backend.reason);
+    }
 
-  try {
-    return backendResult(unwrapProjects(backend.data));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Invalid projects payload";
-    return mockResult(mockProjects, message);
-  }
-}
+    try {
+      return backendResult(unwrapProjects(backend.data));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Invalid projects payload";
+      return mockResult(mockProjects, message);
+    }
+  },
+);
 
-export async function getProject(id: string): Promise<ApiResult<Project | null>> {
-  const fallbackProject = getMockProjectById(id) ?? null;
-  const backend = await fetchBackendJson<ProjectPayload>(
-    `/projects/${encodeURIComponent(id)}`,
-  );
+export const getProject = cache(
+  async (id: string): Promise<ApiResult<Project | null>> => {
+    const fallbackProject = getMockProjectById(id) ?? null;
+    const backend = await fetchBackendJson<ProjectPayload>(
+      `/projects/${encodeURIComponent(id)}`,
+    );
 
-  if (!backend.ok) {
-    return mockResult(fallbackProject, backend.reason);
-  }
+    if (!backend.ok) {
+      return mockResult(fallbackProject, backend.reason);
+    }
 
-  try {
-    return backendResult(unwrapProject(backend.data));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Invalid project payload";
-    return mockResult(fallbackProject, message);
-  }
-}
+    try {
+      return backendResult(unwrapProject(backend.data));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Invalid project payload";
+      return mockResult(fallbackProject, message);
+    }
+  },
+);
 
-export async function getCodeReviewSystem(): Promise<ApiResult<CodeReviewSystem>> {
-  const backend = await fetchBackendJson<CodeReviewPayload>("/code-review");
+export const getCodeReviewSystem = cache(
+  async (): Promise<ApiResult<CodeReviewSystem>> => {
+    const backend = await fetchBackendJson<CodeReviewPayload>("/code-review");
 
-  if (!backend.ok) {
-    return mockResult(reviewSystem, backend.reason);
-  }
+    if (!backend.ok) {
+      return mockResult(reviewSystem, backend.reason);
+    }
 
-  try {
-    return backendResult(unwrapCodeReviewSystem(backend.data));
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Invalid code review payload";
-    return mockResult(reviewSystem, message);
-  }
+    try {
+      return backendResult(unwrapCodeReviewSystem(backend.data));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Invalid code review payload";
+      return mockResult(reviewSystem, message);
+    }
+  },
+);
+
+export function publicFallbackReason(reason: string | undefined) {
+  if (!reason) return null;
+  return process.env.NODE_ENV === "production"
+    ? "external backend unavailable"
+    : reason;
 }
 
 export function getProjectFiles(
@@ -282,9 +482,7 @@ export async function getApiHealth() {
   const exposedBaseUrl = isProduction ? null : (backendBaseUrl ?? null);
   const exposedFallbackReason = backend.ok
     ? null
-    : isProduction
-      ? "external backend unavailable"
-      : backend.reason;
+    : publicFallbackReason(backend.reason);
 
   return {
     ok: externalHealthy,

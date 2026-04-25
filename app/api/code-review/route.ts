@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCodeReviewSystem } from "@/lib/clapboard-api";
+import { getCodeReviewSystem, publicFallbackReason } from "@/lib/clapboard-api";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +10,6 @@ export async function GET() {
     reviewSystem: result.data,
     source: result.source,
     connected: result.connected,
-    fallbackReason: result.fallbackReason ?? null,
+    fallbackReason: publicFallbackReason(result.fallbackReason),
   });
 }

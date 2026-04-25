@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getProjects } from "@/lib/clapboard-api";
+import { getProjects, publicFallbackReason } from "@/lib/clapboard-api";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +10,6 @@ export async function GET() {
     projects: result.data,
     source: result.source,
     connected: result.connected,
-    fallbackReason: result.fallbackReason ?? null,
+    fallbackReason: publicFallbackReason(result.fallbackReason),
   });
 }

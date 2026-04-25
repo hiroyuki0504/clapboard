@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getProject } from "@/lib/clapboard-api";
+import { getProject, publicFallbackReason } from "@/lib/clapboard-api";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +9,7 @@ export async function GET(
 ) {
   const { id } = await params;
   const result = await getProject(id);
+  const fallbackReason = publicFallbackReason(result.fallbackReason);
 
   if (!result.data) {
     return NextResponse.json(
@@ -16,7 +17,7 @@ export async function GET(
         project: null,
         source: result.source,
         connected: result.connected,
-        fallbackReason: result.fallbackReason ?? null,
+        fallbackReason,
       },
       { status: 404 },
     );
@@ -26,6 +27,6 @@ export async function GET(
     project: result.data,
     source: result.source,
     connected: result.connected,
-    fallbackReason: result.fallbackReason ?? null,
+    fallbackReason,
   });
 }
