@@ -6,6 +6,7 @@ import {
   buildFileTreeNodeId,
   fetchFileTreeDir,
   type FileTreeEntry,
+  type FileTreeSource,
 } from "@/lib/file-tree-api";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ type DirState = {
 
 type DirNodeProps = {
   entry: FileTreeEntry;
+  source: FileTreeSource;
   depth: number;
   filter: string;
   forceOpen: boolean;
@@ -48,6 +50,7 @@ function FileLeaf({
 
 function DirNode({
   entry,
+  source,
   depth,
   filter,
   forceOpen,
@@ -59,7 +62,7 @@ function DirNode({
   const open = forceOpen || !!openMap[entry.path];
   const dirState = cache[entry.path];
   const mountedRef = useRef(true);
-  const childrenId = buildFileTreeNodeId(entry.path);
+  const childrenId = buildFileTreeNodeId(entry.path, source);
 
   useEffect(() => {
     return () => {
@@ -74,7 +77,7 @@ function DirNode({
       [entry.path]: { loading: true, error: null, items: null },
     }));
     try {
-      const items = await fetchFileTreeDir(entry.path);
+      const items = await fetchFileTreeDir(entry.path, source);
       if (!mountedRef.current) return;
       setCache((c) => ({
         ...c,
@@ -91,7 +94,7 @@ function DirNode({
         },
       }));
     }
-  }, [entry.path, cache, setCache]);
+  }, [entry.path, source, cache, setCache]);
 
   useEffect(() => {
     if (entry.isDir && forceOpen) {
@@ -169,6 +172,7 @@ function DirNode({
             <DirNode
               key={child.path}
               entry={child}
+              source={source}
               depth={depth + 1}
               filter={filter}
               forceOpen={!!filter}
@@ -191,9 +195,11 @@ function DirNode({
 
 export function FileTree({
   filter = "",
+  source = "desktop",
   onRootSummary,
 }: {
   filter?: string;
+  source?: FileTreeSource;
   onRootSummary?: (summary: { count: number; sizeBytes: number }) => void;
 }) {
   const [root, setRoot] = useState<FileTreeEntry[] | null>(null);
@@ -204,7 +210,12 @@ export function FileTree({
   useEffect(() => {
     let active = true;
 
-    fetchFileTreeDir("")
+    setRoot(null);
+    setError(null);
+    setOpenMap({});
+    setCache({});
+
+    fetchFileTreeDir("", source)
       .then((items) => {
         if (!active) return;
         setRoot(items);
@@ -224,7 +235,7 @@ export function FileTree({
     return () => {
       active = false;
     };
-  }, [onRootSummary]);
+  }, [onRootSummary, source]);
 
   const visibleRoot = useMemo(() => {
     if (!root) return null;
@@ -248,13 +259,14 @@ export function FileTree({
   return (
     <div
       role="tree"
-      aria-label="ファイルツリー"
+      aria-label={source === "repository" ? "Git tree" : "ファイルツリー"}
       className="space-y-0.5 text-sm text-[#5f574d]"
     >
       {visibleRoot.map((entry) => (
         <DirNode
           key={entry.path}
           entry={entry}
+          source={source}
           depth={0}
           filter={filter}
           forceOpen={!!filter}

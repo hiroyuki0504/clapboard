@@ -46,8 +46,8 @@ export function GuideSection() {
           />
           <GuideStep
             num={3}
-            title="左の Desktop Files を参照"
-            body="このパソコンの ~/Desktop をそのまま展開できます。名前で絞り込みもできます。"
+            title="左サイドバーでファイルを確認"
+            body="デスクトップとリポジトリのツリーを切り替え、名前で絞り込みながら必要なファイルを確認します。"
           />
         </ol>
       </CardContent>

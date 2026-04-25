@@ -28,6 +28,11 @@ const titles = [
     caption: "PRとレビュー状態を管理",
   },
   {
+    match: "/guide",
+    label: "使い方ガイド",
+    caption: "ClawBoardの基本操作を確認",
+  },
+  {
     match: "/projects",
     label: "案件一覧",
     caption: "すべての案件と進捗を一覧",
