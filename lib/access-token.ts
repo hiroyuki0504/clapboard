@@ -2,6 +2,7 @@ export const ACCESS_COOKIE_NAME = "clapboard_access";
 export const ACCESS_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 export const MIN_ACCESS_TOKEN_LENGTH = 16;
 export const MAX_LOGIN_BODY_BYTES = 4 * 1024;
+const NEXT_DEVELOPMENT_PHASE = "phase-development-server";
 
 export type Role = "admin" | "viewer";
 
@@ -32,19 +33,31 @@ export function isAccessTokenStrong(value: string | undefined | null) {
   return typeof value === "string" && value.length >= MIN_ACCESS_TOKEN_LENGTH;
 }
 
+export function isDevelopmentRuntime() {
+  return (
+    process.env.NODE_ENV === "development" ||
+    process.env.NEXT_PHASE === NEXT_DEVELOPMENT_PHASE ||
+    process.env.CLAPBOARD_DEV_AUTH_BYPASS === "1"
+  );
+}
+
+export function isProductionRuntime() {
+  return process.env.NODE_ENV === "production" && !isDevelopmentRuntime();
+}
+
 export function sanitizeRedirectPath(value: string | undefined | null): string {
   if (!value || typeof value !== "string") {
-    return "/code-review";
+    return "/";
   }
   if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) {
-    return "/code-review";
+    return "/";
   }
 
   const queryIndex = value.search(/[?#]/);
   const pathOnly = queryIndex === -1 ? value : value.slice(0, queryIndex);
 
   if (!pathOnly.startsWith("/") || pathOnly.length > 200) {
-    return "/code-review";
+    return "/";
   }
 
   return pathOnly;

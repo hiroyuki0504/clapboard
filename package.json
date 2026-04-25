@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbo",
-    "dev:webpack": "next dev",
+    "dev": "CLAPBOARD_DEV_AUTH_BYPASS=1 next dev --turbo",
+    "dev:webpack": "CLAPBOARD_DEV_AUTH_BYPASS=1 next dev",
     "build": "next build",
     "start": "next start",
     "review:codex": "scripts/codex-pr-review.sh",

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ACCESS_COOKIE_NAME, isProductionRuntime } from "@/lib/access-control";
+import { CSRF_COOKIE_NAME } from "@/lib/csrf-token";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,15 @@ export async function POST() {
     name: ACCESS_COOKIE_NAME,
     value: "",
     httpOnly: true,
+    sameSite: "lax",
+    secure: isProductionRuntime(),
+    path: "/",
+    maxAge: 0,
+  });
+  response.cookies.set({
+    name: CSRF_COOKIE_NAME,
+    value: "",
+    httpOnly: false,
     sameSite: "lax",
     secure: isProductionRuntime(),
     path: "/",

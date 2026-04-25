@@ -7,6 +7,11 @@ import {
   isProductionRuntime,
   verifyAccessToken,
 } from "@/lib/access-control";
+import {
+  CSRF_COOKIE_MAX_AGE_SECONDS,
+  CSRF_COOKIE_NAME,
+  generateCsrfToken,
+} from "@/lib/csrf-token";
 import { clientKeyFromHeaders, consumeRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -99,8 +104,9 @@ export async function POST(request: Request) {
     );
   }
 
+  const csrfToken = generateCsrfToken();
   const response = NextResponse.json(
-    { ok: true },
+    { ok: true, csrfToken },
     { status: 200, headers: rateLimitHeaders(rate) },
   );
   response.cookies.set({
@@ -111,6 +117,15 @@ export async function POST(request: Request) {
     secure: isProductionRuntime(),
     path: "/",
     maxAge: ACCESS_COOKIE_MAX_AGE_SECONDS,
+  });
+  response.cookies.set({
+    name: CSRF_COOKIE_NAME,
+    value: csrfToken,
+    httpOnly: false,
+    sameSite: "lax",
+    secure: isProductionRuntime(),
+    path: "/",
+    maxAge: CSRF_COOKIE_MAX_AGE_SECONDS,
   });
   return response;
 }
