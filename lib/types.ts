@@ -1,3 +1,5 @@
+import type { ExtractionSuggestion } from "@/lib/mock-extraction";
+
 export type ProjectStatus =
   | "planning"
   | "in-progress"
@@ -62,4 +64,18 @@ export type Project = {
   minutes: ProjectMinute[];
   transactions: FinanceTransaction[];
   files: ProjectFile[];
+};
+
+export type EditableSuggestion = ExtractionSuggestion & {
+  draftText: string;
+  isEditing: boolean;
+};
+
+export type ReviewSource = {
+  id: string;
+  title: string;
+  createdAt: string;
+  body: string;
+  suggestions: EditableSuggestion[];
+  sourceMinuteId?: string;
 };
