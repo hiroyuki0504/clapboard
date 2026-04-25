@@ -121,6 +121,41 @@ export function ProjectDetailTabs({
     );
   }
 
+  function selectAndFocusTab(tabKey: TabKey) {
+    handleSelectTab(tabKey);
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>(
+        `[data-project-detail-tab="${tabKey}"]`,
+      )?.focus();
+    });
+  }
+
+  function handleTabKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    tabKey: TabKey,
+  ) {
+    const currentIndex = tabs.findIndex((tab) => tab.key === tabKey);
+    const lastIndex = tabs.length - 1;
+    let nextIndex: number | null = null;
+
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      nextIndex = currentIndex === lastIndex ? 0 : currentIndex + 1;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      nextIndex = currentIndex === 0 ? lastIndex : currentIndex - 1;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = lastIndex;
+    }
+
+    if (nextIndex === null) {
+      return;
+    }
+
+    event.preventDefault();
+    selectAndFocusTab(tabs[nextIndex].key);
+  }
+
   return (
     <div className="space-y-4">
       <div
@@ -137,15 +172,18 @@ export function ProjectDetailTabs({
               key={tab.key}
               role="tab"
               aria-selected={active}
+              tabIndex={active ? 0 : -1}
+              data-project-detail-tab={tab.key}
               onClick={() => handleSelectTab(tab.key)}
+              onKeyDown={(event) => handleTabKeyDown(event, tab.key)}
               className={cn(
-                "inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-bold text-[#70675b] transition",
+                "inline-flex h-10 min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-bold text-[#70675b] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c95d3a] sm:flex-1 sm:px-4",
                 active && "bg-[#312d27] text-white shadow-sm",
                 !active && "hover:bg-[#fffefa] hover:text-[#312d27]",
               )}
               type="button"
             >
-              <Icon className="h-4 w-4" aria-hidden />
+              <Icon className="h-4 w-4 shrink-0" aria-hidden />
               {tab.label}
             </button>
           );
