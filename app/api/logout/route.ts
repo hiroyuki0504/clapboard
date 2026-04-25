@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { SESSION_COOKIE } from "@/middleware";
+import { ACCESS_COOKIE_NAME, isProductionRuntime } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,11 +9,11 @@ export async function POST() {
     { status: 200, headers: { "cache-control": "no-store" } },
   );
   response.cookies.set({
-    name: SESSION_COOKIE,
+    name: ACCESS_COOKIE_NAME,
     value: "",
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isProductionRuntime(),
     path: "/",
     maxAge: 0,
   });

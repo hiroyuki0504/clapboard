@@ -3,8 +3,10 @@ import "server-only";
 import { cache } from "react";
 import {
   reviewSystem,
+  type AgentWorktree,
   type BranchWorkstream,
   type CodexReviewComment,
+  type NoCodeDevRequest,
   type PullRequestReview,
   type ReviewPriorityLevel,
 } from "@/lib/code-review-system";
@@ -169,6 +171,23 @@ const REVIEW_PRIORITIES = new Set(["crucial", "high", "medium", "low"]);
 const REVIEW_COMMENT_STATUSES = new Set(["open", "fixed", "accepted-risk"]);
 const REVIEW_STATES = new Set(["queued", "running", "needs-fix", "passed"]);
 const MERGE_GATES = new Set(["open", "blocked", "ready"]);
+const AGENT_WORKTREE_STATUSES = new Set([
+  "queued",
+  "building",
+  "preview-ready",
+  "pr-ready",
+]);
+const AGENT_WORKTREE_MODES = new Set([
+  "prompt-to-branch",
+  "issue-to-pr",
+  "design-to-ui",
+]);
+const NO_CODE_REQUEST_STATUSES = new Set([
+  "intake",
+  "scoped",
+  "building",
+  "ready",
+]);
 const BRANCH_STATUSES = new Set([
   "design",
   "implementing",
@@ -334,6 +353,44 @@ function isBranchWorkstreamShape(value: unknown): value is BranchWorkstream {
   );
 }
 
+function isAgentWorktreeShape(value: unknown): value is AgentWorktree {
+  if (!isObject(value)) return false;
+  const c = value as Partial<AgentWorktree>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.title === "string" &&
+    typeof c.repository === "string" &&
+    typeof c.branch === "string" &&
+    typeof c.base === "string" &&
+    typeof c.status === "string" &&
+    AGENT_WORKTREE_STATUSES.has(c.status) &&
+    typeof c.mode === "string" &&
+    AGENT_WORKTREE_MODES.has(c.mode) &&
+    typeof c.previewUrl === "string" &&
+    typeof c.pullRequest === "string" &&
+    typeof c.currentStep === "string" &&
+    typeof c.nextAction === "string" &&
+    typeof c.humanAction === "string" &&
+    typeof c.updatedAt === "string"
+  );
+}
+
+function isNoCodeDevRequestShape(value: unknown): value is NoCodeDevRequest {
+  if (!isObject(value)) return false;
+  const c = value as Partial<NoCodeDevRequest>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.title === "string" &&
+    typeof c.requester === "string" &&
+    typeof c.source === "string" &&
+    typeof c.targetRepository === "string" &&
+    typeof c.status === "string" &&
+    NO_CODE_REQUEST_STATUSES.has(c.status) &&
+    typeof c.expectedOutcome === "string" &&
+    typeof c.agentPrompt === "string"
+  );
+}
+
 function isPriorityLevelShape(value: unknown): value is ReviewPriorityLevel {
   if (!isObject(value)) return false;
   const c = value as Partial<ReviewPriorityLevel>;
@@ -380,6 +437,10 @@ function isCodeReviewShape(value: unknown): value is CodeReviewSystem {
     typeof c.mainBranch === "string" &&
     typeof c.pmOwner === "string" &&
     typeof c.reviewModel === "string" &&
+    Array.isArray(c.agentWorktrees) &&
+    c.agentWorktrees.every(isAgentWorktreeShape) &&
+    Array.isArray(c.noCodeRequests) &&
+    c.noCodeRequests.every(isNoCodeDevRequestShape) &&
     Array.isArray(c.branches) && c.branches.every(isBranchWorkstreamShape) &&
     Array.isArray(c.pullRequests) && c.pullRequests.every(isPullRequestShape) &&
     Array.isArray(c.priorityLevels) && c.priorityLevels.every(isPriorityLevelShape) &&

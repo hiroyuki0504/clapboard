@@ -120,13 +120,21 @@ export function SidebarContent({
       event.preventDefault();
       const [base, hash] = href.split("#");
       const targetPath = base === "" ? "/" : base;
+      const scrollToHash = () => {
+        const target = document.getElementById(hash);
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      };
       if (pathname === targetPath) {
         const nextUrl = `${window.location.pathname}${window.location.search}#${hash}`;
         window.history.pushState(null, "", nextUrl);
         window.dispatchEvent(new HashChangeEvent("hashchange"));
+        scrollToHash();
         return;
       }
       router.push(href, { scroll: false });
+      requestAnimationFrame(scrollToHash);
     },
     [onNavigate, pathname, router],
   );

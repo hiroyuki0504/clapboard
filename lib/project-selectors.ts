@@ -7,6 +7,10 @@ export function getProjectBudgetBalance(
   return project.revenue - project.cost;
 }
 
+export function getProfit(project: Pick<Project, "revenue" | "cost">) {
+  return getProjectBudgetBalance(project);
+}
+
 export function getActiveProjects<T extends Pick<Project, "status">>(projects: T[]) {
   return projects.filter((project) => project.status !== "completed");
 }

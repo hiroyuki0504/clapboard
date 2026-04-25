@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "CLAPBOARD_DEV_AUTH_BYPASS=1 next dev --turbo",
-    "dev:webpack": "CLAPBOARD_DEV_AUTH_BYPASS=1 next dev",
+    "dev": "next dev --turbo",
+    "dev:webpack": "next dev",
+    "dev:bypass": "CLAPBOARD_DEV_AUTH_BYPASS=1 next dev --turbo",
     "build": "next build",
     "lint": "tsc --noEmit --incremental false",
     "test": "tsc -p tsconfig.test.json && node --test out/test-build/tests/*.test.js",
