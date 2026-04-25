@@ -1,7 +1,7 @@
 import { CommandHeader } from "@/components/dashboard/command-header";
 import { DependencyGraphCard } from "@/components/dashboard/dependency-graph-card";
 import { FilesSection } from "@/components/dashboard/files-section";
-import { GuideSection } from "@/components/dashboard/guide-section";
+import { FinanceSection } from "@/components/dashboard/finance-section";
 import { MinutesSection } from "@/components/dashboard/minutes-section";
 import { ProgressAgentLog } from "@/components/dashboard/progress-agent-log";
 import { RecentProjectsSection } from "@/components/dashboard/recent-projects-section";
@@ -71,7 +71,7 @@ export default async function DashboardPage() {
       <section className="grid gap-4 xl:grid-cols-[1.25fr_0.95fr_0.95fr]">
         <TodoSection tasks={incompleteTasks} />
         <MinutesSection minutes={allMinutes} />
-        <GuideSection />
+        <FinanceSection projects={projectList} />
         <RecentProjectsSection projects={recentWorkstreams} />
         <ProgressAgentLog
           latestProjectAt={recentWorkstreams[0]?.lastUpdated}

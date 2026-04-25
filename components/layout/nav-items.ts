@@ -94,8 +94,8 @@ export const railItems: NavItem[] = [
   {
     label: "使い方ガイド",
     shortLabel: "ガイド",
-    description: "初めての方はこちら",
-    href: "/dashboard#guide",
+    description: "基本の使い方",
+    href: "/guide",
     icon: HelpCircle,
   },
 ];

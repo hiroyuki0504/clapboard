@@ -6,10 +6,14 @@ export type FileTreeEntry = {
   updatedAt: string | null;
 };
 
+export type FileTreeSource = "desktop" | "repository";
+
 export async function fetchFileTreeDir(
   rel: string,
+  source: FileTreeSource = "desktop",
 ): Promise<FileTreeEntry[]> {
-  const res = await fetch(`/api/files?path=${encodeURIComponent(rel)}`);
+  const params = new URLSearchParams({ path: rel, source });
+  const res = await fetch(`/api/files?${params.toString()}`);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body?.error ?? `HTTP ${res.status}`);
@@ -18,6 +22,12 @@ export async function fetchFileTreeDir(
   return data.items;
 }
 
-export function buildFileTreeNodeId(path: string) {
-  return `file-tree-${path || "root"}`.replace(/[^a-zA-Z0-9_-]/g, "-");
+export function buildFileTreeNodeId(
+  path: string,
+  source: FileTreeSource = "desktop",
+) {
+  return `file-tree-${source}-${path || "root"}`.replace(
+    /[^a-zA-Z0-9_-]/g,
+    "-",
+  );
 }

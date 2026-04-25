@@ -18,6 +18,7 @@ const PROTECTED_PAGE_PREFIXES = [
   "/graph",
   "/command",
   "/timeline",
+  "/guide",
 ];
 const PUBLIC_API_PATHS = new Set(["/api/health", "/api/login", "/api/logout"]);
 
@@ -151,6 +152,7 @@ export const config = {
     "/graph/:path*",
     "/command/:path*",
     "/timeline/:path*",
+    "/guide/:path*",
     "/api/:path*",
   ],
 };
