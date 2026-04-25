@@ -26,30 +26,35 @@ function formatSize(bytes: number) {
 export const railItems = [
   {
     label: "ダッシュボード",
+    shortLabel: "ホーム",
     description: "全体の状況を確認",
     href: "/",
     icon: LayoutDashboard,
   },
   {
     label: "案件一覧",
+    shortLabel: "案件",
     description: "すべての案件",
     href: "/projects",
     icon: Folder,
   },
   {
     label: "今日のタスク",
+    shortLabel: "今日",
     description: "未処理タスク",
     href: "/#todo",
     icon: Check,
   },
   {
     label: "今月の収支",
+    shortLabel: "収支",
     description: "売上と支出",
     href: "/#finance",
     icon: JapaneseYen,
   },
   {
     label: "使い方ガイド",
+    shortLabel: "ガイド",
     description: "初めての方はこちら",
     href: "/#guide",
     icon: HelpCircle,
@@ -110,7 +115,7 @@ export function SidebarContent({
                 title={`${item.label}\n${item.description}`}
               >
                 <Icon className="h-4 w-4" aria-hidden />
-                <span className="block w-full truncate">{item.label}</span>
+                <span className="block w-full truncate">{item.shortLabel}</span>
               </Link>
             );
           })}
