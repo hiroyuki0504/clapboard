@@ -58,6 +58,9 @@ npm run dev
 ## 主要ルート
 
 - `/` - 進捗ダッシュボードトップ
+- `/graph` - ワーク・タスク・ファイルの関係グラフ
+- `/command` - AIエージェントの指示・実行ログ
+- `/timeline` - 予定と実行履歴のタイムライン
 - `/code-review` - PM main gate / Codexレビュー管理
 - `/projects` - 進捗一覧
 - `/projects/[id]` - 進捗詳細タブ

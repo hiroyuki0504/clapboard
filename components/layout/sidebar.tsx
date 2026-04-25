@@ -6,8 +6,11 @@ import {
   Folder,
   HelpCircle,
   LayoutDashboard,
-  Search,
   JapaneseYen,
+  Network,
+  Search,
+  SquareTerminal,
+  TimerReset,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -36,6 +39,27 @@ export const railItems = [
     description: "すべての案件",
     href: "/projects",
     icon: Folder,
+  },
+  {
+    label: "グラフ",
+    shortLabel: "グラフ",
+    description: "関係性を可視化",
+    href: "/graph",
+    icon: Network,
+  },
+  {
+    label: "コマンド",
+    shortLabel: "コマンド",
+    description: "AI実行ログと指示",
+    href: "/command",
+    icon: SquareTerminal,
+  },
+  {
+    label: "タイムライン",
+    shortLabel: "タイム",
+    description: "予定と実行履歴",
+    href: "/timeline",
+    icon: TimerReset,
   },
   {
     label: "今日のタスク",
@@ -123,7 +147,7 @@ export function SidebarContent({
             aria-hidden
           />
         </Link>
-        <nav className="flex flex-1 flex-col items-center gap-2">
+        <nav className="thin-scrollbar flex flex-1 flex-col items-center gap-2 overflow-y-auto">
           {railItems.map((item) => {
             const Icon = item.icon;
             const baseHref = item.href.split("#")[0];

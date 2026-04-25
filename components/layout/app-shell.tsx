@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { WorkspaceTabs } from "@/components/layout/workspace-tabs";
 import {
   SidebarAgentSummary,
   SidebarAgentSummaryFallback,
@@ -19,6 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Sidebar agentSummary={agentSummary} />
         <div className="flex min-w-0 flex-1 flex-col bg-[#fbfaf5]">
           <Topbar agentSummary={agentSummary} />
+          <WorkspaceTabs />
           <main className="thin-scrollbar min-h-0 flex-1 overflow-auto p-3 sm:p-4 lg:p-5">
             {children}
           </main>
