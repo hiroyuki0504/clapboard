@@ -7,7 +7,6 @@ import {
   HelpCircle,
   LayoutDashboard,
   Search,
-  Sparkles,
   JapaneseYen,
 } from "lucide-react";
 import Link from "next/link";
@@ -83,7 +82,12 @@ export function SidebarContent({
           className="mb-6 flex h-10 w-10 items-center justify-center rounded-lg bg-[#fffefa] text-[#221d38] shadow-[0_1px_0_rgba(0,0,0,0.22)]"
           aria-label="ホームに戻る"
         >
-          <Sparkles className="h-5 w-5" aria-hidden />
+          <img
+            src="/icon.png"
+            alt=""
+            className="h-8 w-8 rounded-md object-cover"
+            aria-hidden
+          />
         </Link>
         <nav className="flex flex-1 flex-col items-center gap-2">
           {railItems.map((item) => {
@@ -148,7 +152,12 @@ export function SidebarContent({
             </div>
           )}
           <div className="flex items-center gap-2 rounded-lg border border-[#c8c0b4] bg-[#fffefa] p-3">
-            <Sparkles className="h-4 w-4 text-[#5f8b5b]" aria-hidden />
+            <img
+              src="/icon.png"
+              alt=""
+              className="h-4 w-4 rounded-sm object-cover"
+              aria-hidden
+            />
             <div>
               <p className="font-bold text-[#312d27]">デスクトップ概要</p>
               <p className="mt-1">
