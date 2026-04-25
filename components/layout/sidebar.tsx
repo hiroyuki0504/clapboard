@@ -75,7 +75,7 @@ export function SidebarContent({
   );
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full w-full">
       <div className="flex w-[68px] shrink-0 flex-col items-center border-r border-[#1d1831] bg-[#221d38] py-3">
         <Link
           href="/"
@@ -117,7 +117,7 @@ export function SidebarContent({
         </nav>
       </div>
 
-      <div className="thin-scrollbar w-[260px] shrink-0 overflow-y-auto border-r border-[#d2c8b8] bg-[#f1eee5]/94 px-3 py-4">
+      <div className="thin-scrollbar min-w-0 flex-1 overflow-y-auto border-r border-[#d2c8b8] bg-[#f1eee5]/94 px-3 py-4">
         <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-[0.18em] text-[#71685d]">
           <span>デスクトップのファイル</span>
         </div>
@@ -166,7 +166,7 @@ export function SidebarContent({
 
 export function Sidebar({ agentSummary }: { agentSummary?: React.ReactNode }) {
   return (
-    <aside className="hidden shrink-0 md:flex">
+    <aside className="hidden h-full w-[328px] shrink-0 md:flex">
       <SidebarContent agentSummary={agentSummary} />
     </aside>
   );
