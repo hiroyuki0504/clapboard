@@ -30,11 +30,20 @@ import {
   getActiveProjects,
   getAverageProgress,
   getCompletedTasks,
+  getHighPriorityOpenTaskCount,
   getHighPriorityOpenTasks,
   getOpenTasks,
 } from "@/lib/project-selectors";
 import type { Project } from "@/lib/types";
-import { buildDateLabel, formatDate, formatDateTime, safeFileUrl } from "@/lib/utils";
+import {
+  buildDateLabel,
+  formatDate,
+  formatDateTime,
+  formatLogTime,
+  safeDate,
+  safeDateTime,
+  safeFileUrl,
+} from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -547,7 +556,9 @@ function ProgressAgentLog({
 
 function DependencyGraphCard({ projects }: { projects: Project[] }) {
   const focus = [...projects].sort(
-    (a, b) => getProjectBlockerCount(b) - getProjectBlockerCount(a),
+    (a, b) =>
+      getHighPriorityOpenTaskCount(b.tasks) -
+      getHighPriorityOpenTaskCount(a.tasks),
   )[0];
   const focusLabel = focus
     ? `${focus.name.slice(0, 8)} ${focus.progress}%`
@@ -593,12 +604,6 @@ function DependencyGraphCard({ projects }: { projects: Project[] }) {
   );
 }
 
-function getProjectBlockerCount(project: Project) {
-  return project.tasks.filter(
-    (task) => !task.completed && task.priority === "high",
-  ).length;
-}
-
 function getLatestTaskProjectDate(
   projects: Project[],
   priority: Project["tasks"][number]["priority"],
@@ -608,65 +613,18 @@ function getLatestTaskProjectDate(
       project.tasks.some((task) => !task.completed && task.priority === priority),
     )
     .sort(
-      (a, b) =>
-        getProjectDateTime(b.lastUpdated, 0) -
-        getProjectDateTime(a.lastUpdated, 0),
+      (a, b) => safeDateTime(b.lastUpdated, 0) - safeDateTime(a.lastUpdated, 0),
     )[0]?.lastUpdated;
 }
 
 function getNextMilestoneDate(projects: Project[]) {
   return projects
-    .filter((project) => parseProjectDate(project.dueDate) !== null)
+    .filter((project) => safeDate(project.dueDate) !== null)
     .sort(
       (a, b) =>
-        getProjectDateTime(a.dueDate, Number.POSITIVE_INFINITY) -
-        getProjectDateTime(b.dueDate, Number.POSITIVE_INFINITY),
+        safeDateTime(a.dueDate, Number.POSITIVE_INFINITY) -
+        safeDateTime(b.dueDate, Number.POSITIVE_INFINITY),
     )[0]?.dueDate;
-}
-
-function formatLogTime(value?: string) {
-  const date = parseProjectDate(value);
-
-  if (!date) {
-    return "--:--";
-  }
-
-  if (value && isDateOnly(value)) {
-    return new Intl.DateTimeFormat("ja-JP", {
-      month: "2-digit",
-      day: "2-digit",
-      timeZone: "Asia/Tokyo",
-    }).format(date);
-  }
-
-  return new Intl.DateTimeFormat("ja-JP", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Tokyo",
-  }).format(date);
-}
-
-function getProjectDateTime(value: string | undefined, fallback: number) {
-  return parseProjectDate(value)?.getTime() ?? fallback;
-}
-
-function parseProjectDate(value?: string) {
-  if (!value) {
-    return null;
-  }
-
-  const date = isDateOnly(value)
-    ? new Date(`${value}T00:00:00+09:00`)
-    : new Date(value);
-
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function isDateOnly(value: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 function WeeklyProgressCard({
