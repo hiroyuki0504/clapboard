@@ -11,7 +11,7 @@ import {
   ListChecks,
   UsersRound,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { PriorityBadge, ProjectStatusBadge } from "@/components/project-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,31 +75,6 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
   }, [project.tasks]);
   const activeTabMeta = tabs.find((tab) => tab.key === activeTab)!;
 
-  useEffect(() => {
-    function syncTabFromUrl() {
-      setActiveTab(getTabKeyFromSearch() ?? "overview");
-    }
-
-    syncTabFromUrl();
-    window.addEventListener("popstate", syncTabFromUrl);
-
-    return () => window.removeEventListener("popstate", syncTabFromUrl);
-  }, []);
-
-  function handleSelectTab(tabKey: TabKey) {
-    setActiveTab(tabKey);
-
-    const url = new URL(window.location.href);
-
-    if (tabKey === "overview") {
-      url.searchParams.delete("tab");
-    } else {
-      url.searchParams.set("tab", tabKey);
-    }
-
-    window.history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
-  }
-
   return (
     <div className="space-y-4">
       <div
@@ -116,7 +91,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
               key={tab.key}
               role="tab"
               aria-selected={active}
-              onClick={() => handleSelectTab(tab.key)}
+              onClick={() => setActiveTab(tab.key)}
               className={cn(
                 "inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-bold text-[#70675b] transition",
                 active && "bg-[#312d27] text-white shadow-sm",
@@ -445,20 +420,6 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
       )}
     </div>
   );
-}
-
-function getTabKeyFromSearch(): TabKey | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const tab = new URLSearchParams(window.location.search).get("tab");
-
-  return isTabKey(tab) ? tab : null;
-}
-
-function isTabKey(value: string | null): value is TabKey {
-  return tabs.some((tab) => tab.key === value);
 }
 
 function InfoTile({

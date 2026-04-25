@@ -1,24 +1,13 @@
 "use client";
 
-import { SlidersHorizontal } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { statusMeta } from "@/components/project-status-badge";
 import { ProjectTable } from "@/components/projects/project-table";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Project, ProjectStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type Filter = "all" | ProjectStatus;
-type SortKey = "lastUpdated" | "dueDate" | "progress" | "blockers";
-type Density = "comfortable" | "compact";
-type BoardSettings = {
-  filter: Filter;
-  keyword: string;
-  sortKey: SortKey;
-  density: Density;
-  showRisk: boolean;
-};
 
 const filterOptions: { key: Filter; label: string }[] = [
   { key: "all", label: "すべて" },
@@ -29,21 +18,6 @@ const filterOptions: { key: Filter; label: string }[] = [
   { key: "completed", label: "完了" },
 ];
 
-const sortOptions: { key: SortKey; label: string }[] = [
-  { key: "lastUpdated", label: "更新が新しい" },
-  { key: "dueDate", label: "節目が近い" },
-  { key: "progress", label: "進捗が高い" },
-  { key: "blockers", label: "停滞が多い" },
-];
-
-const defaultBoardSettings: BoardSettings = {
-  filter: "all",
-  keyword: "",
-  sortKey: "lastUpdated",
-  density: "comfortable",
-  showRisk: true,
-};
-
 export function ProjectBoardClient({
   projects,
   dataSourceLabel,
@@ -51,45 +25,23 @@ export function ProjectBoardClient({
   projects: Project[];
   dataSourceLabel: string;
 }) {
-  const [settings, setSettings] =
-    useState<BoardSettings>(defaultBoardSettings);
-  const { filter, keyword, sortKey, density, showRisk } = settings;
-
-  useEffect(() => {
-    function syncSettingsFromUrl() {
-      setSettings(readBoardSettingsFromUrl());
-    }
-
-    syncSettingsFromUrl();
-    window.addEventListener("popstate", syncSettingsFromUrl);
-
-    return () => window.removeEventListener("popstate", syncSettingsFromUrl);
-  }, []);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [keyword, setKeyword] = useState("");
 
   const visible = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase();
 
-    return projects
-      .filter((project) => {
-        const matchesStatus = filter === "all" || project.status === filter;
-        const matchesKeyword =
-          !normalizedKeyword ||
-          project.name.toLowerCase().includes(normalizedKeyword) ||
-          project.client.toLowerCase().includes(normalizedKeyword) ||
-          project.owner.toLowerCase().includes(normalizedKeyword);
+    return projects.filter((project) => {
+      const matchesStatus = filter === "all" || project.status === filter;
+      const matchesKeyword =
+        !normalizedKeyword ||
+        project.name.toLowerCase().includes(normalizedKeyword) ||
+        project.client.toLowerCase().includes(normalizedKeyword) ||
+        project.owner.toLowerCase().includes(normalizedKeyword);
 
-        return matchesStatus && matchesKeyword;
-      })
-      .sort((a, b) => compareProjects(a, b, sortKey));
-  }, [filter, keyword, projects, sortKey]);
-
-  function updateSettings(nextSettings: Partial<BoardSettings>) {
-    setSettings((current) => {
-      const updated = { ...current, ...nextSettings };
-      replaceBoardUrl(updated);
-      return updated;
+      return matchesStatus && matchesKeyword;
     });
-  }
+  }, [filter, keyword, projects]);
 
   return (
     <>
@@ -108,7 +60,7 @@ export function ProjectBoardClient({
                 <button
                   key={option.key}
                   type="button"
-                  onClick={() => updateSettings({ filter: option.key })}
+                  onClick={() => setFilter(option.key)}
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition",
                     active
@@ -134,65 +86,10 @@ export function ProjectBoardClient({
               className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[#9a9084]"
               placeholder="ワーク名・クライアント・担当者で検索..."
               value={keyword}
-              onChange={(event) =>
-                updateSettings({ keyword: event.target.value })
-              }
+              onChange={(event) => setKeyword(event.target.value)}
               aria-label="ワーク名・クライアント・担当者で検索"
-              type="search"
             />
           </label>
-        </div>
-        <div className="mt-3 flex flex-col gap-3 border-t border-dashed border-[#d8d1c4] pt-3 sm:flex-row sm:items-center sm:justify-end">
-          <label className="sr-only" htmlFor="project-sort-key">
-            並び替え
-          </label>
-          <select
-            id="project-sort-key"
-            className="h-10 rounded-md border border-[#c8c0b4] bg-[#fbfaf5] px-3 text-sm font-semibold text-[#312d27] outline-none"
-            value={sortKey}
-            onChange={(event) => {
-              if (isSortKey(event.target.value)) {
-                updateSettings({ sortKey: event.target.value });
-              }
-            }}
-          >
-            {sortOptions.map((option) => (
-              <option key={option.key} value={option.key}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <Button
-            variant="secondary"
-            className="h-10 rounded-md px-3"
-            onClick={() =>
-              updateSettings({
-                density: density === "comfortable" ? "compact" : "comfortable",
-              })
-            }
-          >
-            <SlidersHorizontal className="h-4 w-4" aria-hidden />
-            {density === "comfortable" ? "コンパクト表示" : "標準表示"}
-          </Button>
-          <label className="flex h-10 items-center gap-2 rounded-md border border-[#c8c0b4] bg-[#fbfaf5] px-3 text-sm font-semibold text-[#312d27]">
-            <input
-              type="checkbox"
-              className="h-4 w-4 accent-[#c95d3a]"
-              checked={showRisk}
-              onChange={(event) =>
-                updateSettings({ showRisk: event.target.checked })
-              }
-            />
-            リスク列を表示
-          </label>
-          <Button
-            variant="secondary"
-            className="h-10 rounded-md px-3"
-            onClick={() => updateSettings(defaultBoardSettings)}
-            disabled={!hasCustomBoardSettings(settings)}
-          >
-            表示をリセット
-          </Button>
         </div>
       </section>
 
@@ -212,11 +109,7 @@ export function ProjectBoardClient({
         </CardHeader>
         <CardContent className="p-0">
           {visible.length > 0 ? (
-            <ProjectTable
-              projects={visible}
-              density={density}
-              showRisk={showRisk}
-            />
+            <ProjectTable projects={visible} />
           ) : (
             <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
               <p className="text-sm font-bold text-[#5f574d]">
@@ -231,128 +124,4 @@ export function ProjectBoardClient({
       </Card>
     </>
   );
-}
-
-function isFilter(value: string | null): value is Filter {
-  return filterOptions.some((option) => option.key === value);
-}
-
-function isSortKey(value: string | null): value is SortKey {
-  return sortOptions.some((option) => option.key === value);
-}
-
-function isDensity(value: string | null): value is Density {
-  return value === "comfortable" || value === "compact";
-}
-
-function readBoardSettingsFromUrl(): BoardSettings {
-  if (typeof window === "undefined") {
-    return defaultBoardSettings;
-  }
-
-  const params = new URLSearchParams(window.location.search);
-  const status = params.get("status");
-  const sort = params.get("sort");
-  const density = params.get("density");
-
-  return {
-    filter: isFilter(status) ? status : defaultBoardSettings.filter,
-    keyword: params.get("q") ?? defaultBoardSettings.keyword,
-    sortKey: isSortKey(sort) ? sort : defaultBoardSettings.sortKey,
-    density: isDensity(density) ? density : defaultBoardSettings.density,
-    showRisk: params.get("risk") !== "hidden",
-  };
-}
-
-function replaceBoardUrl(settings: BoardSettings) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const url = new URL(window.location.href);
-  setDefaultableSearchParam(
-    url.searchParams,
-    "status",
-    settings.filter,
-    defaultBoardSettings.filter,
-  );
-  setDefaultableSearchParam(
-    url.searchParams,
-    "q",
-    settings.keyword.trim(),
-    defaultBoardSettings.keyword,
-  );
-  setDefaultableSearchParam(
-    url.searchParams,
-    "sort",
-    settings.sortKey,
-    defaultBoardSettings.sortKey,
-  );
-  setDefaultableSearchParam(
-    url.searchParams,
-    "density",
-    settings.density,
-    defaultBoardSettings.density,
-  );
-
-  if (settings.showRisk) {
-    url.searchParams.delete("risk");
-  } else {
-    url.searchParams.set("risk", "hidden");
-  }
-
-  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-}
-
-function setDefaultableSearchParam(
-  params: URLSearchParams,
-  name: string,
-  value: string,
-  defaultValue: string,
-) {
-  if (value === defaultValue) {
-    params.delete(name);
-  } else {
-    params.set(name, value);
-  }
-}
-
-function hasCustomBoardSettings(settings: BoardSettings) {
-  return (
-    settings.filter !== defaultBoardSettings.filter ||
-    settings.keyword.trim() !== defaultBoardSettings.keyword ||
-    settings.sortKey !== defaultBoardSettings.sortKey ||
-    settings.density !== defaultBoardSettings.density ||
-    settings.showRisk !== defaultBoardSettings.showRisk
-  );
-}
-
-function compareProjects(a: Project, b: Project, sortKey: SortKey) {
-  if (sortKey === "dueDate") {
-    return (
-      getProjectTime(a.dueDate, Number.POSITIVE_INFINITY) -
-      getProjectTime(b.dueDate, Number.POSITIVE_INFINITY)
-    );
-  }
-
-  if (sortKey === "progress") {
-    return b.progress - a.progress;
-  }
-
-  if (sortKey === "blockers") {
-    return getBlockerCount(b) - getBlockerCount(a);
-  }
-
-  return getProjectTime(b.lastUpdated, 0) - getProjectTime(a.lastUpdated, 0);
-}
-
-function getBlockerCount(project: Project) {
-  return project.tasks.filter(
-    (task) => !task.completed && task.priority === "high",
-  ).length;
-}
-
-function getProjectTime(value: string, fallback: number) {
-  const time = new Date(value).getTime();
-  return Number.isNaN(time) ? fallback : time;
 }
