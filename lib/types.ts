@@ -115,3 +115,14 @@ export type Project = {
   transactions: FinanceTransaction[];
   files: ProjectFile[];
 };
+
+export type ProjectSnapshotData = Pick<
+  Project,
+  "tasks" | "decisions" | "ambiguities" | "minutes" | "imports"
+> & {
+  lastUpdated: string;
+};
+
+export type ProjectSnapshot = ProjectSnapshotData & {
+  version: 1;
+};

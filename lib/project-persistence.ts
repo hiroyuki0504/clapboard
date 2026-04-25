@@ -1,24 +1,18 @@
-import type { Project } from "@/lib/types";
-
-type ProjectSnapshot = Pick<
-  Project,
-  "tasks" | "decisions" | "ambiguities" | "minutes" | "imports"
-> & {
-  lastUpdated: string;
-};
+import type { Project, ProjectSnapshot, ProjectSnapshotData } from "@/lib/types";
 
 const STORAGE_KEY_PREFIX = "clapboard:project:";
+const PROJECT_SNAPSHOT_VERSION: ProjectSnapshot["version"] = 1;
 
 function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}${projectId}`;
 }
 
-function isProjectSnapshot(value: unknown): value is ProjectSnapshot {
+function isProjectSnapshotData(value: unknown): value is ProjectSnapshotData {
   if (typeof value !== "object" || value == null) {
     return false;
   }
 
-  const candidate = value as Partial<ProjectSnapshot>;
+  const candidate = value as Partial<ProjectSnapshotData>;
 
   return (
     Array.isArray(candidate.tasks) &&
@@ -30,6 +24,34 @@ function isProjectSnapshot(value: unknown): value is ProjectSnapshot {
   );
 }
 
+function normalizeProjectSnapshot(value: unknown): ProjectSnapshot | null {
+  if (!isProjectSnapshotData(value)) {
+    return null;
+  }
+
+  const version = (value as Partial<ProjectSnapshot>).version;
+
+  if (version != null && version !== PROJECT_SNAPSHOT_VERSION) {
+    return null;
+  }
+
+  return {
+    ...value,
+    version: PROJECT_SNAPSHOT_VERSION,
+  };
+}
+
+export function createProjectSnapshotData(project: Project): ProjectSnapshotData {
+  return {
+    lastUpdated: project.lastUpdated,
+    tasks: project.tasks,
+    decisions: project.decisions,
+    ambiguities: project.ambiguities,
+    minutes: project.minutes,
+    imports: project.imports,
+  };
+}
+
 export function mergeProjectWithSnapshot<T extends Project>(
   project: T,
   snapshot: ProjectSnapshot | null,
@@ -38,9 +60,11 @@ export function mergeProjectWithSnapshot<T extends Project>(
     return project;
   }
 
+  const { version: _version, ...snapshotData } = snapshot;
+
   return {
     ...project,
-    ...snapshot,
+    ...snapshotData,
   };
 }
 
@@ -58,7 +82,7 @@ export function readProjectSnapshot(projectId: string): ProjectSnapshot | null {
 
     const parsed = JSON.parse(rawValue) as unknown;
 
-    return isProjectSnapshot(parsed) ? parsed : null;
+    return normalizeProjectSnapshot(parsed);
   } catch {
     return null;
   }
@@ -72,16 +96,21 @@ export function readProjectsWithSnapshots<T extends Project>(projects: T[]): T[]
 
 export function writeProjectSnapshot(
   projectId: string,
-  snapshot: ProjectSnapshot,
+  snapshot: ProjectSnapshotData,
 ) {
   if (typeof window === "undefined") {
     return;
   }
 
   try {
+    const versionedSnapshot: ProjectSnapshot = {
+      ...snapshot,
+      version: PROJECT_SNAPSHOT_VERSION,
+    };
+
     window.localStorage.setItem(
       getStorageKey(projectId),
-      JSON.stringify(snapshot),
+      JSON.stringify(versionedSnapshot),
     );
   } catch (error) {
     console.warn("failed to persist project snapshot", {

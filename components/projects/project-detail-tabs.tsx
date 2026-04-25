@@ -10,7 +10,7 @@ import {
   Upload,
   UsersRound,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ProjectStatusBadge } from "@/components/project-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,10 +18,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { extractMinuteSuggestions } from "@/lib/mock-extraction";
 import {
-  mergeProjectWithSnapshot,
-  readProjectSnapshot,
-  writeProjectSnapshot,
-} from "@/lib/project-persistence";
+  getImportById,
+  getImportSourceBody,
+  getIncompleteTaskCount,
+  getLatestDecisions,
+  getLatestImport,
+  getLatestSourceMinuteId,
+  getPendingImportSuggestionCount,
+  getPreferredReviewImportId,
+  getProjectProfit,
+  getSortedImports,
+  getSuggestionsByType,
+  getTaskCompletion,
+  getUnresolvedAmbiguities,
+} from "@/lib/project-selectors";
 import type {
   ExtractionSuggestion,
   MinuteImport,
@@ -30,6 +40,7 @@ import type {
   ProjectAmbiguityKind,
   ProjectDecision,
   ProjectMinute,
+  ProjectSnapshotData,
   ProjectTask,
 } from "@/lib/types";
 import { cn, formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
@@ -49,9 +60,16 @@ const tabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "files", label: "Files", icon: FolderOpen },
 ];
 
-export function ProjectDetailTabs({ project }: { project: Project }) {
+export function ProjectDetailTabs({
+  project,
+  isHydrated,
+  onProjectChange,
+}: {
+  project: Project;
+  isHydrated: boolean;
+  onProjectChange: React.Dispatch<React.SetStateAction<ProjectSnapshotData>>;
+}) {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
-  const [projectState, setProjectState] = useState(() => createProjectState(project));
   const [reviewError, setReviewError] = useState("");
   const [selectedImportId, setSelectedImportId] = useState<string | null>(() =>
     getPreferredReviewImportId(project.imports),
@@ -59,60 +77,33 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
   const [suggestions, setSuggestions] = useState<EditableSuggestion[]>(
     getEditableSuggestions(getImportById(project, getPreferredReviewImportId(project.imports))),
   );
-  const [isPersistenceReady, setIsPersistenceReady] = useState(false);
+  const setProjectState = onProjectChange;
 
   useEffect(() => {
-    const hydratedProject = mergeProjectWithSnapshot(
-      project,
-      readProjectSnapshot(project.id),
-    );
-
-    setProjectState(createProjectState(hydratedProject));
-    const nextSelectedImportId = getPreferredReviewImportId(hydratedProject.imports);
+    const nextSelectedImportId = getPreferredReviewImportId(project.imports);
     setSelectedImportId(nextSelectedImportId);
     setSuggestions(
-      getEditableSuggestions(getImportById(hydratedProject, nextSelectedImportId)),
+      getEditableSuggestions(getImportById(project, nextSelectedImportId)),
     );
-    setIsPersistenceReady(true);
-  }, [project]);
+    setReviewError("");
+  }, [isHydrated, project.id]);
 
-  useEffect(() => {
-    if (!isPersistenceReady) {
-      return;
-    }
-
-    writeProjectSnapshot(project.id, projectState);
-  }, [isPersistenceReady, project.id, projectState]);
-
-  const tasks = projectState.tasks;
-  const decisions = projectState.decisions;
-  const ambiguities = projectState.ambiguities;
-  const minutes = projectState.minutes;
-  const imports = getSortedImports(projectState.imports);
+  const tasks = project.tasks;
+  const decisions = project.decisions;
+  const ambiguities = project.ambiguities;
+  const minutes = project.minutes;
+  const imports = getSortedImports(project.imports);
   const selectedImport =
-    getImportById(projectState, selectedImportId) ?? getLatestImport(projectState);
-  const sourceBody = getImportSourceBody(projectState, selectedImport);
+    getImportById(project, selectedImportId) ?? getLatestImport(project);
+  const sourceBody = getImportSourceBody(project, selectedImport);
   const sourceFilename = selectedImport?.filename ?? "";
 
-  const profit = project.revenue - project.cost;
-  const completion = useMemo(() => {
-    const completed = tasks.filter((task) => task.completed).length;
-
-    if (tasks.length === 0) {
-      return 0;
-    }
-
-    return Math.round((completed / tasks.length) * 100);
-  }, [tasks]);
-  const unresolvedAmbiguities = ambiguities.filter((ambiguity) => !ambiguity.resolved);
-  const latestDecisions = [...decisions]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 3);
-  const suggestionsByType = {
-    decision: suggestions.filter((suggestion) => suggestion.type === "decision"),
-    task: suggestions.filter((suggestion) => suggestion.type === "task"),
-    ambiguity: suggestions.filter((suggestion) => suggestion.type === "ambiguity"),
-  };
+  const profit = getProjectProfit(project);
+  const completion = getTaskCompletion(tasks);
+  const incompleteTaskCount = getIncompleteTaskCount(tasks);
+  const unresolvedAmbiguities = getUnresolvedAmbiguities(ambiguities);
+  const latestDecisions = getLatestDecisions(decisions);
+  const suggestionsByType = getSuggestionsByType(suggestions);
 
   async function handleImportChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -343,7 +334,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
 
   function handleSelectImport(importId: string) {
     setSelectedImportId(importId);
-    setSuggestions(getEditableSuggestions(getImportById(projectState, importId)));
+    setSuggestions(getEditableSuggestions(getImportById(project, importId)));
     setReviewError("");
   }
 
@@ -365,7 +356,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
     }));
 
     if (selectedImportId === importId) {
-      setSuggestions(getEditableSuggestions(getImportById(projectState, importId)));
+      setSuggestions(getEditableSuggestions(getImportById(project, importId)));
     }
   }
 
@@ -435,7 +426,7 @@ export function ProjectDetailTabs({ project }: { project: Project }) {
                   </span>
                 </div>
                 <p className="text-sm text-[#70675b]">
-                  未完了 {tasks.filter((task) => !task.completed).length}件
+                  未完了 {incompleteTaskCount}件
                 </p>
               </div>
             </CardContent>
@@ -984,75 +975,6 @@ function parseAmbiguityText(text: string): {
   return {
     kind: "unresolved-decision",
     summary: text,
-  };
-}
-
-function getLatestImport(project: Pick<Project, "imports">) {
-  return getSortedImports(project.imports)[0];
-}
-
-function getImportById(
-  project: Pick<Project, "imports">,
-  importId: string | null,
-) {
-  if (!importId) {
-    return undefined;
-  }
-
-  return project.imports.find((entry) => entry.id === importId);
-}
-
-function getSortedImports(imports: MinuteImport[]) {
-  return [...imports].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
-}
-
-function getPendingImportSuggestionCount(entry: MinuteImport) {
-  return (entry.suggestions ?? []).filter(
-    (suggestion) => suggestion.status === "pending",
-  ).length;
-}
-
-function getPreferredReviewImportId(imports: MinuteImport[]) {
-  const pendingImport = getSortedImports(imports).find(
-    (entry) =>
-      entry.extractionStatus !== "reviewed" ||
-      getPendingImportSuggestionCount(entry) > 0,
-  );
-
-  return pendingImport?.id ?? getSortedImports(imports)[0]?.id ?? null;
-}
-
-function getImportSourceBody(
-  project: Pick<Project, "minutes">,
-  minuteImport?: MinuteImport,
-) {
-  if (!minuteImport) {
-    return "";
-  }
-
-  const sourceMinute = minuteImport.sourceMinuteId
-    ? project.minutes.find((minute) => minute.id === minuteImport.sourceMinuteId)
-    : undefined;
-
-  return sourceMinute?.body ?? minuteImport.body;
-}
-
-function getLatestSourceMinuteId(minutes: ProjectMinute[]) {
-  return [...minutes].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  )[0]?.id ?? "manual-import";
-}
-
-function createProjectState(project: Project) {
-  return {
-    lastUpdated: project.lastUpdated,
-    tasks: project.tasks,
-    decisions: project.decisions,
-    ambiguities: project.ambiguities,
-    minutes: project.minutes,
-    imports: project.imports,
   };
 }
 
