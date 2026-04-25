@@ -1,7 +1,17 @@
-import type {
-  ExtractionSuggestion,
-  ProjectAmbiguityKind,
-} from "@/lib/types";
+export type ProjectAmbiguityKind =
+  | "missing-assignee"
+  | "missing-due-date"
+  | "unresolved-decision"
+  | "unclear-dependency";
+
+export type ExtractionSuggestion = {
+  id: string;
+  type: "decision" | "task" | "ambiguity";
+  text: string;
+  assigneeCandidate?: string;
+  dueDateCandidate?: string;
+  status: "pending" | "accepted" | "rejected";
+};
 
 type SuggestionSection = ExtractionSuggestion["type"] | null;
 

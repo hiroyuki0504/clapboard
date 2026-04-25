@@ -1,299 +1,128 @@
-"use client";
-
 import {
+  AlertTriangle,
   ArrowRight,
-  CircleDollarSign,
-  Clock3,
+  CalendarCheck,
+  Check,
+  CheckCircle2,
   FileText,
-  ListTodo,
+  Gauge,
+  GitBranch,
+  GitPullRequest,
+  HelpCircle,
   MessageSquare,
   Network,
+  Sparkles,
   SquareTerminal,
-  TrendingUp,
-  JapaneseYen,
+  TimerReset,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { ProjectStatusBadge } from "@/components/project-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { allFiles, projects } from "@/lib/mock-data";
-import { readProjectsWithSnapshots } from "@/lib/project-persistence";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
+import {
+  getProjectFiles,
+  getProjectMinutes,
+  getProjects,
+} from "@/lib/clapboard-api";
+import type { Project } from "@/lib/types";
+import { buildDateLabel, formatDate, formatDateTime, safeFileUrl } from "@/lib/utils";
 
-export default function DashboardPage() {
-  const [dashboardProjects, setDashboardProjects] = useState<DashboardProject[]>(
-    projects,
-  );
+export const dynamic = "force-dynamic";
 
-  useEffect(() => {
-    setDashboardProjects(readProjectsWithSnapshots(projects) as DashboardProject[]);
-  }, []);
+export default async function DashboardPage() {
+  const projectsResult = await getProjects();
+  if (projectsResult.error) {
+    throw new Error(projectsResult.error.message);
+  }
 
-  const activeProjects = dashboardProjects.filter(
+  const projectList = projectsResult.data;
+  const allFiles = getProjectFiles(projectList);
+  const allMinutes = getProjectMinutes(projectList);
+  const activeWorkstreams = projectList.filter(
     (project) => project.status !== "completed",
   );
-  const monthlyProfit = dashboardProjects.reduce(
-    (total, project) => total + project.revenue - project.cost,
-    0,
+  const allTasks = projectList.flatMap((project) =>
+    project.tasks.map((task) => ({
+      ...task,
+      projectId: project.id,
+      projectName: project.name,
+    })),
   );
-  const recentProjects = [...dashboardProjects].sort(
+  const incompleteTasks = allTasks.filter((task) => !task.completed);
+  const blockerTasks = incompleteTasks.filter((task) => task.priority === "high");
+  const completedTasks = allTasks.filter((task) => task.completed);
+  const averageProgress =
+    projectList.length === 0
+      ? 0
+      : Math.round(
+          projectList.reduce((total, project) => total + project.progress, 0) /
+            projectList.length,
+        );
+  const recentWorkstreams = [...projectList].sort(
     (a, b) =>
       new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
   );
-  const recentImports = dashboardProjects
-    .flatMap((project) =>
-      (project.imports ?? []).map((minuteImport) => ({
-        ...minuteImport,
-        id: minuteImport.id ?? `${project.id}-${minuteImport.createdAt ?? "import"}`,
-        createdAt: minuteImport.createdAt ?? project.lastUpdated,
-        filename: minuteImport.filename ?? "取り込み議事録",
-        projectId: project.id,
-        projectName: project.name,
-      })),
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
-  const fallbackImports = dashboardProjects
-    .flatMap((project) =>
-      project.minutes.map((minute) => ({
-        id: minute.id,
-        filename: minute.title,
-        createdAt: minute.createdAt,
-        extractionStatus: project.status === "review" ? "extracted" : "reviewed",
-        projectId: project.id,
-        projectName: project.name,
-      })),
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
-  const importFeed = recentImports.length > 0 ? recentImports : fallbackImports;
-  const reviewPendingCount = dashboardProjects.reduce(
-    (total, project) => total + getProjectReviewPendingCount(project),
-    0,
-  );
-  const pendingReviews = dashboardProjects.flatMap((project) => {
-    const reviewPendingCount = getProjectReviewPendingCount(project);
-
-    if (reviewPendingCount === 0) {
-      return [];
-    }
-
-    const latestImport = [...importFeed]
-      .filter((minuteImport) => minuteImport.projectId === project.id)
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )[0];
-
-    return [
-      {
-        id: `review-${project.id}`,
-        title:
-          latestImport != null
-            ? `${latestImport.filename} のレビューを確定`
-            : `${project.name} の抽出結果を確認`,
-        detail:
-          reviewPendingCount > 1
-            ? `${reviewPendingCount}件の確認待ちがあります`
-            : "抽出結果の確認が残っています",
-        createdAt: latestImport?.createdAt ?? project.lastUpdated,
-        projectId: project.id,
-        projectName: project.name,
-        priority: project.status === "review" ? "high" : "medium",
-        targetTab: "review" as const,
-      },
-    ];
-  });
-  const explicitUnresolvedCount = dashboardProjects.reduce(
-    (total, project) => total + getExplicitUnresolvedItems(project).length,
-    0,
-  );
-  const unresolvedAmbiguities = dashboardProjects.flatMap((project) =>
-    getProjectUnresolvedItems(project, explicitUnresolvedCount === 0).map(
-      (ambiguity) => ({
-        ...ambiguity,
-        id: `ambiguity-${ambiguity.id}`,
-        projectId: project.id,
-        projectName: project.name,
-        targetTab: "overview" as const,
-      }),
-    ),
-  );
-  const unresolvedTaskIds = new Set(
-    unresolvedAmbiguities.map((ambiguity) => ambiguity.id.replace(/^ambiguity-/, "")),
-  );
-  const focusProjects = recentProjects.filter((project) =>
-    getProjectReviewPendingCount(project) > 0 ||
-    getProjectUnresolvedItems(project, explicitUnresolvedCount === 0).length > 0,
-  );
-  const followUpTasks = dashboardProjects.flatMap((project) =>
-    project.tasks
-      .filter((task) => !task.completed)
-      .filter((task) => !unresolvedTaskIds.has(task.id))
-      .map((task) => ({
-        id: `task-${task.id}`,
-        title: task.title,
-        detail: task.note,
-        createdAt: project.lastUpdated,
-        projectId: project.id,
-        projectName: project.name,
-        priority: task.priority,
-        targetTab: "overview" as const,
-      })),
-  );
-  const reviewQueue = [...pendingReviews, ...unresolvedAmbiguities, ...followUpTasks]
-    .sort((a, b) => {
-      const priorityDiff = priorityRank[a.priority] - priorityRank[b.priority];
-
-      if (priorityDiff !== 0) {
-        return priorityDiff;
-      }
-
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    })
-    .filter(
-      (item, index, array) =>
-        array.findIndex((candidate) => candidate.id === item.id) === index,
-    );
-  const latestActivityAt = getLatestActivityAt(dashboardProjects);
-  const dashboardDateLabel = formatDashboardDate(latestActivityAt);
-  const graphProject = focusProjects[0] ?? recentProjects[0];
-  const financeSummary = getFinanceSummary(dashboardProjects);
-  const agentEvents = [
-    ...importFeed.slice(0, 3).map((minuteImport) => ({
-      id: `import-${minuteImport.id}`,
-      createdAt: minuteImport.createdAt,
-      action: "minute_import",
-      detail: `${minuteImport.filename} / ${getExtractionStatusLabel(
-        minuteImport.extractionStatus,
-      )}`,
-    })),
-    ...reviewQueue.slice(0, 2).map((item) => ({
-      id: `queue-${item.id}`,
-      createdAt: item.createdAt,
-      action: item.id.startsWith("ambiguity-")
-        ? "ambiguity_flag"
-        : "review_queue",
-      detail: `${item.projectName} / ${item.title}`,
-    })),
-  ]
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    )
-    .slice(0, 5);
+  const milestoneCount = activeWorkstreams.filter((project) =>
+    Boolean(project.dueDate),
+  ).length;
+  const dateLabel = buildDateLabel(new Date());
 
   return (
     <div className="space-y-4">
+      <WelcomeCard />
+
       <section className="grid gap-4 xl:grid-cols-[1fr_420px]">
         <div className="rounded-lg border border-[#423c33]/55 bg-[#fffefa] p-5">
           <p className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-[#81786d]">
-            {dashboardDateLabel}
+            {dateLabel} ・ PROGRESS COMMAND
           </p>
           <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="text-2xl font-black tracking-normal text-[#2f2b25] sm:text-3xl">
-                レビュー待ち {reviewPendingCount}件、未確定事項{" "}
-                {unresolvedAmbiguities.length}件。今日はここから進める。
+                今日進めるべきこと - ブロッカー{blockerTasks.length}件
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                AIが取り込んだ議事録を起点に、確認待ちと保留論点を片付けて案件を前に進める運用OSです。
+                ワークストリームごとの進捗率、次の節目、停滞タスク、更新ログを一画面で追跡します。
               </p>
             </div>
-            <ButtonLink href="/projects" variant="secondary" className="shrink-0">
-              案件一覧へ
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </ButtonLink>
-          </div>
-          <div className="mt-5 grid gap-3 lg:grid-cols-[0.9fr_0.9fr_1.2fr]">
-            <div className="rounded-lg border border-[#d8d1c4] bg-[#fbfaf5] p-4">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-bold text-[#81786d]">
-                  レビュー待ち
-                </span>
-                <Clock3 className="h-4 w-4 text-[#81786d]" aria-hidden />
-              </div>
-              <p className="mt-3 text-3xl font-black tracking-normal text-[#312d27]">
-                {reviewPendingCount}
-              </p>
-              <p className="mt-2 text-xs leading-5 text-[#70675b]">
-                extractionStatus と pending suggestion を起点に集計
-              </p>
-            </div>
-            <div className="rounded-lg border border-[#d8d1c4] bg-[#fbfaf5] p-4">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-bold text-[#81786d]">
-                  未解消の未確定事項
-                </span>
-                <MessageSquare className="h-4 w-4 text-[#81786d]" aria-hidden />
-              </div>
-              <p className="mt-3 text-3xl font-black tracking-normal text-[#312d27]">
-                {unresolvedAmbiguities.length}
-              </p>
-              <p className="mt-2 text-xs leading-5 text-[#70675b]">
-                unresolved を優先。未整備時は保留タスクを補助的に反映
-              </p>
-            </div>
-            <div className="rounded-lg border border-[#d8d1c4] bg-[#fbfaf5] p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-[#81786d]" aria-hidden />
-                  <p className="text-xs font-bold text-[#81786d]">
-                    最近取り込まれた議事録
-                  </p>
-                </div>
-                <span className="font-mono text-xs text-[#81786d]">
-                  {recentImports.length > 0 ? "project.imports" : "minutes"}
-                </span>
-              </div>
-              <div className="mt-3 space-y-3">
-                {importFeed.slice(0, 3).map((minuteImport) => (
-                  <Link
-                    key={minuteImport.id}
-                    href={projectTabHref(minuteImport.projectId, "review")}
-                    className="block border-b border-dashed border-[#d8d1c4] pb-3 last:border-b-0 last:pb-0"
-                  >
-                    <p className="text-sm font-bold text-[#312d27]">
-                      {minuteImport.filename}
-                    </p>
-                    <p className="mt-1 text-xs text-[#81786d]">
-                      {minuteImport.projectName} ・{" "}
-                      {formatDateTime(minuteImport.createdAt)}
-                    </p>
-                  </Link>
-                ))}
-              </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Badge tone={projectsResult.connected ? "green" : "amber"}>
+                {projectsResult.connected ? "Backend API" : "Local API"}
+              </Badge>
+              <ButtonLink href="/code-review">
+                レビュー管制
+                <GitPullRequest className="h-4 w-4" aria-hidden />
+              </ButtonLink>
+              <ButtonLink href="/projects" variant="secondary">
+                進捗ボードへ
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </ButtonLink>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-2">
           <StatPill
-            label="レビュー待ち"
-            value={`${reviewPendingCount}`}
-            icon={Clock3}
+            label="進行中"
+            value={`${activeWorkstreams.length}`}
+            icon={GitBranch}
           />
           <StatPill
-            label="未確定事項"
-            value={`${unresolvedAmbiguities.length}`}
-            icon={MessageSquare}
+            label="平均進捗"
+            value={`${averageProgress}%`}
+            icon={Gauge}
           />
           <StatPill
-            label="進行中案件"
-            value={`${activeProjects.length}`}
-            icon={TrendingUp}
+            label="完了タスク"
+            value={`${completedTasks.length}`}
+            icon={CalendarCheck}
           />
           <StatPill
-            label="今月収支"
-            value={formatCurrency(monthlyProfit)}
-            icon={CircleDollarSign}
+            label="ブロッカー"
+            value={`${blockerTasks.length}`}
+            icon={AlertTriangle}
           />
         </div>
       </section>
@@ -302,80 +131,56 @@ export default function DashboardPage() {
         <Card id="todo" className="xl:row-span-2">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <ListTodo className="h-4 w-4" aria-hidden />
-              <CardTitle>今日やること・レビュー起点</CardTitle>
-              <Badge tone="red">{reviewQueue.slice(0, 6).length}</Badge>
+              <Check className="h-4 w-4" aria-hidden />
+              <CardTitle>今日の次アクション</CardTitle>
+              <Badge tone="red">{incompleteTasks.length}</Badge>
             </div>
             <div className="flex overflow-hidden rounded-md border border-[#423c33]/55 text-xs font-semibold">
-              <span className="bg-[#312d27] px-3 py-1.5 text-white">
-                レビュー待ち
-              </span>
-              <span className="px-3 py-1.5 text-[#70675b]">未確定事項</span>
-              <span className="px-3 py-1.5 text-[#70675b]">フォローアップ</span>
+              <span className="bg-[#312d27] px-3 py-1.5 text-white">今日</span>
+              <span className="px-3 py-1.5 text-[#70675b]">今週</span>
+              <span className="px-3 py-1.5 text-[#70675b]">停滞</span>
             </div>
           </CardHeader>
           <CardContent className="space-y-0 p-0">
-            {reviewQueue.slice(0, 6).map((item) => (
+            {incompleteTasks.length === 0 && (
+              <EmptyState
+                title="未処理のタスクはありません"
+                description="すべてのタスクが完了しています。"
+                icon={CheckCircle2}
+              />
+            )}
+            {incompleteTasks.slice(0, 6).map((task, index) => (
               <Link
-                key={item.id}
-                href={projectTabHref(item.projectId, item.targetTab)}
-                className="grid grid-cols-[24px_1fr_auto] items-start gap-3 border-b border-dashed border-[#d8d1c4] px-4 py-4 transition hover:bg-[#fbfaf5] last:border-b-0"
+                key={`${task.projectId}-${task.id}`}
+                href={`/projects/${task.projectId}`}
+                className="grid grid-cols-[24px_1fr_auto] items-start gap-3 border-b border-dashed border-[#d8d1c4] px-4 py-4 transition last:border-b-0 hover:bg-[#fbfaf5]"
               >
-                <span
-                  className={
-                    item.priority === "high" && item.id.startsWith("review-")
-                      ? "mt-0.5 flex h-4 w-4 items-center justify-center rounded-sm border border-[#c95d3a] bg-[#fbe4db]"
-                      : item.id.startsWith("ambiguity-")
-                        ? "mt-0.5 flex h-4 w-4 items-center justify-center rounded-sm border border-[#d2a528] bg-[#fff0a8]"
-                        : "mt-0.5 flex h-4 w-4 items-center justify-center rounded-sm border border-[#777066] bg-[#fffefa]"
-                  }
-                >
-                  <FileText className="h-3 w-3 text-[#70675b]" aria-hidden />
-                </span>
+                <span className="mt-0.5 h-4 w-4 rounded-sm border border-[#777066] bg-[#fffefa]" />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-[#312d27]">
-                    {item.title}
+                    {task.title}
                   </p>
                   <p className="mt-1 font-mono text-xs text-[#8b8175]">
-                    {item.projectName} ・ {formatDateTime(item.createdAt)}
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-[#81786d]">
-                    {item.detail}
+                    {index % 2 === 0 ? "10:00" : "14:00"} ・ {task.projectName}
                   </p>
                 </div>
                 <Badge
                   tone={
-                    item.id.startsWith("review-")
-                      ? "amber"
-                      : item.id.startsWith("ambiguity-")
-                        ? "red"
-                        : item.priority === "high"
-                          ? "red"
-                          : item.priority === "medium"
-                            ? "amber"
-                            : "blue"
+                    task.priority === "high"
+                      ? "red"
+                      : task.priority === "medium"
+                        ? "amber"
+                        : "blue"
                   }
                 >
-                  {item.id.startsWith("review-")
-                    ? "レビュー待ち"
-                    : item.id.startsWith("ambiguity-")
-                      ? "未確定"
-                      : item.priority === "high"
-                        ? "重要"
-                        : item.priority === "medium"
-                          ? "通常"
-                          : "低"}
+                  {task.priority === "high"
+                    ? "ブロッカー"
+                    : task.priority === "medium"
+                      ? "通常"
+                      : "低"}
                 </Badge>
               </Link>
             ))}
-            <div className="p-4">
-              <Link
-                href="/projects?status=review"
-                className="flex h-10 w-full items-center rounded-md border border-[#d8d1c4] bg-[#fffefa] px-4 text-sm text-[#9a9084]"
-              >
-                レビュー対象の案件を開く...
-              </Link>
-            </div>
           </CardContent>
         </Card>
 
@@ -383,26 +188,89 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" aria-hidden />
-              <CardTitle>最新議事録・レビュー対象</CardTitle>
+              <CardTitle>最新の進捗メモ</CardTitle>
             </div>
-            <span className="font-mono text-xs text-[#81786d]">
-              {recentImports.length > 0 ? "imports" : "minutes"}
-            </span>
+            <span className="font-mono text-xs text-[#81786d]">updates</span>
           </CardHeader>
           <CardContent className="space-y-3">
-            {importFeed.slice(0, 4).map((minuteImport) => (
+            {allMinutes.length === 0 && (
+              <EmptyState
+                title="進捗メモはまだありません"
+                description="ワークストリームの詳細画面に記録されます。"
+                icon={MessageSquare}
+              />
+            )}
+            {allMinutes.slice(0, 4).map((minute) => (
               <Link
-                key={minuteImport.id}
-                href={projectTabHref(minuteImport.projectId, "review")}
-                className="block border-b border-dashed border-[#d8d1c4] pb-3 last:border-b-0 last:pb-0"
+                key={minute.id}
+                href={`/projects/${minute.projectId}`}
+                className="block border-b border-dashed border-[#d8d1c4] pb-3 transition last:border-b-0 last:pb-0 hover:bg-[#fbfaf5] hover:px-2"
               >
-                <p className="text-sm font-bold text-[#312d27]">
-                  {minuteImport.filename}
-                </p>
+                <p className="text-sm font-bold text-[#312d27]">{minute.title}</p>
                 <p className="mt-1 text-xs text-[#81786d]">
-                  {minuteImport.projectName} ・{" "}
-                  {formatDateTime(minuteImport.createdAt)}
+                  {minute.projectName} ・ {formatDateTime(minute.createdAt)}
                 </p>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card id="guide">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <HelpCircle className="h-4 w-4 text-[#5f8b5b]" aria-hidden />
+              <CardTitle>使い方ガイド</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ol className="space-y-3 text-sm leading-6 text-[#5f574d]">
+              <GuideStep
+                num={1}
+                title="ダッシュボードで全体を確認"
+                body="今日の次アクション、ブロッカー、直近の更新を最初に見ます。"
+              />
+              <GuideStep
+                num={2}
+                title="進捗ボードから詳細へ"
+                body="ワークストリーム名や「開く」ボタンを押すと、タスク・メモ・予算・ファイルを確認できます。"
+              />
+              <GuideStep
+                num={3}
+                title="左の Desktop Files を参照"
+                body="このパソコンの ~/Desktop をそのまま展開できます。名前で絞り込みもできます。"
+              />
+            </ol>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>進捗が動いたワーク</CardTitle>
+            <span className="text-xs text-[#81786d]">last 7 days</span>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentWorkstreams.slice(0, 4).map((project) => (
+              <Link
+                key={project.id}
+                href={`/projects/${project.id}`}
+                className="block rounded-md border border-[#d8d1c4] bg-[#fbfaf5] p-3 transition hover:border-[#c95d3a] hover:bg-[#fffefa]"
+              >
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="truncate text-sm font-bold text-[#312d27]">
+                    {project.name}
+                  </p>
+                  <ProjectStatusBadge status={project.status} />
+                </div>
+                <div className="mb-2 flex items-center justify-between font-mono text-xs text-[#81786d]">
+                  <span>次の節目 {formatDate(project.dueDate)}</span>
+                  <span>{formatDateTime(project.lastUpdated)}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Progress value={project.progress} className="h-2" />
+                  <span className="font-mono text-xs font-bold text-[#70675b]">
+                    {project.progress}%
+                  </span>
+                </div>
               </Link>
             ))}
           </CardContent>
@@ -412,98 +280,83 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <SquareTerminal className="h-4 w-4" aria-hidden />
-              <CardTitle>Review Agent Log</CardTitle>
+              <CardTitle>Progress Agent Log</CardTitle>
             </div>
-            <Badge tone={reviewQueue.length > 0 ? "amber" : "green"}>
-              {reviewQueue.length > 0 ? "review-needed" : "clear"}
-            </Badge>
+            <Badge tone="green">tracking</Badge>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 border-l-2 border-[#6e9a66] pl-3 font-mono text-xs leading-6 text-[#4f483f]">
-              {agentEvents.map((event) => (
-                <p key={event.id}>
-                  <span className="text-[#8b8175]">
-                    {formatEventTime(event.createdAt)}
-                  </span>{" "}
-                  {event.action} → {event.detail}
-                </p>
-              ))}
-            </div>
+            <ProgressAgentLog
+              streamCount={activeWorkstreams.length}
+              blockerCount={blockerTasks.length}
+              completedCount={completedTasks.length}
+              milestoneCount={milestoneCount}
+              minuteCount={allMinutes.length}
+            />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>最近更新案件・レビュー優先</CardTitle>
-            <span className="text-xs text-[#81786d]">review context</span>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {(focusProjects.length > 0 ? focusProjects : recentProjects)
-              .slice(0, 4)
-              .map((project) => (
-              <Link
-                key={project.id}
-                href={projectTabHref(
-                  project.id,
-                  getProjectFocusTab(project, explicitUnresolvedCount === 0),
-                )}
-                className="block rounded-md border border-[#d8d1c4] bg-[#fbfaf5] p-3 transition hover:border-[#c95d3a]"
-              >
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="truncate text-sm font-bold text-[#312d27]">
-                    {project.name}
-                  </p>
-                  <ProjectStatusBadge status={project.status} />
-                </div>
-                <div className="flex items-center gap-3">
-                  <Progress value={project.progress} className="h-2" />
-                  <span className="font-mono text-xs font-bold text-[#70675b]">
-                    {project.progress}%
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-[#81786d]">
-                  レビュー待ち {getProjectReviewPendingCount(project)}件 ・
-                  未確定事項{" "}
-                  {
-                    getProjectUnresolvedItems(
-                      project,
-                      explicitUnresolvedCount === 0,
-                    ).length
-                  }
-                  件
-                </p>
-              </Link>
-            ))}
-          </CardContent>
-        </Card>
+        <DependencyGraphCard projects={projectList} />
 
-        <GraphCard project={graphProject} files={allFiles.slice(0, 2)} />
-
-        <FinanceCard summary={financeSummary} />
+        <WeeklyProgressCard
+          averageProgress={averageProgress}
+          completedCount={completedTasks.length}
+          blockerCount={blockerTasks.length}
+          milestoneCount={milestoneCount}
+        />
 
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4" aria-hidden />
-              <CardTitle>最近のファイル</CardTitle>
+              <CardTitle>進捗に紐づくファイル</CardTitle>
             </div>
             <span className="text-xs text-[#81786d]">{allFiles.length}件</span>
           </CardHeader>
           <CardContent className="space-y-0">
-            {allFiles.slice(0, 5).map((file) => (
-              <a
-                key={file.id}
-                href={file.url}
-                target="_blank"
-                rel="noreferrer"
-                className="grid grid-cols-[1fr_auto] gap-3 border-b border-dashed border-[#d8d1c4] py-2.5 text-sm last:border-b-0"
-              >
-                <span className="truncate text-[#312d27]">{file.name}</span>
-                <span className="text-xs text-[#81786d]">
-                  {formatDateTime(file.updatedAt)}
-                </span>
-              </a>
-            ))}
+            {allFiles.length === 0 && (
+              <EmptyState
+                title="ファイルはまだありません"
+                description="詳細画面のファイルタブから確認できます。"
+                icon={FileText}
+              />
+            )}
+            {allFiles.slice(0, 5).map((file) => {
+              const safeUrl = safeFileUrl(file.url);
+              const className =
+                "grid grid-cols-[1fr_auto] gap-3 border-b border-dashed border-[#d8d1c4] py-2.5 text-sm transition last:border-b-0 hover:bg-[#fbfaf5]";
+              const content = (
+                <>
+                  <span className="truncate text-[#312d27]">{file.name}</span>
+                  <span className="text-xs text-[#81786d]">
+                    {formatDateTime(file.updatedAt)}
+                  </span>
+                </>
+              );
+
+              if (!safeUrl) {
+                return (
+                  <div
+                    key={file.id}
+                    className={`${className} text-[#9a4a31]`}
+                    title="無効なURLのためリンクを無効化しています"
+                  >
+                    {content}
+                  </div>
+                );
+              }
+
+              return (
+                <a
+                  key={file.id}
+                  href={safeUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className={className}
+                >
+                  {content}
+                </a>
+              );
+            })}
           </CardContent>
         </Card>
       </section>
@@ -511,310 +364,29 @@ export default function DashboardPage() {
   );
 }
 
-type DashboardImport = {
-  id?: string;
-  filename?: string;
-  createdAt?: string;
-  extractionStatus?: DashboardExtractionStatus;
-  suggestions?: DashboardSuggestion[];
-};
-
-type DashboardAmbiguity = {
-  id: string;
-  kind?: string;
-  summary?: string;
-  createdAt?: string;
-  resolved?: boolean;
-  status?: string;
-};
-
-type DashboardSuggestion = {
-  id: string;
-  status?: string;
-  pending?: boolean;
-  reviewed?: boolean;
-};
-
-type DashboardExtractionStatus =
-  | string
-  | {
-      status?: string;
-      pendingSuggestions?: number;
-      reviewed?: boolean;
-    };
-
-type DashboardProject = (typeof projects)[number] & {
-  imports?: DashboardImport[];
-  ambiguities?: DashboardAmbiguity[];
-  unresolved?: DashboardAmbiguity[];
-  extractionStatus?: DashboardExtractionStatus;
-  suggestions?: DashboardSuggestion[];
-};
-
-type ProjectDetailTab = "overview" | "review" | "minutes" | "finance" | "files";
-
-type FinanceSummary = {
-  revenue: number;
-  cost: number;
-  profit: number;
-  margin: number;
-  transactionCount: number;
-  latestDate?: string;
-  bars: number[];
-};
-
-const priorityRank: Record<string, number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
-};
-
-function getPendingSuggestionCount(project: DashboardProject) {
-  const projectSuggestions = [
-    ...(project.suggestions ?? []),
-    ...(project.imports ?? []).flatMap((minuteImport) => minuteImport.suggestions ?? []),
-  ];
-
-  return projectSuggestions.filter((suggestion) => {
-    const status = suggestion.status?.toLowerCase();
-    const isPendingFlag =
-      "pending" in suggestion && suggestion.pending === true;
-    const isReviewedFlag =
-      "reviewed" in suggestion && suggestion.reviewed === false;
-
-    return (
-      isPendingFlag ||
-      isReviewedFlag ||
-      status === "pending" ||
-      status === "needs-review" ||
-      status === "review"
-    );
-  }).length;
-}
-
-function isReviewPending(status?: DashboardExtractionStatus) {
-  if (status == null) {
-    return false;
-  }
-
-  if (typeof status === "string") {
-    return ["pending", "extracted", "review-needed", "review"].includes(
-      status.toLowerCase(),
-    );
-  }
-
-  if (typeof status.pendingSuggestions === "number") {
-    return status.pendingSuggestions > 0;
-  }
-
+function WelcomeCard() {
   return (
-    status.reviewed === false ||
-    ["pending", "needs-review", "review"].includes(
-      status.status?.toLowerCase() ?? "",
-    )
+    <section className="rounded-lg border border-[#a8c3a6] bg-[#edf5ea] p-5">
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#5f8b5b] text-white">
+          <Sparkles className="h-5 w-5" aria-hidden />
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-base font-black text-[#2f4f2c]">
+            ようこそ ClawBoard へ
+          </h3>
+          <p className="mt-1.5 text-sm leading-6 text-[#3f5e3d]">
+            進捗・タスク・レビュー・デスクトップのファイルを 1 つの画面で確認できます。
+            初めての方は「
+            <Link href="#guide" className="font-bold underline">
+              使い方ガイド
+            </Link>
+            」から見ると全体像をつかみやすいです。
+          </p>
+        </div>
+      </div>
+    </section>
   );
-}
-
-function getProjectReviewPendingCount(project: DashboardProject) {
-  const pendingSuggestions = getPendingSuggestionCount(project);
-
-  if (pendingSuggestions > 0) {
-    return pendingSuggestions;
-  }
-
-  const importPendingCount = (project.imports ?? []).filter((minuteImport) =>
-    isReviewPending(minuteImport.extractionStatus),
-  ).length;
-
-  if (importPendingCount > 0) {
-    return importPendingCount;
-  }
-
-  if (isReviewPending(project.extractionStatus)) {
-    return Math.max(project.minutes.length, 1);
-  }
-
-  if (project.status === "review") {
-    return Math.max(project.minutes.length, 1);
-  }
-
-  return 0;
-}
-
-function getExplicitUnresolvedItems(project: DashboardProject) {
-  return [...(project.unresolved ?? []), ...(project.ambiguities ?? [])]
-    .filter((item) => {
-      const status = item.status?.toLowerCase();
-
-      return item.resolved !== true && status !== "resolved" && status !== "done";
-    })
-    .map((item) => ({
-      id: item.id,
-      title: item.kind != null ? ambiguityLabel(item.kind) : "未確定事項を確認",
-      detail: item.summary ?? "内容確認待ち",
-      createdAt: item.createdAt ?? project.lastUpdated,
-      priority: "high" as const,
-    }));
-}
-
-function getProjectUnresolvedItems(
-  project: DashboardProject,
-  allowFallback: boolean,
-) {
-  const explicitItems = getExplicitUnresolvedItems(project);
-
-  if (explicitItems.length > 0 || !allowFallback) {
-    return explicitItems;
-  }
-
-  const fallbackKeywords = [
-    "確認",
-    "未確定",
-    "保留",
-    "課題",
-    "要件",
-    "可否",
-    "期限",
-    "優先度",
-    "担当者",
-    "補完",
-    "調整",
-  ];
-
-  return project.tasks
-    .filter((task) => !task.completed)
-    .filter((task) =>
-      fallbackKeywords.some((keyword) =>
-        `${task.title} ${task.note}`.includes(keyword),
-      ),
-    )
-    .map((task) => ({
-      id: task.id,
-      title: task.title,
-      detail: task.note,
-      createdAt: project.lastUpdated,
-      priority: "high" as const,
-    }));
-}
-
-function projectTabHref(projectId: string, tab: ProjectDetailTab) {
-  return tab === "overview"
-    ? `/projects/${projectId}`
-    : `/projects/${projectId}?tab=${tab}`;
-}
-
-function getProjectFocusTab(
-  project: DashboardProject,
-  allowUnresolvedFallback: boolean,
-): ProjectDetailTab {
-  if (getProjectReviewPendingCount(project) > 0) {
-    return "review";
-  }
-
-  if (getProjectUnresolvedItems(project, allowUnresolvedFallback).length > 0) {
-    return "overview";
-  }
-
-  return "overview";
-}
-
-function getLatestActivityAt(projects: DashboardProject[]) {
-  const dates = projects.flatMap((project) => [
-    project.lastUpdated,
-    ...project.updates.map((update) => update.date),
-    ...project.imports.map((entry) => entry.createdAt),
-    ...project.minutes.map((minute) => minute.createdAt),
-    ...project.files.map((file) => file.updatedAt),
-    ...project.transactions.map((transaction) =>
-      `${transaction.date}T00:00:00+09:00`,
-    ),
-  ]);
-
-  return dates.sort(
-    (a, b) => new Date(b).getTime() - new Date(a).getTime(),
-  )[0];
-}
-
-function formatDashboardDate(value?: string) {
-  if (!value) {
-    return "NO ACTIVITY";
-  }
-
-  const date = new Date(value);
-  const parts = new Intl.DateTimeFormat("ja-JP", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    weekday: "short",
-    timeZone: "Asia/Tokyo",
-  }).formatToParts(date);
-  const year = parts.find((part) => part.type === "year")?.value ?? "";
-  const month = parts.find((part) => part.type === "month")?.value ?? "";
-  const day = parts.find((part) => part.type === "day")?.value ?? "";
-  const weekday = parts.find((part) => part.type === "weekday")?.value ?? "";
-
-  return `${year}/${month}/${day} (${weekday})`;
-}
-
-function formatEventTime(value: string) {
-  return new Intl.DateTimeFormat("ja-JP", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Tokyo",
-  }).format(new Date(value));
-}
-
-function getExtractionStatusLabel(status?: DashboardExtractionStatus) {
-  if (status == null) {
-    return "reviewed";
-  }
-
-  if (typeof status === "string") {
-    return status;
-  }
-
-  return status.status ?? (status.reviewed === false ? "review-needed" : "reviewed");
-}
-
-function getFinanceSummary(projects: DashboardProject[]): FinanceSummary {
-  const transactions = projects.flatMap((project) => project.transactions);
-  const revenue = projects.reduce((total, project) => total + project.revenue, 0);
-  const cost = projects.reduce((total, project) => total + project.cost, 0);
-  const profit = revenue - cost;
-  const maxProjectProfit = Math.max(
-    ...projects.map((project) => Math.max(project.revenue - project.cost, 0)),
-    1,
-  );
-  const latestDate = transactions
-    .map((transaction) => `${transaction.date}T00:00:00+09:00`)
-    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
-
-  return {
-    revenue,
-    cost,
-    profit,
-    margin: revenue > 0 ? Math.round((profit / revenue) * 100) : 0,
-    transactionCount: transactions.length,
-    latestDate,
-    bars: projects.map((project) =>
-      Math.max(Math.round(((project.revenue - project.cost) / maxProjectProfit) * 100), 12),
-    ),
-  };
-}
-
-function formatMonthLabel(value?: string) {
-  if (!value) {
-    return "全期間";
-  }
-
-  const date = new Date(value);
-
-  return new Intl.DateTimeFormat("ja-JP", {
-    year: "numeric",
-    month: "long",
-    timeZone: "Asia/Tokyo",
-  }).format(date);
 }
 
 function StatPill({
@@ -839,60 +411,115 @@ function StatPill({
   );
 }
 
-function ambiguityLabel(kind: string) {
-  const labels: Record<string, string> = {
-    "missing-assignee": "担当者なし",
-    "missing-due-date": "期限なし",
-    "unresolved-decision": "決定未確定",
-    "unclear-dependency": "依存不明",
-  };
-
-  return labels[kind] ?? "未確定事項";
+function EmptyState({
+  title,
+  description,
+  icon: Icon,
+}: {
+  title: string;
+  description: string;
+  icon: React.ElementType;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f3f0e7] text-[#a39888]">
+        <Icon className="h-5 w-5" aria-hidden />
+      </div>
+      <p className="text-sm font-bold text-[#5f574d]">{title}</p>
+      <p className="text-xs text-[#81786d]">{description}</p>
+    </div>
+  );
 }
 
-function GraphCard({
-  project,
-  files,
+function GuideStep({
+  num,
+  title,
+  body,
 }: {
-  project?: DashboardProject;
-  files: typeof allFiles;
+  num: number;
+  title: string;
+  body: string;
 }) {
-  const sourceMinute = project?.minutes[0];
-  const relationCount =
-    (project?.minutes.length ?? 0) +
-    (project?.imports.length ?? 0) +
-    (project?.files.length ?? files.length);
+  return (
+    <li className="flex gap-3">
+      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5f8b5b] text-xs font-black text-white">
+        {num}
+      </span>
+      <div>
+        <p className="text-sm font-bold text-[#312d27]">{title}</p>
+        <p className="mt-0.5 text-xs leading-5 text-[#70675b]">{body}</p>
+      </div>
+    </li>
+  );
+}
+
+function ProgressAgentLog({
+  streamCount,
+  blockerCount,
+  completedCount,
+  milestoneCount,
+  minuteCount,
+}: {
+  streamCount: number;
+  blockerCount: number;
+  completedCount: number;
+  milestoneCount: number;
+  minuteCount: number;
+}) {
+  const entries = [
+    { time: "08:02", label: "progress_scan", result: `${streamCount} streams` },
+    { time: "08:03", label: "blocker_detect", result: `${blockerCount} items` },
+    { time: "10:15", label: "milestone_sync", result: `${milestoneCount} updated` },
+    { time: "10:16", label: "minutes_index", result: `${minuteCount} indexed` },
+    { time: "11:32", label: "report_draft", result: `${completedCount} completed` },
+  ];
+
+  return (
+    <div className="space-y-2 border-l-2 border-[#6e9a66] pl-3 font-mono text-xs leading-6 text-[#4f483f]">
+      {entries.map((entry) => (
+        <p key={`${entry.time}-${entry.label}`}>
+          <span className="text-[#8b8175]">{entry.time}</span> {entry.label} -{" "}
+          {entry.result}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function DependencyGraphCard({ projects }: { projects: Project[] }) {
+  const focus = projects[0];
+  const focusLabel = focus
+    ? `${focus.name.slice(0, 8)} ${focus.progress}%`
+    : "進捗未取得";
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
           <Network className="h-4 w-4" aria-hidden />
-          <CardTitle>ファイル関係グラフ</CardTitle>
+          <CardTitle>進捗依存グラフ</CardTitle>
         </div>
-        <span className="text-xs text-[#81786d]">
-          関連 {relationCount}件
-        </span>
+        <span className="text-xs text-[#81786d]">blocked path</span>
       </CardHeader>
       <CardContent>
         <div className="dotted-canvas relative h-52 overflow-hidden rounded-md border border-[#d8d1c4] bg-[#fffefa]">
           <div className="absolute left-6 top-9 z-10 rounded-full border border-[#d66b43] bg-[#fffefa] px-3 py-1 text-xs font-bold text-[#9a4a31]">
-            {project?.name ?? "案件"}
+            {focusLabel}
           </div>
           <div className="absolute left-32 top-28 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            {sourceMinute?.title ?? "議事録"}
+            レビュー待ち
           </div>
           <div className="absolute right-8 top-20 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            {files[0]?.name ?? "関連ファイル"}
+            リリース判定
           </div>
           <div className="absolute left-48 top-14 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            {files[1]?.name ?? "共有資料"}
+            仕様確定
           </div>
           <span className="absolute left-[82px] top-[78px] h-px w-24 rotate-45 bg-[#c8c0b4]" />
           <span className="absolute left-[178px] top-[94px] h-px w-20 -rotate-45 bg-[#c8c0b4]" />
           <span className="absolute right-[82px] top-[82px] h-px w-24 rotate-[20deg] bg-[#c8c0b4]" />
           <div className="absolute bottom-5 left-7 rotate-[-2deg] rounded-sm border border-[#d2a528] bg-[#ffe783] px-3 py-2 text-xs font-bold leading-5 text-[#6f5415] shadow-sm">
-            ノード = 案件・議事録・ファイル
+            線 = 依存関係 / 赤枠 = 停滞ポイント
           </div>
         </div>
       </CardContent>
@@ -900,36 +527,53 @@ function GraphCard({
   );
 }
 
-function FinanceCard({ summary }: { summary: FinanceSummary }) {
+function WeeklyProgressCard({
+  averageProgress,
+  completedCount,
+  blockerCount,
+  milestoneCount,
+}: {
+  averageProgress: number;
+  completedCount: number;
+  blockerCount: number;
+  milestoneCount: number;
+}) {
+  const start = Math.max(0, averageProgress - 9);
+  const delta = averageProgress - start;
+  const bars = Array.from({ length: 8 }, (_, index) => {
+    const ratio = index / 7;
+    const value = Math.round(start + delta * ratio);
+    return Math.max(8, Math.min(100, value));
+  });
+
   return (
-    <Card id="finance">
+    <Card id="timeline">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <JapaneseYen className="h-4 w-4" aria-hidden />
-          <CardTitle>収支・{formatMonthLabel(summary.latestDate)}</CardTitle>
+          <TimerReset className="h-4 w-4" aria-hidden />
+          <CardTitle>今週の進捗推移（イメージ）</CardTitle>
         </div>
-        <span className="text-xs text-[#81786d]">
-          更新: {summary.latestDate ? formatDateTime(summary.latestDate) : "-"}
-        </span>
+        <span className="text-xs text-[#81786d]">サンプル / 実日次データ未接続</span>
       </CardHeader>
       <CardContent>
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-bold text-[#81786d]">粗利</p>
+            <p className="text-xs font-bold text-[#81786d]">平均進捗（現在値）</p>
             <p className="mt-2 text-2xl font-black tracking-normal text-[#312d27]">
-              {formatCurrency(summary.profit)}
+              {start}% - {averageProgress}%
             </p>
           </div>
           <div className="text-right text-sm font-bold text-[#5f8b5b]">
-            粗利率 {summary.margin}%
+            {delta >= 0 ? "+" : ""}
+            {delta}pt
           </div>
         </div>
         <div className="mt-6 flex h-24 items-end gap-2">
-          {summary.bars.map((bar, index) => (
+          {bars.map((bar, index) => (
             <span
-              key={`${bar}-${index}`}
+              key={`bar-${index}`}
               className={
-                index === summary.bars.length - 1
+                index > 5
                   ? "flex-1 rounded-t-sm bg-[#cf623d]"
                   : "flex-1 rounded-t-sm bg-[#cfc5b4]"
               }
@@ -938,7 +582,7 @@ function FinanceCard({ summary }: { summary: FinanceSummary }) {
           ))}
         </div>
         <p className="mt-3 text-xs text-[#81786d]">
-          取引 {summary.transactionCount}件 ・ 支出 {formatCurrency(summary.cost)}
+          今週: 完了 {completedCount}件 / ブロッカー {blockerCount}件 / 節目 {milestoneCount}件
         </p>
       </CardContent>
     </Card>

@@ -1,13 +1,16 @@
 {
-  "name": "clawboard",
+  "name": "clapboard",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "CLAPBOARD_DEV_AUTH_BYPASS=1 next dev --turbo",
+    "dev:webpack": "CLAPBOARD_DEV_AUTH_BYPASS=1 next dev",
     "build": "next build",
     "lint": "tsc --noEmit --incremental false",
     "test": "tsc -p tsconfig.test.json && node --test out/test-build/tests/*.test.js",
-    "start": "next start"
+    "start": "next start",
+    "review:codex": "scripts/codex-pr-review.sh",
+    "review:comment": "scripts/codex-pr-review-comment.sh"
   },
   "dependencies": {
     "clsx": "^2.1.1",

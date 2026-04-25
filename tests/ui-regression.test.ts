@@ -56,16 +56,18 @@ test("ProjectTable keeps its primary columns, labels, and detail links", () => {
     React.createElement(ProjectTable, { projects: projects.slice(0, 2) }),
   );
 
-  assert.match(markup, /案件名/);
-  assert.match(markup, /クライアント/);
-  assert.match(markup, /ステータス/);
-  assert.match(markup, /進捗/);
-  assert.match(markup, /最終更新/);
-  assert.match(markup, /収支/);
+  assert.match(markup, /ワークストリーム/);
+  assert.match(markup, /オーナー/);
+  assert.match(markup, /状態/);
+  assert.match(markup, /進捗率/);
+  assert.match(markup, /次の節目/);
+  assert.match(markup, /リスク/);
   assert.match(markup, /コーポレートサイト刷新/);
   assert.match(markup, /AI議事録自動化/);
   assert.match(markup, /進行中/);
   assert.match(markup, /レビュー/);
+  assert.match(markup, /aria-label="コーポレートサイト刷新を開く"/);
+  assert.match(markup, /aria-label="AI議事録自動化を開く"/);
   assert.match(markup, /href="\/projects\/web-renewal"/);
   assert.match(markup, /href="\/projects\/ai-minutes"/);
 });

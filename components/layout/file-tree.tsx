@@ -1,0 +1,247 @@
+"use client";
+
+import { ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { cn } from "@/lib/utils";
+
+type Entry = {
+  name: string;
+  path: string;
+  isDir: boolean;
+  size: number;
+  updatedAt: string | null;
+};
+
+type DirState = {
+  loading: boolean;
+  error: string | null;
+  items: Entry[] | null;
+};
+
+async function fetchDir(rel: string): Promise<Entry[]> {
+  const res = await fetch(`/api/files?path=${encodeURIComponent(rel)}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.error ?? `HTTP ${res.status}`);
+  }
+  const data = (await res.json()) as { items: Entry[] };
+  return data.items;
+}
+
+function DirNode({
+  entry,
+  depth,
+  filter,
+  forceOpen,
+  openMap,
+  setOpenMap,
+  cache,
+  setCache,
+}: {
+  entry: Entry;
+  depth: number;
+  filter: string;
+  forceOpen: boolean;
+  openMap: Record<string, boolean>;
+  setOpenMap: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  cache: Record<string, DirState>;
+  setCache: React.Dispatch<React.SetStateAction<Record<string, DirState>>>;
+}) {
+  const open = forceOpen || !!openMap[entry.path];
+  const dirState = cache[entry.path];
+
+  const loadChildren = useCallback(async () => {
+    if (cache[entry.path]?.items || cache[entry.path]?.loading) return;
+    setCache((c) => ({
+      ...c,
+      [entry.path]: { loading: true, error: null, items: null },
+    }));
+    try {
+      const items = await fetchDir(entry.path);
+      setCache((c) => ({
+        ...c,
+        [entry.path]: { loading: false, error: null, items },
+      }));
+    } catch (err) {
+      setCache((c) => ({
+        ...c,
+        [entry.path]: {
+          loading: false,
+          error: err instanceof Error ? err.message : "failed",
+          items: null,
+        },
+      }));
+    }
+  }, [entry.path, cache, setCache]);
+
+  useEffect(() => {
+    if (entry.isDir && forceOpen) {
+      loadChildren();
+    }
+  }, [entry.isDir, forceOpen, loadChildren]);
+
+  const toggle = useCallback(async () => {
+    setOpenMap((m) => ({ ...m, [entry.path]: !m[entry.path] }));
+    if (!open) {
+      loadChildren();
+    }
+  }, [open, entry.path, setOpenMap, loadChildren]);
+
+  const matchesFilter =
+    !filter || entry.name.toLowerCase().includes(filter.toLowerCase());
+
+  if (!entry.isDir) {
+    if (!matchesFilter) return null;
+    return (
+      <div
+        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[#696158]"
+        style={{ paddingLeft: 8 + depth * 14 }}
+      >
+        <FileText className="h-3.5 w-3.5 text-[#9a9084]" aria-hidden />
+        <span className="truncate">{entry.name}</span>
+      </div>
+    );
+  }
+
+  const visibleChildren =
+    filter && dirState?.items
+      ? dirState.items.filter((c) =>
+          c.name.toLowerCase().includes(filter.toLowerCase()),
+        )
+      : dirState?.items;
+
+  if (filter && !matchesFilter && visibleChildren?.length === 0) {
+    return null;
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={toggle}
+        className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition hover:bg-[#e5dfd2]"
+        style={{ paddingLeft: 4 + depth * 14 }}
+      >
+        <ChevronRight
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-[#a39888] transition-transform",
+            open && "rotate-90",
+          )}
+          aria-hidden
+        />
+        {open ? (
+          <FolderOpen className="h-4 w-4 text-[#8b8175]" aria-hidden />
+        ) : (
+          <Folder className="h-4 w-4 text-[#8b8175]" aria-hidden />
+        )}
+        <span className="truncate">{entry.name}</span>
+      </button>
+      {open && (
+        <div>
+          {dirState?.loading && (
+            <p
+              className="px-2 py-1 text-xs text-[#9a9084]"
+              style={{ paddingLeft: 22 + depth * 14 }}
+            >
+              読み込み中…
+            </p>
+          )}
+          {dirState?.error && (
+            <p
+              className="px-2 py-1 text-xs text-[#b14a2c]"
+              style={{ paddingLeft: 22 + depth * 14 }}
+            >
+              {dirState.error}
+            </p>
+          )}
+          {visibleChildren?.map((child) => (
+            <DirNode
+              key={child.path}
+              entry={child}
+              depth={depth + 1}
+              filter={filter}
+              forceOpen={!!filter}
+              openMap={openMap}
+              setOpenMap={setOpenMap}
+              cache={cache}
+              setCache={setCache}
+            />
+          ))}
+          {!dirState?.loading && visibleChildren?.length === 0 && (
+            <p
+              className="px-2 py-1 text-xs text-[#9a9084]"
+              style={{ paddingLeft: 22 + depth * 14 }}
+            >
+              {filter ? "(該当なし)" : "(空)"}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function FileTree({
+  filter = "",
+  onRootSummary,
+}: {
+  filter?: string;
+  onRootSummary?: (summary: { count: number; sizeBytes: number }) => void;
+}) {
+  const [root, setRoot] = useState<Entry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
+  const [cache, setCache] = useState<Record<string, DirState>>({});
+
+  useEffect(() => {
+    fetchDir("")
+      .then((items) => {
+        setRoot(items);
+        if (onRootSummary) {
+          onRootSummary({
+            count: items.length,
+            sizeBytes: items.reduce((sum, i) => sum + (i.size ?? 0), 0),
+          });
+        }
+      })
+      .catch((e: Error) => setError(e.message));
+  }, [onRootSummary]);
+
+  const visibleRoot = useMemo(() => {
+    if (!root) return null;
+    if (!filter) return root;
+    return root.filter((entry) =>
+      entry.name.toLowerCase().includes(filter.toLowerCase()) || entry.isDir,
+    );
+  }, [root, filter]);
+
+  if (error) {
+    return <p className="px-2 py-2 text-xs text-[#b14a2c]">{error}</p>;
+  }
+  if (!visibleRoot) {
+    return <p className="px-2 py-2 text-xs text-[#9a9084]">読み込み中…</p>;
+  }
+
+  return (
+    <div className="space-y-0.5 text-sm text-[#5f574d]">
+      {visibleRoot.map((entry) => (
+        <DirNode
+          key={entry.path}
+          entry={entry}
+          depth={0}
+          filter={filter}
+          forceOpen={!!filter}
+          openMap={openMap}
+          setOpenMap={setOpenMap}
+          cache={cache}
+          setCache={setCache}
+        />
+      ))}
+      {visibleRoot.length === 0 && (
+        <p className="px-2 py-2 text-xs text-[#9a9084]">
+          {filter ? "(該当なし)" : "(空)"}
+        </p>
+      )}
+    </div>
+  );
+}
