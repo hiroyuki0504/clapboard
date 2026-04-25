@@ -81,46 +81,17 @@ CLAPBOARD_API_TIMEOUT_MS=5000
 
 バックエンドは `/health`、`/projects`、`/projects/:id`、`/code-review` を返す想定です。取得に失敗した場合やタイムアウトした場合は既存モックデータへ退避します。APIデータを静的生成で固定しないよう、データ取得画面とAPI Routeは動的レンダリングにしています。ただし、外部バックエンドが `401` / `403` / `404` を返した場合は認可拒否・存在なしを隠さないため、モックへ退避せずエラーとして返します。
 
-## アクセス制御
+## MVP範囲と未実装の領域
 
-`/`、`/projects`、`/code-review` と `/api/*`（`/api/health`・`/api/login`・`/api/logout` を除く）は middleware で保護されています。トークンは2系統あり、ロールに応じて API 権限が変わります。
+MVPでは、Next.js API Route経由の進捗データ取得と外部URL表示まで対応しています。外部バックエンドが未設定の環境では、既存のモックデータをローカルAPI経由で表示します。
 
-```bash
-# .env.local など (16文字以上、推奨は `openssl rand -base64 32`)
-CLAPBOARD_ACCESS_TOKEN=<admin token>
-CLAPBOARD_VIEWER_TOKEN=<viewer token>   # 任意
-```
+以下は未実装です。
 
-| Role | 設定する変数 | 認可される操作 |
-|---|---|---|
-| admin | `CLAPBOARD_ACCESS_TOKEN` | 全Page + 全API（`GET/POST/PUT/PATCH/DELETE`） |
-| viewer | `CLAPBOARD_VIEWER_TOKEN` | 全Page + GET API のみ。書き込みAPIは 403 |
+- 認証 / ログイン / 権限制御
+- DB永続化
+- Google Drive OAuth接続
 
-- 本番デプロイ前に必ず admin を設定してください。両方未設定のまま `NODE_ENV=production` で起動した場合、保護対象は 503 を返します。
-- ブラウザ利用時は `/login` ページでトークンを送信し、HttpOnly / SameSite=Lax / Secure な Cookie に保存します。
-- API クライアントは `Authorization: Bearer <token>` でも認証できます。
-- Cookie は7日で失効します。ログアウトする場合は `POST /api/logout` を呼び出してください。
-- レスポンスヘッダ `x-clapboard-role` で当該リクエストのロールを返します（admin/viewer）。
-
-### CSRF / レート制限
-
-- `/api/*` の **書き込みリクエスト**（Bearer なし）は Origin / Referer / Sec-Fetch-Site で同一オリジン検証。GET は対象外（既定）。
-- `/api/login` は IP単位 1分10回でレート制限。429 で `Retry-After` / `x-ratelimit-*` ヘッダを返却。
-- レート制限ストアは Vercel KV / Upstash Redis REST API（`KV_REST_API_URL` + `KV_REST_API_TOKEN` を設定）。未設定または失敗時は Edge memory に自動 fallback します。
-
-```bash
-# 任意: Edge instance を跨いで一貫したレート制限を行うとき
-KV_REST_API_URL=https://...upstash.io
-KV_REST_API_TOKEN=...
-```
-
-### 副作用ある GET API を追加するときの運用ルール
-
-外部状態を変更する GET エンドポイント（例: webhook 風、副作用 redirect）を追加する場合、ブラウザは `Origin` ヘッダを GET に付けないため、CSRF を強制する必要があります。
-
-1. 該当 Route Handler を **POST に変更できないか** まず検討する。RFC 的にも副作用は POST が原則です。
-2. POST に変更できない場合は、その Route Handler の先頭で `evaluateCsrf(request, { enforceOnGet: true })` を明示的に呼び出して 403 を返してください。
-3. middleware 全体に `enforceOnGet: true` を入れると `/api/health` 等の単純GETがブラウザ間で取れなくなるため、**経路ごとに個別適用**する設計にしています。
+本番運用で公開範囲を制限する場合は、アプリ側の認証が入るまで、運用環境のリバースプロキシやホスティング側のアクセス制御で保護してください。
 
 ## Team Roles
 
@@ -228,11 +199,11 @@ CLI側で利用できるモデルを明示したい場合だけ `--model <model-
 
 Codexレビュアーのコメントは `1. Crucial`、`2. High Priority`、`3. Medium`、`4. Low` の4段階で扱います。PR作成者の必須対応範囲は `Crucial` と `High Priority` までです。
 
-## Vercel
+## 本番運用
 
-- Framework Preset: Next.js
+- 公開URL: `https://clapbot.ymt-systems.com`
 - Build Command: `npm run build`
 - Output Directory: `.next`
-- `package-lock.json` をコミットして、Next.js 15.5.15 と PostCSS override の組み合わせを固定してください。
-- 公開ドメインは Vercel 側で `pm.ymt-systems.com` を追加し、DNS の CNAME/A レコードを案内通りに設定してください。
-- 認証、DB、Google Drive OAuth接続は未実装です。MVPではAPI Route経由の進捗データ取得と外部URL表示まで対応しています。
+- `package-lock.json` をコミットして、Next.js 15.5.15 と PostCSS override の組み合わせを固定します。
+- DNSは `clapbot.ymt-systems.com` を運用環境の案内に従って CNAME または A レコードで設定してください。
+- Vercel前提の `pm.ymt-systems.com` 設定は使用しません。
