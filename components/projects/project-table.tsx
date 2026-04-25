@@ -81,7 +81,7 @@ export function ProjectTable({
                   {project.owner}
                 </td>
                 <td className={cn("border-t border-[#ded6ca] px-5", rowPadding)}>
-                  <ProjectStatusBadge status={project.status} />
+                  <ProjectStatusBadge status={project.status} shape="vertical" />
                 </td>
                 <td className={cn("border-t border-[#ded6ca] px-5", rowPadding)}>
                   <div className="flex min-w-36 items-center gap-3">

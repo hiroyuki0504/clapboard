@@ -2,7 +2,8 @@ export type ProjectAmbiguityKind =
   | "missing-assignee"
   | "missing-due-date"
   | "unresolved-decision"
-  | "unclear-dependency";
+  | "unclear-dependency"
+  | "risk";
 
 export type ExtractionSuggestion = {
   id: string;
@@ -26,6 +27,7 @@ const HEADING_TYPE_MAP: Record<
   "確認": { type: "ambiguity", ambiguityKind: "unresolved-decision" },
   "保留": { type: "ambiguity", ambiguityKind: "unresolved-decision" },
   "依存": { type: "ambiguity", ambiguityKind: "unclear-dependency" },
+  "リスク": { type: "ambiguity", ambiguityKind: "risk" },
 };
 
 const HEADING_PREFIX_PATTERN = String.raw`(?:(?:[#>*-]+|\d+[.)])\s*)?`;
@@ -287,6 +289,10 @@ function inferAmbiguityKind(
 
   if (/(依存|待ち|blocker|blocked|先方確認)/i.test(text)) {
     return "unclear-dependency";
+  }
+
+  if (/(リスク|risk|懸念|危険)/i.test(text)) {
+    return "risk";
   }
 
   return "unresolved-decision";
