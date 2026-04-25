@@ -139,7 +139,7 @@ export default async function GraphPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="thin-scrollbar overflow-x-auto">
-              <div className="dotted-canvas relative min-h-[520px] min-w-[920px] bg-[#fffefa]">
+              <div className="dotted-canvas relative min-h-[520px] min-w-[680px] bg-[#fffefa]">
                 <svg
                   className="absolute inset-0 h-full w-full"
                   viewBox="0 0 1000 520"
