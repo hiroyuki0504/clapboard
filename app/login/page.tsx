@@ -1,5 +1,4 @@
 import { LoginForm } from "@/components/auth/login-form";
-import { sanitizeRedirectPath } from "@/lib/access-token";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +9,10 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const fromRaw = Array.isArray(params.from) ? params.from[0] : params.from;
-  const from = sanitizeRedirectPath(fromRaw);
+  const redirectTo =
+    fromRaw && fromRaw.startsWith("/") && !fromRaw.startsWith("//")
+      ? fromRaw
+      : "/";
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">
@@ -19,14 +21,15 @@ export default async function LoginPage({
           ACCESS REQUIRED
         </p>
         <h1 className="mt-2 text-xl font-black tracking-normal text-[#2f2b25]">
-          ClawBoard サインイン
+          ClawBoard ログイン
         </h1>
         <p className="mt-2 text-sm leading-6 text-[#6f665b]">
-          PMが共有しているアクセストークンを入力してください。トークンは HttpOnly Cookie に保存されます。
+          パスワードを入力してください。
         </p>
-        <LoginForm redirectTo={from} />
+        <LoginForm redirectTo={redirectTo} />
       </div>
     </div>
   );
 }
+
 

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 export function LoginForm({ redirectTo }: { redirectTo: string }) {
   const router = useRouter();
-  const [token, setToken] = useState("");
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,41 +23,16 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         headers: { "content-type": "application/json" },
         cache: "no-store",
         credentials: "same-origin",
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ password }),
       });
 
       if (response.status === 401) {
-        setError("トークンが一致しません。もう一度お試しください。");
-        return;
-      }
-
-      if (response.status === 403) {
-        setError("リクエスト元の検証に失敗しました（CSRF）。再読み込みしてからお試しください。");
-        return;
-      }
-
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("retry-after");
-        setError(
-          retryAfter
-            ? `試行回数の上限に達しました。${retryAfter}秒後に再度お試しください。`
-            : "試行回数の上限に達しました。しばらく待ってから再度お試しください。",
-        );
-        return;
-      }
-
-      if (response.status === 503) {
-        setError("サインイン機能が一時的に利用できません。管理者に確認してください。");
-        return;
-      }
-
-      if (response.status === 413) {
-        setError("入力が大きすぎます。トークンを確認してください。");
+        setError("パスワードが違います。もう一度お試しください。");
         return;
       }
 
       if (!response.ok) {
-        setError("サインインに失敗しました。時間をおいて再試行してください。");
+        setError("ログインに失敗しました。時間をおいて再試行してください。");
         return;
       }
 
@@ -73,15 +48,13 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
   return (
     <form className="mt-5 space-y-3" onSubmit={handleSubmit} noValidate>
       <label className="block text-xs font-bold uppercase tracking-[0.14em] text-[#81786d]">
-        Access Token
+        パスワード
         <input
           type="password"
-          autoComplete="off"
-          spellCheck={false}
+          autoComplete="current-password"
           required
-          minLength={16}
-          value={token}
-          onChange={(event) => setToken(event.target.value)}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
           className="mt-2 h-10 w-full rounded-md border border-[#c8c0b4] bg-[#fbfaf5] px-3 font-mono text-sm tracking-wider text-[#312d27] outline-none focus:border-[#c95d3a]"
         />
       </label>
@@ -94,7 +67,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         </p>
       )}
       <Button type="submit" className="h-10 w-full" disabled={submitting}>
-        {submitting ? "確認中..." : "サインインする"}
+        {submitting ? "確認中..." : "ログイン"}
       </Button>
     </form>
   );
