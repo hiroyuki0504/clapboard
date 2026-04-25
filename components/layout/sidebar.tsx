@@ -76,7 +76,7 @@ export function SidebarContent({
 
   return (
     <div className="flex h-full w-full">
-      <div className="flex w-[68px] shrink-0 flex-col items-center border-r border-[#1d1831] bg-[#221d38] py-3">
+      <div className="flex w-[92px] shrink-0 flex-col items-center border-r border-[#1d1831] bg-[#221d38] py-3">
         <Link
           href="/"
           onClick={onNavigate}
@@ -102,15 +102,15 @@ export function SidebarContent({
                 href={item.href}
                 onClick={onNavigate}
                 className={cn(
-                  "flex w-12 flex-col items-center gap-1 rounded-lg border border-white/12 bg-white/7 px-1.5 py-2 text-center text-[10px] font-bold leading-tight text-[#d8d0c6] transition hover:bg-white/14 hover:text-white",
+                  "flex w-[76px] flex-col items-center justify-center gap-1 rounded-lg border border-white/12 bg-white/7 px-2 py-2 text-[11px] font-bold leading-tight text-[#d8d0c6] transition hover:bg-white/14 hover:text-white",
                   active &&
                     "border-[#d66b43] bg-[#cf623d] text-white hover:bg-[#cf623d]",
                 )}
                 aria-label={`${item.label} — ${item.description}`}
                 title={`${item.label}\n${item.description}`}
               >
-                <Icon className="h-4 w-4" aria-hidden />
-                <span className="block w-full truncate">{item.label}</span>
+                <Icon className="h-5 w-5" aria-hidden />
+                <span className="block w-full text-center">{item.label}</span>
               </Link>
             );
           })}
