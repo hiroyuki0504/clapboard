@@ -1,4 +1,5 @@
 import { GitPullRequest, MousePointerClick } from "lucide-react";
+import { AgentRunbookCard } from "@/components/code-review/agent-runbook-card";
 import { AgentWorktreesCard } from "@/components/code-review/agent-worktrees-card";
 import { BranchTableCard } from "@/components/code-review/branch-table-card";
 import { CodeReviewHeader } from "@/components/code-review/header-section";
@@ -77,6 +78,8 @@ export default async function CodeReviewPage() {
           <NoCodeRequestQueue requests={reviewSystem.noCodeRequests} />
         </div>
       </section>
+
+      <AgentRunbookCard runbook={reviewSystem.agentRunbook} />
 
       <PriorityLevelTable levels={reviewSystem.priorityLevels} />
 
