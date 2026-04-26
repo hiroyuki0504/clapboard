@@ -98,6 +98,7 @@ export function TimelineWorkspace({
   const [customEvents, setCustomEvents] = useState<SerializableTimelineEvent[]>(
     [],
   );
+  const [deletedEventIds, setDeletedEventIds] = useState<string[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftSub, setDraftSub] = useState("");
@@ -108,8 +109,11 @@ export function TimelineWorkspace({
   const dateKeys = useMemo(() => rangeFor(mode, todayKey), [mode, todayKey]);
 
   const events: TimelineGridEvent[] = useMemo(
-    () => [...initialEvents, ...customEvents],
-    [initialEvents, customEvents],
+    () => [
+      ...initialEvents.filter((event) => !deletedEventIds.includes(event.id)),
+      ...customEvents,
+    ],
+    [initialEvents, customEvents, deletedEventIds],
   );
 
   const closeDialog = () => {
@@ -137,6 +141,13 @@ export function TimelineWorkspace({
       },
     ]);
     closeDialog();
+  };
+
+  const deleteEvent = (eventId: string) => {
+    setCustomEvents((prev) => prev.filter((event) => event.id !== eventId));
+    setDeletedEventIds((prev) =>
+      prev.includes(eventId) ? prev : [...prev, eventId],
+    );
   };
 
   return (
@@ -226,6 +237,7 @@ export function TimelineWorkspace({
             dateKeys={dateKeys}
             todayKey={todayKey}
             events={events}
+            onDeleteEvent={deleteEvent}
           />
         </CardContent>
       </Card>
@@ -250,11 +262,7 @@ export function TimelineWorkspace({
                 </div>
                 <button
                   type="button"
-                  onClick={() =>
-                    setCustomEvents((prev) =>
-                      prev.filter((e) => e.id !== event.id),
-                    )
-                  }
+                  onClick={() => deleteEvent(event.id)}
                   className="rounded-md border border-[#c8c0b4] px-2 py-1 text-xs font-bold text-[#5f574d] hover:bg-[#f1ede4]"
                 >
                   削除

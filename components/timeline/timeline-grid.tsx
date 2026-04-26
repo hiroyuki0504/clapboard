@@ -1,4 +1,4 @@
-import { Bot, Check, FileText, JapaneseYen } from "lucide-react";
+import { Bot, Check, FileText, JapaneseYen, Trash2 } from "lucide-react";
 import Link from "next/link";
 import type { LaneKey, TimelineEventTone } from "@/lib/timeline-events";
 import {
@@ -42,10 +42,12 @@ export function TimelineGrid({
   dateKeys,
   todayKey,
   events,
+  onDeleteEvent,
 }: {
   dateKeys: string[];
   todayKey: string;
   events: TimelineGridEvent[];
+  onDeleteEvent?: (eventId: string) => void;
 }) {
   const columnCount = Math.max(dateKeys.length, 1);
   const gridTemplateColumns = `160px repeat(${columnCount}, minmax(130px, 1fr))`;
@@ -112,22 +114,45 @@ export function TimelineGrid({
                   >
                     {dayEvents.map((event) => {
                       const eventBody = (
-                        <div
-                          className={`rounded-md border px-3 py-2 text-xs font-bold shadow-sm ${toneClass[event.tone]}`}
-                        >
+                        <>
                           <p className="truncate">{event.title}</p>
                           <p className="mt-1 truncate opacity-80">{event.sub}</p>
-                        </div>
+                        </>
                       );
+                      const eventClassName = `rounded-md border px-3 py-2 text-xs font-bold shadow-sm ${toneClass[event.tone]}`;
+                      const deleteButton = onDeleteEvent ? (
+                        <button
+                          type="button"
+                          onClick={() => onDeleteEvent(event.id)}
+                          className="ml-2 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-current/30 opacity-80 transition hover:bg-white/20 hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
+                          aria-label={`予定「${event.title}」を削除`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                        </button>
+                      ) : null;
 
                       if (!event.href) {
-                        return <div key={event.id}>{eventBody}</div>;
+                        return (
+                          <div
+                            key={event.id}
+                            className={`${eventClassName} flex items-start justify-between gap-2`}
+                          >
+                            <div className="min-w-0 flex-1">{eventBody}</div>
+                            {deleteButton}
+                          </div>
+                        );
                       }
 
                       return (
-                        <Link key={event.id} href={event.href}>
-                          {eventBody}
-                        </Link>
+                        <div
+                          key={event.id}
+                          className={`${eventClassName} flex items-start justify-between gap-2`}
+                        >
+                          <Link className="min-w-0 flex-1" href={event.href}>
+                            {eventBody}
+                          </Link>
+                          {deleteButton}
+                        </div>
                       );
                     })}
                   </div>
