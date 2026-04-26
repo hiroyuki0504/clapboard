@@ -279,8 +279,14 @@ export const reviewSystem = {
       source: "ブラウザ入力",
       targetRepository: "ymt-systems/clapboard",
       status: "ready",
+      scope:
+        "自然言語依頼を受け付け、対象リポジトリ、作業ブランチ、プレビューURL、PR本文候補を1依頼に紐づける。",
       expectedOutcome:
         "依頼内容から作業ブランチ、プレビュー、PR下書きまでを自動生成する。",
+      excludedScope:
+        "GitHubへの自動マージ、本番デプロイ、外部runnerの認証設定変更は扱わない。",
+      recommendedBranch: "codex/web-intake-to-pr",
+      verificationCommands: ["npm run lint", "npm test", "npm run build"],
       agentPrompt: "ターミナルなしで依頼を受け、必要な差分と検証結果をWebに返す。",
     },
     {
@@ -290,7 +296,13 @@ export const reviewSystem = {
       source: "GitHub Issue",
       targetRepository: "ymt-systems/clapboard",
       status: "building",
+      scope:
+        "Issue本文、再現条件、関連ファイルを読み、修正方針を小さな実装タスクへ分解する。",
       expectedOutcome: "Issueを読み、再現条件、修正差分、PR本文を生成する。",
+      excludedScope:
+        "Issue外の仕様追加、未確認のUI刷新、別リポジトリの変更は含めない。",
+      recommendedBranch: "codex/issue-to-fix-pr",
+      verificationCommands: ["npm run lint", "npm test"],
       agentPrompt: "Issue本文を仕様として扱い、mainから作業ブランチを切って修正する。",
     },
     {
@@ -300,8 +312,14 @@ export const reviewSystem = {
       source: "Codex Review",
       targetRepository: "ymt-systems/clapboard",
       status: "scoped",
+      scope:
+        "レビューコメントを優先度、担当、マージ条件に分類し、PMがPR承認前に見る判断材料へ整える。",
       expectedOutcome:
         "Crucial / High Priorityを作成者対応、Medium以下をPM判断に分ける。",
+      excludedScope:
+        "レビュー指摘の自動修正、承認ボタン操作、CI再実行の代行は含めない。",
+      recommendedBranch: "codex/review-gate-summary",
+      verificationCommands: ["npm run lint", "npm test"],
       agentPrompt:
         "レビューコメントを優先度順に整理し、マージ可否と残リスクを要約する。",
     },
