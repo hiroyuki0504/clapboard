@@ -16,7 +16,7 @@ type DirState = {
   items: FileTreeEntry[] | null;
 };
 
-const REPOSITORY_AUTO_OPEN_DEPTH = 2;
+const REPOSITORY_AUTO_OPEN_DEPTH = 4;
 
 type DirNodeProps = {
   entry: FileTreeEntry;
@@ -70,7 +70,11 @@ function DirNode({
     depth < REPOSITORY_AUTO_OPEN_DEPTH &&
     !hasExplicitOpenState;
   const open = forceOpen || autoOpen || !!openMap[entry.path];
-  const dirState = cache[entry.path];
+  const dirState =
+    cache[entry.path] ??
+    (entry.children
+      ? { loading: false, error: null, items: entry.children }
+      : undefined);
   const mountedRef = useRef(true);
   const childrenId = buildFileTreeNodeId(entry.path, source);
 
@@ -81,6 +85,7 @@ function DirNode({
   }, []);
 
   const loadChildren = useCallback(async () => {
+    if (entry.children) return;
     if (cache[entry.path]?.items || cache[entry.path]?.loading) return;
     setCache((c) => ({
       ...c,
@@ -104,7 +109,7 @@ function DirNode({
         },
       }));
     }
-  }, [entry.path, source, cache, setCache]);
+  }, [entry.children, entry.path, source, cache, setCache]);
 
   useEffect(() => {
     if (entry.isDir && open) {
@@ -217,6 +222,22 @@ export function FileTree({
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
   const [cache, setCache] = useState<Record<string, DirState>>({});
 
+  const summarizeEntries = useCallback((items: FileTreeEntry[]) => {
+    return items.reduce(
+      (summary, entry) => {
+        summary.count += 1;
+        summary.sizeBytes += entry.size ?? 0;
+        if (entry.children) {
+          const childSummary = summarizeEntries(entry.children);
+          summary.count += childSummary.count;
+          summary.sizeBytes += childSummary.sizeBytes;
+        }
+        return summary;
+      },
+      { count: 0, sizeBytes: 0 },
+    );
+  }, []);
+
   useEffect(() => {
     let active = true;
 
@@ -225,15 +246,16 @@ export function FileTree({
     setOpenMap({});
     setCache({});
 
-    fetchFileTreeDir("", source)
+    fetchFileTreeDir(
+      "",
+      source,
+      source === "repository" ? { depth: REPOSITORY_AUTO_OPEN_DEPTH } : {},
+    )
       .then((items) => {
         if (!active) return;
         setRoot(items);
         if (onRootSummary) {
-          onRootSummary({
-            count: items.length,
-            sizeBytes: items.reduce((sum, i) => sum + (i.size ?? 0), 0),
-          });
+          onRootSummary(summarizeEntries(items));
         }
       })
       .catch((e: Error) => {
@@ -245,7 +267,7 @@ export function FileTree({
     return () => {
       active = false;
     };
-  }, [onRootSummary, source]);
+  }, [onRootSummary, source, summarizeEntries]);
 
   const visibleRoot = useMemo(() => {
     if (!root) return null;
