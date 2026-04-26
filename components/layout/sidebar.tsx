@@ -145,7 +145,7 @@ export function SidebarContent({
 
 export function Sidebar() {
   return (
-    <aside className="hidden h-[100dvh] w-[372px] shrink-0 self-start lg:flex">
+    <aside className="hidden h-full w-[372px] shrink-0 self-stretch lg:flex">
       <SidebarContent />
     </aside>
   );
