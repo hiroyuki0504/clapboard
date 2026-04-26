@@ -26,6 +26,26 @@ export type AgentWorktreeMode =
 
 export type NoCodeRequestStatus = "intake" | "scoped" | "building" | "ready";
 
+export type AgentRunbook = {
+  id: string;
+  title: string;
+  summary: string;
+  agents: AgentRunbookAgent[];
+};
+
+export type AgentRunbookAgent = {
+  id: string;
+  name: string;
+  layer: "L1" | "L2" | "L3";
+  hierarchy: string;
+  reportsTo: string;
+  purpose: string[];
+  responsibilityScope: string[];
+  implementationArtifacts: string[];
+  verification: string[];
+  pullRequestConditions: string[];
+};
+
 export type ReviewPriorityLevel = {
   priority: ReviewPriority;
   rank: 1 | 2 | 3 | 4;

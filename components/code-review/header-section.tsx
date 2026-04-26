@@ -41,7 +41,7 @@ export function CodeReviewHeader({
               プレビュー、PR下書き、{reviewModel}のレビューをPM承認まで追跡します。
             </p>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
             <div className="flex items-center gap-2 rounded-md border border-[#a8c3a6] bg-[#edf5ea] px-3 py-2 text-sm font-bold text-[#426c3d]">
               <ShieldCheck className="h-4 w-4" aria-hidden />
               {pmOwner}

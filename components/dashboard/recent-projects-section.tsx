@@ -27,9 +27,11 @@ export function RecentProjectsSection({ projects }: { projects: Project[] }) {
               <p className="truncate text-sm font-bold text-[#312d27]">
                 {project.name}
               </p>
-              <ProjectStatusBadge status={project.status} />
+              <span className="shrink-0">
+                <ProjectStatusBadge status={project.status} />
+              </span>
             </div>
-            <div className="mb-2 flex items-center justify-between font-mono text-xs text-[#81786d]">
+            <div className="mb-2 flex flex-col gap-1 font-mono text-xs text-[#81786d] sm:flex-row sm:items-center sm:justify-between">
               <span>次の節目 {formatDate(project.dueDate)}</span>
               <span>{formatDateTime(project.lastUpdated)}</span>
             </div>

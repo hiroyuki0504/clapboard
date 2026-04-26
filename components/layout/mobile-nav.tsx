@@ -52,14 +52,14 @@ export function MobileNav() {
         aria-label="メニューを開く"
         aria-expanded={open}
         aria-controls="mobile-nav-drawer"
-        className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#bfb6a8] bg-[#fffefa] text-[#312d27] transition hover:bg-[#f6f1e7] md:hidden"
+        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[#bfb6a8] bg-[#fffefa] text-[#312d27] transition hover:bg-[#f6f1e7] lg:hidden"
       >
         <Menu className="h-5 w-5" aria-hidden />
       </button>
 
       {open && (
         <div
-          className="fixed inset-0 z-[100] md:hidden"
+          className="fixed inset-0 z-[100] lg:hidden"
           role="dialog"
           aria-modal="true"
           aria-label="ナビゲーション"
@@ -71,7 +71,7 @@ export function MobileNav() {
             onClick={() => setOpen(false)}
             className="absolute inset-0 bg-black/40"
           />
-          <div className="fixed left-3 right-3 top-3 z-[110] rounded-lg border border-[#423c33]/55 bg-[#f1eee5] p-3 shadow-xl">
+          <div className="thin-scrollbar fixed left-3 right-3 top-3 z-[110] max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-lg border border-[#423c33]/55 bg-[#f1eee5] p-3 shadow-xl">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-black text-[#312d27]">メニュー</p>
               <button

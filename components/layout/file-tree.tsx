@@ -97,10 +97,10 @@ function DirNode({
   }, [entry.path, source, cache, setCache]);
 
   useEffect(() => {
-    if (entry.isDir && forceOpen) {
+    if (entry.isDir && open) {
       loadChildren();
     }
-  }, [entry.isDir, forceOpen, loadChildren]);
+  }, [entry.isDir, open, loadChildren]);
 
   const toggle = useCallback(async () => {
     setOpenMap((m) => ({ ...m, [entry.path]: !m[entry.path] }));
@@ -219,6 +219,15 @@ export function FileTree({
       .then((items) => {
         if (!active) return;
         setRoot(items);
+        if (source === "repository") {
+          setOpenMap(
+            Object.fromEntries(
+              items
+                .filter((entry) => entry.isDir)
+                .map((entry) => [entry.path, true]),
+            ),
+          );
+        }
         if (onRootSummary) {
           onRootSummary({
             count: items.length,

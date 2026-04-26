@@ -59,7 +59,7 @@ export function WorkspaceTabs() {
   return (
     <nav
       aria-label="ワークスペース表示タブ"
-      className="border-b border-[#d8d1c4] bg-[#f3f0e7]/94 px-3 py-2 sm:px-5"
+      className="border-b border-[#d8d1c4] bg-[#f3f0e7]/94 px-2 py-2 sm:px-3 lg:px-5"
     >
       <div className="thin-scrollbar flex gap-1 overflow-x-auto">
         {workspaceTabs.map((tab) => {
@@ -72,14 +72,14 @@ export function WorkspaceTabs() {
               href={tab.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex h-9 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-bold transition",
+                "inline-flex h-9 shrink-0 items-center gap-2 rounded-md border px-2 text-sm font-bold transition sm:px-3",
                 active
                   ? "border-[#312d27] bg-[#312d27] text-white shadow-sm"
                   : "border-transparent text-[#70675b] hover:border-[#c8c0b4] hover:bg-[#fffefa] hover:text-[#312d27]",
               )}
             >
               <Icon className="h-4 w-4" aria-hidden />
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
             </Link>
           );
         })}

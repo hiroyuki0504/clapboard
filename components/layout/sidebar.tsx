@@ -150,7 +150,7 @@ export function SidebarContent({
 
 export function Sidebar({ agentSummary }: { agentSummary?: React.ReactNode }) {
   return (
-    <aside className="hidden h-[100dvh] w-[328px] shrink-0 self-start md:flex">
+    <aside className="hidden h-[100dvh] w-[328px] shrink-0 self-start lg:flex">
       <SidebarContent agentSummary={agentSummary} />
     </aside>
   );

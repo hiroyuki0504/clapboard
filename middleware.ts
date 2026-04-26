@@ -19,6 +19,8 @@ const PROTECTED_PAGE_PREFIXES = [
   "/command",
   "/timeline",
   "/guide",
+  "/tasks",
+  "/finance",
 ];
 const PUBLIC_API_PATHS = new Set(["/api/health", "/api/login", "/api/logout"]);
 
@@ -153,6 +155,8 @@ export const config = {
     "/command/:path*",
     "/timeline/:path*",
     "/guide/:path*",
+    "/tasks/:path*",
+    "/finance/:path*",
     "/api/:path*",
   ],
 };
