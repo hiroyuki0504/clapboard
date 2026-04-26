@@ -41,10 +41,16 @@ export function TimelineGrid({
   today: Date;
   events: TimelineEvent[];
 }) {
+  const columnCount = Math.max(days.length, 1);
+  const gridTemplateColumns = `160px repeat(${columnCount}, minmax(130px, 1fr))`;
+  const minWidth = `${160 + columnCount * 130}px`;
   return (
     <div className="thin-scrollbar overflow-x-auto">
-      <div className="min-w-[1080px]">
-        <div className="grid grid-cols-[160px_repeat(7,minmax(130px,1fr))] border-b border-[#d8d1c4] bg-[#f3f0e7]">
+      <div style={{ minWidth }}>
+        <div
+          className="grid border-b border-[#d8d1c4] bg-[#f3f0e7]"
+          style={{ gridTemplateColumns }}
+        >
           <div className="px-4 py-3 text-sm font-black text-[#312d27]">
             レーン
           </div>
@@ -76,7 +82,8 @@ export function TimelineGrid({
           return (
             <div
               key={lane.key}
-              className="grid min-h-[150px] grid-cols-[160px_repeat(7,minmax(130px,1fr))] border-b border-[#e5ded2] last:border-b-0"
+              className="grid min-h-[150px] border-b border-[#e5ded2] last:border-b-0"
+              style={{ gridTemplateColumns }}
             >
               <div className="flex items-center gap-2 bg-[#f8f4ec] px-4 py-4 text-sm font-black text-[#312d27]">
                 <Icon className="h-4 w-4" aria-hidden />
