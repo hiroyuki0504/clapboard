@@ -10,7 +10,6 @@ import { isNavItemActive, type NavItem, railItems } from "./nav-items";
 
 type SidebarContentProps = {
   onNavigate?: () => void;
-  agentSummary?: React.ReactNode;
 };
 
 type RootSummary = {
@@ -20,7 +19,6 @@ type RootSummary = {
 
 export function SidebarContent({
   onNavigate,
-  agentSummary,
 }: SidebarContentProps) {
   const pathname = usePathname();
   const [fileTreeSource, setFileTreeSource] =
@@ -92,7 +90,7 @@ export function SidebarContent({
 
   return (
     <div className="flex h-full w-full">
-      <div className="flex w-[92px] shrink-0 flex-col items-center border-r border-[#1d1831] bg-[#221d38] py-3">
+      <div className="flex w-[72px] shrink-0 flex-col items-center border-r border-[#1d1831] bg-[#221d38] py-3">
         <Link
           href="/code-review"
           onClick={onNavigate}
@@ -117,17 +115,15 @@ export function SidebarContent({
                 href={item.href}
                 onClick={(event) => handleNavClick(event, item.href)}
                 className={cn(
-                  "flex w-[76px] flex-col items-center justify-center gap-1 rounded-lg border border-white/12 bg-white/7 px-2 py-2 text-[11px] font-bold leading-tight text-[#d8d0c6] transition hover:bg-white/14 hover:text-white",
+                  "flex h-10 w-10 items-center justify-center rounded-lg border border-white/12 bg-white/7 text-[#d8d0c6] transition hover:bg-white/14 hover:text-white",
                   active &&
                     "border-[#d66b43] bg-[#cf623d] text-white hover:bg-[#cf623d]",
                 )}
                 aria-label={`${item.label} — ${item.description}`}
+                aria-current={active ? "page" : undefined}
                 title={`${item.label}\n${item.description}`}
               >
                 <Icon className="h-5 w-5" aria-hidden />
-                <span className="block w-full text-center leading-tight">
-                  {item.label}
-                </span>
               </Link>
             );
           })}
@@ -135,7 +131,6 @@ export function SidebarContent({
       </div>
 
       <FilePanel
-        agentSummary={agentSummary}
         source={fileTreeSource}
         onSourceChange={setFileTreeSource}
         filter={filter}
@@ -148,10 +143,10 @@ export function SidebarContent({
   );
 }
 
-export function Sidebar({ agentSummary }: { agentSummary?: React.ReactNode }) {
+export function Sidebar() {
   return (
-    <aside className="hidden h-[100dvh] w-[328px] shrink-0 self-start lg:flex">
-      <SidebarContent agentSummary={agentSummary} />
+    <aside className="hidden h-[100dvh] w-[372px] shrink-0 self-start lg:flex">
+      <SidebarContent />
     </aside>
   );
 }
