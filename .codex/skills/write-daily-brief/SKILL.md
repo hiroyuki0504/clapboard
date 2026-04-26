@@ -1,6 +1,6 @@
 ---
 name: write-daily-brief
-description: "clapboardの今日の状況をPM向けに短く整理する。Use when the user asks for a daily report, today's high priority tasks, review queue order, current blockers, or what to inspect next from projects and PR review state."
+description: "ClawBoardの今日の状況をPM向けに短く整理する。Use when the user asks for a daily report, today's high priority tasks, review queue order, current blockers, or what to inspect next from projects and PR review state."
 ---
 
 # 日次状況整理

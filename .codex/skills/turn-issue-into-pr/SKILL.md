@@ -1,6 +1,6 @@
 ---
 name: turn-issue-into-pr
-description: "GitHub IssueをclapboardのAI作業と修正PRに変換する。Use when an Issue body should be treated as the specification, reproduced or clarified, implemented on a branch from main, verified, and drafted as a focused PR."
+description: "GitHub IssueをClawBoardのAI作業と修正PRに変換する。Use when an Issue body should be treated as the specification, reproduced or clarified, implemented on a branch from main, verified, and drafted as a focused PR."
 ---
 
 # Issue修正PR化

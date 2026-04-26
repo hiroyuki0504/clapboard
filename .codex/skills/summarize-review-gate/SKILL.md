@@ -1,6 +1,6 @@
 ---
 name: summarize-review-gate
-description: "clapboardのCodex ReviewコメントをPMのマージ判断に変換する。Use when review results, PR comments, or findings must be sorted into author-required fixes, PM decisions, residual risks, and a concise merge recommendation."
+description: "ClawBoardのCodex ReviewコメントをPMのマージ判断に変換する。Use when review results, PR comments, or findings must be sorted into author-required fixes, PM decisions, residual risks, and a concise merge recommendation."
 ---
 
 # レビュー判断整理

@@ -1,6 +1,6 @@
 ---
 name: extract-minutes-actions
-description: "議事録から決定事項、TODO、曖昧点を抽出してclapboardの進捗へ反映する。Use when meeting notes, markdown minutes, review notes, or uploaded .txt and .md content must be converted into decisions, tasks, assignee candidates, due date candidates, and ambiguities."
+description: "議事録から決定事項、TODO、曖昧点を抽出してClawBoardの進捗へ反映する。Use when meeting notes, markdown minutes, review notes, or uploaded .txt and .md content must be converted into decisions, tasks, assignee candidates, due date candidates, and ambiguities."
 ---
 
 # 議事録アクション抽出

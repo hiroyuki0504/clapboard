@@ -30,7 +30,7 @@ const titles = [
   {
     match: "/guide",
     label: "使い方ガイド",
-    caption: "clapboardの基本操作を確認",
+    caption: "ClawBoardの基本操作を確認",
   },
   {
     match: "/projects",

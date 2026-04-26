@@ -24,7 +24,7 @@ export default async function LoginPage({
           />
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#81786d]">
-              clapboard
+              ClawBoard
             </p>
             <h1 className="mt-1 text-xl font-black tracking-normal text-[#2f2b25]">
               ログイン

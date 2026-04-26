@@ -1,13 +1,13 @@
 ---
 name: prepare-web-worktree
-description: "clapboardの自然言語開発依頼をWebワークツリー化する。Use when a browser request, natural language task, or no-code development request must be scoped into one branch, one preview, one PR candidate, acceptance criteria, checks, and PM next actions."
+description: "ClawBoardの自然言語開発依頼をWebワークツリー化する。Use when a browser request, natural language task, or no-code development request must be scoped into one branch, one preview, one PR candidate, acceptance criteria, checks, and PM next actions."
 ---
 
 # Webワークツリー化
 
 ## 概要
 
-「ターミナルなしで依頼を受け、必要な差分と検証結果をWebに返す」を、clapboard の作業単位に変換する。
+「ターミナルなしで依頼を受け、必要な差分と検証結果をWebに返す」を、ClawBoard の作業単位に変換する。
 
 ## 原則
 

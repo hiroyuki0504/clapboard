@@ -1,13 +1,13 @@
 ---
 name: apply-design-to-ui
-description: "Figmaやデザイン指示をclapboardのUI実装差分へ変換する。Use when a design direction, screenshot, Figma note, or visual feedback must be decomposed into scoped UI changes using existing Next.js, Tailwind, and component patterns."
+description: "Figmaやデザイン指示をClawBoardのUI実装差分へ変換する。Use when a design direction, screenshot, Figma note, or visual feedback must be decomposed into scoped UI changes using existing Next.js, Tailwind, and component patterns."
 ---
 
 # デザインUI反映
 
 ## 概要
 
-「デザイン差分を小さなUI変更に分解してAIに投入する」ための skill。clapboard の管制UIに合わせ、静かで実務的な画面密度と読みやすさを優先する。
+「デザイン差分を小さなUI変更に分解してAIに投入する」ための skill。ClawBoard の管制UIに合わせ、静かで実務的な画面密度と読みやすさを優先する。
 
 ## 手順
 
@@ -37,7 +37,7 @@ description: "Figmaやデザイン指示をclapboardのUI実装差分へ変換�
 - 既存UIとの一貫性:
 ```
 
-## clapboardらしさ
+## ClawBoardらしさ
 
 - SaaS/管制ツールとして、装飾よりもスキャン性と操作の予測しやすさを優先する。
 - 大きすぎるヒーロー、マーケティング調の構成、装飾的なカード増殖は避ける。
