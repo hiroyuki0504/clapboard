@@ -121,7 +121,15 @@ function MainCommitNode({
   );
 }
 
-function BranchPath({ layout }: { layout: BranchLayout }) {
+function BranchPath({
+  layout,
+  focused = false,
+  dimmed = false,
+}: {
+  layout: BranchLayout;
+  focused?: boolean;
+  dimmed?: boolean;
+}) {
   const { branch, color, side, laneX, baseY, commitYs } = layout;
   const firstY = commitYs[0] ?? baseY - BRANCH_STEP;
   const headY = commitYs[commitYs.length - 1] ?? firstY;
@@ -129,35 +137,62 @@ function BranchPath({ layout }: { layout: BranchLayout }) {
   const textAnchor = side === "left" ? "end" : "start";
   const labelX = side === "left" ? laneX - 10 : laneX + 10;
   const labelY = Math.max(22, headY - 9 + layout.labelShift);
+  const strokeWidth = focused ? 3.75 : 2.5;
+  const nodeRadius = focused ? 7 : 6;
+  const curvePath = [
+    `M ${TRUNK_X} ${baseY}`,
+    `C ${TRUNK_X} ${baseY - 28}, ${curveControlX} ${firstY + 28}, ${laneX} ${firstY}`,
+  ].join(" ");
 
   return (
-    <g>
+    <g opacity={dimmed ? 0.26 : 1}>
+      {focused && (
+        <path
+          d={curvePath}
+          fill="none"
+          stroke="#fffefa"
+          strokeLinecap="round"
+          strokeWidth={strokeWidth + 4}
+          opacity="0.88"
+        />
+      )}
       <path
-        d={[
-          `M ${TRUNK_X} ${baseY}`,
-          `C ${TRUNK_X} ${baseY - 28}, ${curveControlX} ${firstY + 28}, ${laneX} ${firstY}`,
-        ].join(" ")}
+        d={curvePath}
         fill="none"
         stroke={color}
         strokeLinecap="round"
-        strokeWidth="2.5"
+        strokeWidth={strokeWidth}
       />
       {commitYs.length > 1 && (
-        <line
-          x1={laneX}
-          x2={laneX}
-          y1={firstY}
-          y2={headY}
-          stroke={color}
-          strokeLinecap="round"
-          strokeWidth="2.5"
-        />
+        <>
+          {focused && (
+            <line
+              x1={laneX}
+              x2={laneX}
+              y1={firstY}
+              y2={headY}
+              stroke="#fffefa"
+              strokeLinecap="round"
+              strokeWidth={strokeWidth + 4}
+              opacity="0.88"
+            />
+          )}
+          <line
+            x1={laneX}
+            x2={laneX}
+            y1={firstY}
+            y2={headY}
+            stroke={color}
+            strokeLinecap="round"
+            strokeWidth={strokeWidth}
+          />
+        </>
       )}
       <text
         x={labelX}
         y={labelY}
         fill={color}
-        fontSize="11"
+        fontSize={focused ? "12" : "11"}
         fontWeight="800"
         textAnchor={textAnchor}
       >
@@ -165,9 +200,10 @@ function BranchPath({ layout }: { layout: BranchLayout }) {
       </text>
       {commitYs.map((y, index) => (
         <g key={`${branch.name}-${branch.commits[index]?.hash ?? index}`}>
-          <circle cx={laneX} cy={y} r="6" fill={color} />
+          {focused && <circle cx={laneX} cy={y} r="10" fill="#fffefa" />}
+          <circle cx={laneX} cy={y} r={nodeRadius} fill={color} />
           {index === commitYs.length - 1 && (
-            <circle cx={laneX} cy={y} r="2.25" fill="#fffefa" />
+            <circle cx={laneX} cy={y} r={focused ? "2.7" : "2.25"} fill="#fffefa" />
           )}
         </g>
       ))}
@@ -394,6 +430,8 @@ export function GitBranchTree({
     graph.filteredBranches,
     data.mainBranch,
   );
+  const isBranchSelected = selectedBranchName !== null;
+  const isMainSelected = selectedBranchName === data.mainBranch;
   const selectedBranch =
     data.branches.find((branch) => branch.name === selectedBranchName) ??
     data.branches.find((branch) => branch.current) ??
@@ -468,11 +506,24 @@ export function GitBranchTree({
             y2={mainLineEnd - 14}
             stroke="#372e27"
             strokeLinecap="round"
-            strokeWidth="5"
+            strokeWidth={isMainSelected ? "6" : "5"}
+            opacity={isBranchSelected && !isMainSelected ? 0.72 : 1}
           />
-          {graph.branchLayouts.map((layout) => (
-            <BranchPath key={layout.branch.name} layout={layout} />
-          ))}
+          {graph.branchLayouts.map((layout) => {
+            const focused = selectedBranchName === layout.branch.name;
+            const dimmed =
+              isBranchSelected &&
+              (isMainSelected || selectedBranchName !== layout.branch.name);
+
+            return (
+              <BranchPath
+                key={layout.branch.name}
+                layout={layout}
+                focused={focused}
+                dimmed={dimmed}
+              />
+            );
+          })}
           {data.mainCommits.map((commit) => {
             const y = graph.yByMainHash.get(commit.hash);
             if (!y) return null;
