@@ -58,7 +58,7 @@ export function DependencyGraphCard({ projects }: { projects: Project[] }) {
       id: "project",
       label: focusLabel,
       tone: "project",
-      x: 23,
+      x: 6,
       y: 24,
       width: 40,
       height: 24,
@@ -67,8 +67,8 @@ export function DependencyGraphCard({ projects }: { projects: Project[] }) {
       id: "task",
       label: blocker?.title.slice(0, 10) ?? "未完了タスク",
       tone: "task",
-      x: 44,
-      y: 61,
+      x: 31,
+      y: 58,
       width: 35,
       height: 24,
     },
@@ -76,8 +76,8 @@ export function DependencyGraphCard({ projects }: { projects: Project[] }) {
       id: "file",
       label: file?.name.slice(0, 10) ?? "関連ファイル",
       tone: "file",
-      x: 76,
-      y: 31,
+      x: 68,
+      y: 45,
       width: 32,
       height: 24,
     },
@@ -85,7 +85,7 @@ export function DependencyGraphCard({ projects }: { projects: Project[] }) {
       id: "minute",
       label: minute?.title.slice(0, 10) ?? "進捗メモ",
       tone: "minute",
-      x: 63,
+      x: 50,
       y: 20,
       width: 29,
       height: 24,
@@ -116,6 +116,7 @@ export function DependencyGraphCard({ projects }: { projects: Project[] }) {
       return;
     }
 
+    event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     const nodePosition = getNodePosition(node, positions);
 
@@ -230,7 +231,10 @@ export function DependencyGraphCard({ projects }: { projects: Project[] }) {
 
 function getInitialPositions(nodes: DependencyNode[]): NodePositions {
   return Object.fromEntries(
-    nodes.map((node) => [node.id, { x: node.x, y: node.y }]),
+    nodes.map((node) => [
+      node.id,
+      clampNodePosition(node, { x: node.x, y: node.y }),
+    ]),
   );
 }
 
