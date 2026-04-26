@@ -1,6 +1,6 @@
 # Prompt Skill Map
 
-ClawBoard でよく使うプロンプトを repo-local skill として `.codex/skills/` に整理した一覧。
+clapboard でよく使うプロンプトを repo-local skill として `.codex/skills/` に整理した一覧。
 
 ```mermaid
 flowchart TD
