@@ -4,6 +4,7 @@ export type FileTreeEntry = {
   isDir: boolean;
   size: number;
   updatedAt: string | null;
+  children?: FileTreeEntry[];
 };
 
 export type FileTreeSource = "desktop" | "repository";
@@ -11,8 +12,12 @@ export type FileTreeSource = "desktop" | "repository";
 export async function fetchFileTreeDir(
   rel: string,
   source: FileTreeSource = "desktop",
+  options: { depth?: number } = {},
 ): Promise<FileTreeEntry[]> {
   const params = new URLSearchParams({ path: rel, source });
+  if (typeof options.depth === "number") {
+    params.set("depth", String(options.depth));
+  }
   const res = await fetch(`/api/files?${params.toString()}`);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

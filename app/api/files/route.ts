@@ -5,6 +5,14 @@ import path from "node:path";
 export const runtime = "nodejs";
 
 type FileSource = "desktop" | "repository";
+type ApiFileTreeEntry = {
+  name: string;
+  path: string;
+  isDir: boolean;
+  size: number;
+  updatedAt: string | null;
+  children?: ApiFileTreeEntry[];
+};
 
 const CONFIGURED_ROOT_ENV = process.env.CLAPBOT_FILES_ROOT?.trim();
 const ALLOW_DEFAULT_ROOT =
@@ -19,6 +27,7 @@ const REPOSITORY_IGNORED_NAMES = new Set([
   "build",
   "coverage",
 ]);
+const MAX_RECURSIVE_DEPTH = 4;
 
 function isFileSource(value: string): value is FileSource {
   return value === "desktop" || value === "repository";
@@ -65,10 +74,70 @@ function shouldSkipEntry(source: FileSource, name: string) {
   return source === "repository" && REPOSITORY_IGNORED_NAMES.has(name);
 }
 
+function parseDepth(value: string | null) {
+  const parsed = Number(value ?? 0);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.min(Math.floor(parsed), MAX_RECURSIVE_DEPTH);
+}
+
+async function readEntries({
+  realRoot,
+  realTarget,
+  source,
+  depth,
+}: {
+  realRoot: string;
+  realTarget: string;
+  source: FileSource;
+  depth: number;
+}): Promise<ApiFileTreeEntry[]> {
+  const entries = await fs.readdir(realTarget, { withFileTypes: true });
+  const items = (
+    await Promise.all(
+      entries
+        .filter((e) => !shouldSkipEntry(source, e.name))
+        .map(async (e) => {
+          const full = path.join(realTarget, e.name);
+          const lstat = await fs.lstat(full).catch(() => null);
+          if (!lstat) return null;
+          if (lstat.isSymbolicLink()) {
+            const resolved = await fs.realpath(full).catch(() => null);
+            if (!resolved || !isWithin(realRoot, resolved)) return null;
+          }
+          const stat = await fs.stat(full).catch(() => null);
+          if (!stat) return null;
+          const isDir = stat.isDirectory();
+          return {
+            name: e.name,
+            path: path.relative(realRoot, full),
+            isDir,
+            size: stat.size,
+            updatedAt: stat.mtime?.toISOString() ?? null,
+            children:
+              source === "repository" && isDir && depth > 0
+                ? await readEntries({
+                    realRoot,
+                    realTarget: full,
+                    source,
+                    depth: depth - 1,
+                  })
+                : undefined,
+          };
+        }),
+    )
+  ).filter((item): item is NonNullable<typeof item> => item !== null);
+
+  items.sort((a, b) =>
+    a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1,
+  );
+  return items;
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const rel = url.searchParams.get("path") ?? "";
   const sourceParam = url.searchParams.get("source") ?? "desktop";
+  const depth = parseDepth(url.searchParams.get("depth"));
 
   if (!isFileSource(sourceParam)) {
     return NextResponse.json({ error: "invalid source" }, { status: 400 });
@@ -104,35 +173,12 @@ export async function GET(req: Request) {
   }
 
   try {
-    const entries = await fs.readdir(realTarget, { withFileTypes: true });
-    const items = (
-      await Promise.all(
-        entries
-          .filter((e) => !shouldSkipEntry(sourceParam, e.name))
-          .map(async (e) => {
-            const full = path.join(realTarget, e.name);
-            const lstat = await fs.lstat(full).catch(() => null);
-            if (!lstat) return null;
-            if (lstat.isSymbolicLink()) {
-              const resolved = await fs.realpath(full).catch(() => null);
-              if (!resolved || !isWithin(realRoot, resolved)) return null;
-            }
-            const stat = await fs.stat(full).catch(() => null);
-            if (!stat) return null;
-            return {
-              name: e.name,
-              path: path.relative(realRoot, full),
-              isDir: stat.isDirectory(),
-              size: stat.size,
-              updatedAt: stat.mtime?.toISOString() ?? null,
-            };
-          }),
-      )
-    ).filter((item): item is NonNullable<typeof item> => item !== null);
-
-    items.sort((a, b) =>
-      a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1,
-    );
+    const items = await readEntries({
+      realRoot,
+      realTarget,
+      source: sourceParam,
+      depth,
+    });
     return NextResponse.json({
       root: realRoot,
       path: rel,
