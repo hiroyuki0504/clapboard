@@ -3,24 +3,25 @@
 import { CalendarPlus, TimerReset, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
+  type TimelineGridEvent,
   TimelineGrid,
   timelineLaneCount,
 } from "@/components/timeline/timeline-grid";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type {
-  LaneKey,
-  TimelineEvent,
-  TimelineEventTone,
-} from "@/lib/timeline-events";
-import { addDays, formatCompactCurrency, startOfDay } from "@/lib/utils";
+import type { LaneKey, TimelineEventTone } from "@/lib/timeline-events";
+import {
+  addAppDays,
+  formatCompactCurrency,
+  parseAppDateKey,
+} from "@/lib/utils";
 
 type ViewMode = "hour" | "day" | "week" | "month";
 
 export type SerializableTimelineEvent = {
   id: string;
   lane: LaneKey;
-  dateIso: string;
+  dateKey: string;
   title: string;
   sub: string;
   tone: TimelineEventTone;
@@ -49,24 +50,25 @@ const TONE_OPTIONS: { value: TimelineEventTone; label: string }[] = [
   { value: "red", label: "緊急" },
 ];
 
-function rangeFor(mode: ViewMode, today: Date): Date[] {
+function rangeFor(mode: ViewMode, todayKey: string): string[] {
   switch (mode) {
     case "hour":
-      return [today];
+      return [todayKey];
     case "day":
-      return Array.from({ length: 3 }, (_, i) => addDays(today, i - 1));
+      return Array.from({ length: 3 }, (_, i) => addAppDays(todayKey, i - 1));
     case "week":
-      return Array.from({ length: 7 }, (_, i) => addDays(today, i - 3));
+      return Array.from({ length: 7 }, (_, i) => addAppDays(todayKey, i - 3));
     case "month":
-      return Array.from({ length: 30 }, (_, i) => addDays(today, i - 7));
+      return Array.from({ length: 30 }, (_, i) => addAppDays(todayKey, i - 7));
   }
 }
 
-function rangeLabel(mode: ViewMode, today: Date): string {
+function rangeLabel(mode: ViewMode, todayKey: string): string {
   const ym = new Intl.DateTimeFormat("ja-JP", {
     year: "numeric",
     month: "long",
-  }).format(today);
+    timeZone: "Asia/Tokyo",
+  }).format(parseAppDateKey(todayKey));
   switch (mode) {
     case "hour":
       return `${ym} ・ 当日レーン`;
@@ -79,27 +81,19 @@ function rangeLabel(mode: ViewMode, today: Date): string {
   }
 }
 
-function toLocalDateInput(date: Date): string {
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
 export function TimelineWorkspace({
   initialEvents,
-  todayIso,
+  todayKey,
   openTasksCount,
   blockersCount,
   weekRevenue,
 }: {
   initialEvents: SerializableTimelineEvent[];
-  todayIso: string;
+  todayKey: string;
   openTasksCount: number;
   blockersCount: number;
   weekRevenue: number;
 }) {
-  const today = useMemo(() => startOfDay(new Date(todayIso)), [todayIso]);
   const [mode, setMode] = useState<ViewMode>("week");
   const [customEvents, setCustomEvents] = useState<SerializableTimelineEvent[]>(
     [],
@@ -109,16 +103,14 @@ export function TimelineWorkspace({
   const [draftSub, setDraftSub] = useState("");
   const [draftLane, setDraftLane] = useState<LaneKey>("agent");
   const [draftTone, setDraftTone] = useState<TimelineEventTone>("slate");
-  const [draftDate, setDraftDate] = useState<string>(toLocalDateInput(today));
+  const [draftDate, setDraftDate] = useState<string>(todayKey);
 
-  const days = useMemo(() => rangeFor(mode, today), [mode, today]);
+  const dateKeys = useMemo(() => rangeFor(mode, todayKey), [mode, todayKey]);
 
-  const events: TimelineEvent[] = useMemo(() => {
-    const merged = [...initialEvents, ...customEvents];
-    return merged
-      .map((e) => ({ ...e, date: new Date(e.dateIso) }))
-      .filter((e) => !Number.isNaN(e.date.getTime()));
-  }, [initialEvents, customEvents]);
+  const events: TimelineGridEvent[] = useMemo(
+    () => [...initialEvents, ...customEvents],
+    [initialEvents, customEvents],
+  );
 
   const closeDialog = () => {
     setDialogOpen(false);
@@ -126,21 +118,19 @@ export function TimelineWorkspace({
     setDraftSub("");
     setDraftLane("agent");
     setDraftTone("slate");
-    setDraftDate(toLocalDateInput(today));
+    setDraftDate(todayKey);
   };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const title = draftTitle.trim();
     if (!title) return;
-    const [y, m, d] = draftDate.split("-").map(Number);
-    const date = new Date(y, (m ?? 1) - 1, d ?? 1);
     setCustomEvents((prev) => [
       ...prev,
       {
         id: `custom-${Date.now()}`,
         lane: draftLane,
-        dateIso: date.toISOString(),
+        dateKey: draftDate,
         title,
         sub: draftSub.trim() || "ユーザー追加",
         tone: draftTone,
@@ -165,7 +155,7 @@ export function TimelineWorkspace({
                 レーンごとにAI実行、ToDo、ファイル更新、収支イベントを並べて、今日の前後を確認します。
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center lg:shrink-0">
               <div
                 role="tablist"
                 aria-label="表示範囲"
@@ -180,7 +170,7 @@ export function TimelineWorkspace({
                       role="tab"
                       aria-selected={active}
                       onClick={() => setMode(vm.key)}
-                      className={`px-3 py-2 transition-colors ${
+                      className={`flex-1 px-3 py-2 transition-colors sm:flex-none ${
                         active
                           ? "bg-[#312d27] text-white"
                           : "text-[#70675b] hover:bg-[#f1ede4]"
@@ -194,10 +184,10 @@ export function TimelineWorkspace({
               <button
                 type="button"
                 onClick={() => {
-                  setDraftDate(toLocalDateInput(today));
+                  setDraftDate(todayKey);
                   setDialogOpen(true);
                 }}
-                className="inline-flex h-10 items-center gap-2 rounded-md border border-[#423c33]/55 bg-[#fbfaf5] px-3 text-sm font-bold text-[#312d27] hover:bg-[#f1ede4]"
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#423c33]/55 bg-[#fbfaf5] px-3 text-sm font-bold text-[#312d27] hover:bg-[#f1ede4] sm:w-auto"
               >
                 <CalendarPlus className="h-4 w-4" aria-hidden />
                 予定を追加
@@ -226,13 +216,17 @@ export function TimelineWorkspace({
 
       <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle>{rangeLabel(mode, today)}</CardTitle>
+          <CardTitle>{rangeLabel(mode, todayKey)}</CardTitle>
           <span className="text-xs text-[#81786d]">
             {events.length} events / {timelineLaneCount} lanes
           </span>
         </CardHeader>
         <CardContent className="p-0">
-          <TimelineGrid days={days} today={today} events={events} />
+          <TimelineGrid
+            dateKeys={dateKeys}
+            todayKey={todayKey}
+            events={events}
+          />
         </CardContent>
       </Card>
 
@@ -251,7 +245,7 @@ export function TimelineWorkspace({
                 <div>
                   <p className="font-bold text-[#312d27]">{event.title}</p>
                   <p className="text-xs text-[#81786d]">
-                    {new Date(event.dateIso).toLocaleDateString("ja-JP")} ・ {event.sub}
+                    {event.dateKey} ・ {event.sub}
                   </p>
                 </div>
                 <button

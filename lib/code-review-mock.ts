@@ -1,4 +1,5 @@
 import type {
+  AgentRunbook,
   AgentWorktree,
   BranchWorkstream,
   NoCodeDevRequest,
@@ -101,6 +102,127 @@ export const reviewSystem = {
       body: "PMがブラウザ上で承認、追加指示、保留を判断し、PR経由でmainへ入れる。",
     },
   ],
+  agentRunbook: {
+    id: "four-agent-runbook",
+    title: "4エージェント運用プロンプト / 実行ブロック",
+    summary:
+      "PMがブラウザでAI開発を管制し、実装、レビュー、PR判定を分担させるためのコピー用runbook。",
+    agents: [
+      {
+        id: "agent-pm-control",
+        name: "PM管制エージェント",
+        layer: "L1",
+        hierarchy: "PM直下 / 全体統括",
+        reportsTo: "PM",
+        purpose: [
+          "依頼を1つの作業ブランチ単位に分解する",
+          "実装、レビュー、判定エージェントの入力と完了条件を揃える",
+        ],
+        responsibilityScope: [
+          "依頼文、対象画面、編集範囲、最新origin/mainの確認",
+          "エージェント間の担当重複、未着手領域、PR依存関係の整理",
+        ],
+        implementationArtifacts: [
+          "担当割り当て",
+          "各エージェントに渡す実行プロンプト",
+          "PM向けの進捗と判断材料",
+        ],
+        verification: [
+          "baseが最新origin/mainに追従していること",
+          "作業ツリーが既存変更と混ざっていないこと",
+        ],
+        pullRequestConditions: [
+          "PR本文に概要、変更範囲、検証、残リスクを記載する",
+          "Crucial / High相当の未解決リスクを残さない",
+        ],
+      },
+      {
+        id: "agent-implementation",
+        name: "実装エージェント",
+        layer: "L2",
+        hierarchy: "機能実装 / UI反映",
+        reportsTo: "PM管制エージェント",
+        purpose: [
+          "指定された編集範囲だけでユーザー価値のある差分を作る",
+          "既存UI、型、テストの流儀に合わせて小さく実装する",
+        ],
+        responsibilityScope: [
+          "対象コンポーネント、モックデータ、型定義、必要なテスト",
+          "不要な抽象化や無関係なリファクタを避けた差分作成",
+        ],
+        implementationArtifacts: [
+          "動作するUI差分",
+          "更新されたモックデータと型",
+          "変更理由が分かるPR本文用メモ",
+        ],
+        verification: [
+          "npm run lint",
+          "npm test",
+          "可能ならnpm run build",
+        ],
+        pullRequestConditions: [
+          "担当範囲外のファイルを混ぜない",
+          "検証結果と未実施理由をPR本文に残す",
+        ],
+      },
+      {
+        id: "agent-review",
+        name: "レビューエージェント",
+        layer: "L2",
+        hierarchy: "品質レビュー / マージ阻害抽出",
+        reportsTo: "PM管制エージェント",
+        purpose: [
+          "PR差分からマージ可否に直結するリスクを抽出する",
+          "Crucial / High / Medium / LowでPM判断を揃える",
+        ],
+        responsibilityScope: [
+          "差分、テスト結果、UI表示、データshapeの整合性",
+          "仕様逸脱、回帰、未検証領域、PR本文の不足",
+        ],
+        implementationArtifacts: [
+          "優先度付きレビュー指摘",
+          "マージ前必須対応と後続Issue候補の分離",
+          "PM向けの残リスク要約",
+        ],
+        verification: [
+          "Crucial / Highが再現可能な根拠を持つこと",
+          "Medium以下はPMが受容判断できる粒度にすること",
+        ],
+        pullRequestConditions: [
+          "Crucial / Highがopenならマージ不可にする",
+          "受容リスクは理由と後続対応先を明記する",
+        ],
+      },
+      {
+        id: "agent-merge-gate",
+        name: "マージ判定エージェント",
+        layer: "L3",
+        hierarchy: "PR統合判定 / 最終ゲート",
+        reportsTo: "PM",
+        purpose: [
+          "PRをmainへ入れてよいかをPMが即決できる状態にする",
+          "CI、draft状態、mergeability、残リスクを1つの結論にまとめる",
+        ],
+        responsibilityScope: [
+          "PR本文、CI結果、レビュー指摘、base/head、mergeStateStatus",
+          "リリース順序、依存PR、保留すべき未解決事項",
+        ],
+        implementationArtifacts: [
+          "マージ可否レポート",
+          "PR本文の検証チェック更新",
+          "PMへの最終判断メモ",
+        ],
+        verification: [
+          "gh pr view --json isDraft,mergeable,mergeStateStatus,baseRefName,headRefName",
+          "isDraft=falseとbaseRefName=mainを確認する",
+        ],
+        pullRequestConditions: [
+          "mergeableとmergeStateStatusをPR本文に記録する",
+          "残リスクがPM判断で受容可能な状態になっている",
+        ],
+      },
+    ],
+  } satisfies AgentRunbook,
   agentWorktrees: [
     {
       id: "wt-no-code-board",

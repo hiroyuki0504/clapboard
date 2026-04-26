@@ -10,7 +10,7 @@ import {
   getProjectRevenueTotal,
 } from "@/lib/project-selectors";
 import { buildTimelineEvents } from "@/lib/timeline-events";
-import { startOfDay } from "@/lib/utils";
+import { toAppDateKey } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ export default async function TimelinePage() {
   }
 
   const projects = projectsResult.data;
-  const today = startOfDay(new Date());
+  const today = new Date();
   const allTasks = getAllProjectTasks(projects);
   const openTasks = getOpenTasks(allTasks);
   const blockers = getHighPriorityOpenTasks(allTasks);
@@ -31,7 +31,7 @@ export default async function TimelinePage() {
   const initialEvents: SerializableTimelineEvent[] = events.map((event) => ({
     id: event.id,
     lane: event.lane,
-    dateIso: event.date.toISOString(),
+    dateKey: toAppDateKey(event.date),
     title: event.title,
     sub: event.sub,
     tone: event.tone,
@@ -41,7 +41,7 @@ export default async function TimelinePage() {
   return (
     <TimelineWorkspace
       initialEvents={initialEvents}
-      todayIso={today.toISOString()}
+      todayKey={toAppDateKey(today)}
       openTasksCount={openTasks.length}
       blockersCount={blockers.length}
       weekRevenue={weekRevenue}

@@ -185,13 +185,34 @@ export function formatDayNumber(value: Date) {
   return new Intl.DateTimeFormat("ja-JP", {
     day: "2-digit",
     month: "2-digit",
+    timeZone: APP_TIME_ZONE,
   }).format(value);
 }
 
 export function formatWeekday(value: Date) {
   return new Intl.DateTimeFormat("ja-JP", {
     weekday: "short",
+    timeZone: APP_TIME_ZONE,
   }).format(value);
+}
+
+const APP_DATE_KEY_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: APP_TIME_ZONE,
+});
+
+export function toAppDateKey(value: Date): string {
+  return APP_DATE_KEY_FORMATTER.format(value);
+}
+
+export function parseAppDateKey(key: string): Date {
+  return new Date(`${key}T00:00:00+09:00`);
+}
+
+export function addAppDays(key: string, days: number): string {
+  return toAppDateKey(addDays(parseAppDateKey(key), days));
 }
 
 export function formatLogTime(value: string | undefined) {

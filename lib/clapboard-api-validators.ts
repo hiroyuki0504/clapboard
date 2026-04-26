@@ -1,4 +1,6 @@
 import type {
+  AgentRunbook,
+  AgentRunbookAgent,
   AgentWorktree,
   BranchWorkstream,
   CodexReviewComment,
@@ -49,6 +51,7 @@ const NO_CODE_REQUEST_STATUSES = new Set([
   "building",
   "ready",
 ]);
+const AGENT_RUNBOOK_LAYERS = new Set(["L1", "L2", "L3"]);
 const BRANCH_STATUSES = new Set([
   "design",
   "implementing",
@@ -255,6 +258,47 @@ function isNoCodeDevRequestShape(value: unknown): value is NoCodeDevRequest {
   );
 }
 
+function isStringListShape(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((item) => typeof item === "string" && item.trim().length > 0)
+  );
+}
+
+function isAgentRunbookAgentShape(
+  value: unknown,
+): value is AgentRunbookAgent {
+  if (!isObject(value)) return false;
+  const c = value as Partial<AgentRunbookAgent>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.name === "string" &&
+    typeof c.layer === "string" &&
+    AGENT_RUNBOOK_LAYERS.has(c.layer) &&
+    typeof c.hierarchy === "string" &&
+    typeof c.reportsTo === "string" &&
+    isStringListShape(c.purpose) &&
+    isStringListShape(c.responsibilityScope) &&
+    isStringListShape(c.implementationArtifacts) &&
+    isStringListShape(c.verification) &&
+    isStringListShape(c.pullRequestConditions)
+  );
+}
+
+function isAgentRunbookShape(value: unknown): value is AgentRunbook {
+  if (!isObject(value)) return false;
+  const c = value as Partial<AgentRunbook>;
+  return (
+    typeof c.id === "string" &&
+    typeof c.title === "string" &&
+    typeof c.summary === "string" &&
+    Array.isArray(c.agents) &&
+    c.agents.length === 4 &&
+    c.agents.every(isAgentRunbookAgentShape)
+  );
+}
+
 function isPriorityLevelShape(value: unknown): value is ReviewPriorityLevel {
   if (!isObject(value)) return false;
   const c = value as Partial<ReviewPriorityLevel>;
@@ -301,6 +345,7 @@ export function isCodeReviewShape(value: unknown): value is CodeReviewSystem {
     typeof c.mainBranch === "string" &&
     typeof c.pmOwner === "string" &&
     typeof c.reviewModel === "string" &&
+    isAgentRunbookShape(c.agentRunbook) &&
     Array.isArray(c.agentWorktrees) &&
     c.agentWorktrees.every(isAgentWorktreeShape) &&
     Array.isArray(c.noCodeRequests) &&
