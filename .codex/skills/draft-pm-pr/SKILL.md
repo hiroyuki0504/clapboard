@@ -1,13 +1,13 @@
 ---
 name: draft-pm-pr
-description: "ClawBoardのPM判断に必要なPR本文を作成する。Use when drafting or reviewing a pull request body for this repository, especially when it must include summary, Web worktree context, changed scope, verification, PM decision points, and Codex review results."
+description: "clapboardのPM判断に必要なPR本文を作成する。Use when drafting or reviewing a pull request body for this repository, especially when it must include summary, Web worktree context, changed scope, verification, PM decision points, and Codex review results."
 ---
 
 # PM向けPR本文作成
 
 ## 概要
 
-ClawBoard の PR ルールと `docs/pm-codex-review-system.md` のテンプレートを skill 化したもの。PM が main 取り込みを判断できる PR 本文に整える。
+clapboard の PR ルールと `docs/pm-codex-review-system.md` のテンプレートを skill 化したもの。PM が main 取り込みを判断できる PR 本文に整える。
 
 ## 手順
 

@@ -1,13 +1,13 @@
 ---
 name: review-pr-before-merge
-description: "ClawBoardのmainマージ前PRレビューを行う。Use when Codex must review a branch, PR diff, or uncommitted changes before PM approval, using Crucial, High Priority, Medium, and Low priorities while focusing on regressions, security, data loss, broken flows, and missing tests."
+description: "clapboardのmainマージ前PRレビューを行う。Use when Codex must review a branch, PR diff, or uncommitted changes before PM approval, using Crucial, High Priority, Medium, and Low priorities while focusing on regressions, security, data loss, broken flows, and missing tests."
 ---
 
 # PR事前レビュー
 
 ## 概要
 
-ClawBoard の `scripts/codex-pr-review.sh` で使っている main マージ前レビュー用プロンプトを skill 化したもの。PM がマージ判断に使えるように、指摘は優先度、場所、理由、修正方針まで揃える。
+clapboard の `scripts/codex-pr-review.sh` で使っている main マージ前レビュー用プロンプトを skill 化したもの。PM がマージ判断に使えるように、指摘は優先度、場所、理由、修正方針まで揃える。
 
 ## 入力
 

@@ -1,6 +1,6 @@
 ---
 name: check-related-files
-description: "ClawBoardの依頼に関連するファイルを確認順付きで整理する。Use when the user asks to inspect related files, identify affected routes, find source files for a feature, or gather implementation context before coding."
+description: "clapboardの依頼に関連するファイルを確認順付きで整理する。Use when the user asks to inspect related files, identify affected routes, find source files for a feature, or gather implementation context before coding."
 ---
 
 # 関連ファイル確認

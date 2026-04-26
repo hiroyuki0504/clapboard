@@ -1,6 +1,6 @@
 ---
 name: extract-blockers
-description: "ClawBoardの進捗データから新着ブロッカーを抽出する。Use when the user asks to find blockers, stalled high priority tasks, missing assignees, missing due dates, unresolved decisions, risky PRs, or next actions across projects."
+description: "clapboardの進捗データから新着ブロッカーを抽出する。Use when the user asks to find blockers, stalled high priority tasks, missing assignees, missing due dates, unresolved decisions, risky PRs, or next actions across projects."
 ---
 
 # ブロッカー抽出
