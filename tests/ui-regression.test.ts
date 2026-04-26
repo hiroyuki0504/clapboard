@@ -125,6 +125,26 @@ test("ProjectDetailTabs keeps URL query tab synchronization", () => {
   assert.match(tabButtonSource, /whitespace-nowrap/);
 });
 
+test("Dashboard stat pills link to actionable views", () => {
+  const { StatPills } = requireFromOutput(
+    "../components/dashboard/stat-pills",
+  ) as typeof import("../components/dashboard/stat-pills");
+
+  const markup = renderToStaticMarkup(
+    React.createElement(StatPills, {
+      activeCount: 3,
+      averageProgress: 64,
+      completedCount: 8,
+      blockerCount: 2,
+    }),
+  );
+
+  assert.match(markup, /href="\/projects"/);
+  assert.match(markup, /href="\/projects\?sort=progress"/);
+  assert.match(markup, /href="\/tasks"/);
+  assert.match(markup, /href="\/projects\?sort=blockers"/);
+});
+
 test("TimelineGrid exposes delete controls for calendar events", () => {
   const { TimelineGrid } = requireFromOutput(
     "../components/timeline/timeline-grid",
