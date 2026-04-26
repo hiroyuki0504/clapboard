@@ -159,20 +159,18 @@ export function TodoSection({ tasks }: { tasks: TodoTask[] }) {
             <div
               key={key}
               className={cn(
-                "grid grid-cols-[24px_1fr] items-start gap-3 border-b border-dashed border-[#d8d1c4] px-4 py-4 transition last:border-b-0 sm:grid-cols-[24px_1fr_auto]",
+                "grid grid-cols-[36px_minmax(0,1fr)] items-start gap-3 border-b border-dashed border-[#d8d1c4] px-4 py-4 transition last:border-b-0 sm:grid-cols-[36px_minmax(0,1fr)_auto]",
                 isSelected ? "bg-[#f3f0e7]" : "hover:bg-[#fbfaf5]",
               )}
             >
-              <label
-                className="mt-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
+              <button
+                type="button"
+                role="checkbox"
+                aria-checked={isSelected}
                 aria-label={`${task.title}を選択`}
+                className="mt-0.5 flex h-9 w-9 -translate-x-1 items-center justify-center rounded-md transition hover:bg-[#eee8dc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f8678]"
+                onClick={() => toggleTaskSelection(task)}
               >
-                <input
-                  type="checkbox"
-                  className="sr-only"
-                  checked={isSelected}
-                  onChange={() => toggleTaskSelection(task)}
-                />
                 <span
                   className={cn(
                     "flex h-4 w-4 items-center justify-center rounded-sm border transition",
@@ -182,7 +180,7 @@ export function TodoSection({ tasks }: { tasks: TodoTask[] }) {
                 >
                   {isSelected && <Check className="h-3 w-3" aria-hidden />}
                 </span>
-              </label>
+              </button>
               <Link href={taskHref} className="min-w-0">
                 <p className="truncate text-sm font-semibold text-[#312d27]">
                   {task.title}

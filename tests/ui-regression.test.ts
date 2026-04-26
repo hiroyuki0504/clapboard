@@ -178,7 +178,9 @@ test("TodoSection exposes selectable task actions", () => {
     "utf8",
   );
 
-  assert.match(todoSectionSource, /type="checkbox"/);
+  assert.match(todoSectionSource, /role="checkbox"/);
+  assert.match(todoSectionSource, /aria-checked=\{isSelected\}/);
+  assert.doesNotMatch(todoSectionSource, /type="checkbox"/);
   assert.match(todoSectionSource, /selected \{selectedCount\}/);
   assert.match(todoSectionSource, /処理済み/);
   assert.match(todoSectionSource, /今日から外す/);
