@@ -1,6 +1,5 @@
 import { AlertTriangle, ArrowRight, GitPullRequest } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { projectDetailHref } from "@/lib/project-href";
 import type { ProjectPrioritySignal } from "@/lib/project-selectors";
@@ -8,12 +7,10 @@ import type { ProjectPrioritySignal } from "@/lib/project-selectors";
 export function CommandHeader({
   dateLabel,
   blockerCount,
-  connected,
   prioritySignal,
 }: {
   dateLabel: string;
   blockerCount: number;
-  connected: boolean;
   prioritySignal?: ProjectPrioritySignal;
 }) {
   return (
@@ -56,9 +53,6 @@ export function CommandHeader({
           )}
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Badge tone={connected ? "green" : "amber"}>
-            {connected ? "Backend API" : "Local API"}
-          </Badge>
           <ButtonLink href="/code-review">
             レビュー管制
             <GitPullRequest className="h-4 w-4" aria-hidden />

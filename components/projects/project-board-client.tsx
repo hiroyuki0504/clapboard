@@ -21,13 +21,7 @@ import {
 import type { Project } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function ProjectBoardClient({
-  projects,
-  dataSourceLabel,
-}: {
-  projects: Project[];
-  dataSourceLabel: string;
-}) {
+export function ProjectBoardClient({ projects }: { projects: Project[] }) {
   const [settings, setSettings] =
     useState<BoardSettings>(defaultBoardSettings);
   const { filter, keyword, sortKey, density, showRisk } = settings;
@@ -184,7 +178,7 @@ export function ProjectBoardClient({
                 : `${statusMeta[filter].label}のワークストリーム`}
             </CardTitle>
             <p className="mt-1 text-sm text-[#81786d]">
-              {visible.length}件の{dataSourceLabel}データを表示しています。
+              {visible.length}件のワークストリームを表示しています。
               {visible.length === 0 && " 条件に合うワークはありません。"}
             </p>
           </div>

@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { ProjectBoardClient } from "@/components/projects/project-board-client";
 import { getProjects } from "@/lib/clapboard-api";
 
@@ -27,15 +26,9 @@ export default async function ProjectsPage() {
             行の「開く」から詳細画面に移動できます。
           </p>
         </div>
-        <Badge tone={projectsResult.connected ? "green" : "amber"}>
-          {projectsResult.connected ? "Backend API" : "Local API"}
-        </Badge>
       </section>
 
-      <ProjectBoardClient
-        projects={projects}
-        dataSourceLabel={projectsResult.connected ? "API連携" : "ローカルAPI"}
-      />
+      <ProjectBoardClient projects={projects} />
     </div>
   );
 }

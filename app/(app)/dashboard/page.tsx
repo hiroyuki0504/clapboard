@@ -61,7 +61,6 @@ export default async function DashboardPage() {
         <CommandHeader
           dateLabel={dateLabel}
           blockerCount={blockerTasks.length}
-          connected={projectsResult.connected}
           prioritySignal={prioritySignal}
         />
         <StatPills
