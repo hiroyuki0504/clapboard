@@ -23,6 +23,7 @@ import {
   getLatestTaskProjectDate,
   getNextMilestoneDate,
   getOpenTasks,
+  getTopProjectPrioritySignal,
   getRecentlyUpdatedProjects,
 } from "@/lib/project-selectors";
 import { buildDateLabel } from "@/lib/utils";
@@ -45,10 +46,12 @@ export default async function DashboardPage() {
   const completedTasks = getCompletedTasks(allTasks);
   const averageProgress = getAverageProgress(projectList);
   const recentWorkstreams = getRecentlyUpdatedProjects(projectList);
+  const now = new Date();
+  const prioritySignal = getTopProjectPrioritySignal(projectList, now);
   const milestoneCount = activeWorkstreams.filter((project) =>
     Boolean(project.dueDate),
   ).length;
-  const dateLabel = buildDateLabel(new Date());
+  const dateLabel = buildDateLabel(now);
 
   return (
     <div className="space-y-4">
@@ -59,6 +62,7 @@ export default async function DashboardPage() {
           dateLabel={dateLabel}
           blockerCount={blockerTasks.length}
           connected={projectsResult.connected}
+          prioritySignal={prioritySignal}
         />
         <StatPills
           activeCount={activeWorkstreams.length}

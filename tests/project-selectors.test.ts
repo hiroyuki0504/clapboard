@@ -10,6 +10,8 @@ import {
   getNextMilestoneDate,
   getOpenTaskCount,
   getOpenTasks,
+  getProjectPrioritySignals,
+  getTopProjectPrioritySignal,
   getProjectBudgetBalance,
   getTaskCompletion,
 } from "../lib/project-selectors";
@@ -151,6 +153,124 @@ test("getNextMilestoneDate returns the earliest valid due date and skips invalid
 
   assert.equal(getNextMilestoneDate(projects), "2026-05-15");
   assert.equal(getNextMilestoneDate([]), undefined);
+});
+
+test("getProjectPrioritySignals ranks due dates and open task risks", () => {
+  const now = new Date("2026-04-26T10:00:00+09:00");
+  const projects: Project[] = [
+    makeProject({
+      id: "review",
+      name: "レビュー案件",
+      status: "review",
+      dueDate: "2026-05-10",
+    }),
+    makeProject({
+      id: "overdue",
+      name: "期限超過案件",
+      dueDate: "2026-04-25",
+      tasks: [
+        {
+          id: "t1",
+          title: "仕様を再合意",
+          completed: false,
+          priority: "high",
+          note: "",
+        },
+      ],
+    }),
+    makeProject({
+      id: "healthy",
+      name: "正常案件",
+      dueDate: "2026-07-01",
+      tasks: [
+        {
+          id: "t2",
+          title: "完了済み",
+          completed: true,
+          priority: "high",
+          note: "",
+        },
+      ],
+    }),
+  ];
+
+  const signals = getProjectPrioritySignals(projects, now);
+
+  assert.equal(signals[0].projectId, "overdue");
+  assert.equal(signals[0].dueInDays, -1);
+  assert.equal(signals[0].actionLabel, "「仕様を再合意」を確認");
+  assert.deepEqual(signals[0].reasonTypes, [
+    "overdue",
+    "high-open-tasks",
+    "open-tasks",
+  ]);
+  assert.deepEqual(
+    signals.map((signal) => signal.projectId),
+    ["overdue", "review"],
+  );
+});
+
+test("getProjectPrioritySignals treats due soon as an inclusive 7 day boundary", () => {
+  const now = new Date("2026-04-26T23:30:00+09:00");
+  const projects: Project[] = [
+    makeProject({ id: "seven-days", dueDate: "2026-05-03" }),
+    makeProject({ id: "eight-days", dueDate: "2026-05-04" }),
+    makeProject({ id: "invalid", dueDate: "not-a-date" }),
+  ];
+
+  const signals = getProjectPrioritySignals(projects, now);
+
+  assert.equal(signals.length, 1);
+  assert.equal(signals[0].projectId, "seven-days");
+  assert.equal(signals[0].dueInDays, 7);
+  assert.deepEqual(signals[0].reasonTypes, ["due-soon"]);
+});
+
+test("getProjectPrioritySignals reports budget risk thresholds", () => {
+  const now = new Date("2026-04-26T10:00:00+09:00");
+  const projects: Project[] = [
+    makeProject({ id: "negative", revenue: 100, cost: 120 }),
+    makeProject({ id: "unbilled", revenue: 0, cost: 10 }),
+    makeProject({ id: "tight", revenue: 100, cost: 85 }),
+    makeProject({ id: "healthy", revenue: 100, cost: 84 }),
+  ];
+
+  const signals = getProjectPrioritySignals(projects, now);
+
+  assert.deepEqual(
+    signals.map((signal) => [signal.projectId, signal.reasonTypes[0]]),
+    [
+      ["negative", "budget-negative"],
+      ["unbilled", "budget-unbilled"],
+      ["tight", "budget-tight"],
+    ],
+  );
+  assert.equal(signals[0].targetTab, "finance");
+  assert.equal(
+    signals.some((signal) => signal.projectId === "healthy"),
+    false,
+  );
+});
+
+test("getTopProjectPrioritySignal skips completed projects", () => {
+  const now = new Date("2026-04-26T10:00:00+09:00");
+  const projects: Project[] = [
+    makeProject({
+      id: "completed",
+      status: "completed",
+      dueDate: "2026-04-20",
+    }),
+    makeProject({
+      id: "active",
+      dueDate: "2026-04-26",
+    }),
+  ];
+
+  const topSignal = getTopProjectPrioritySignal(projects, now);
+
+  assert.equal(topSignal?.projectId, "active");
+  assert.equal(topSignal?.actionLabel, "本日期限の完了条件を確認");
+  assert.equal(getTopProjectPrioritySignal([], now), undefined);
 });
 
 test("projectDetailHref omits the tab query for overview", () => {
