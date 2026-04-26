@@ -1,6 +1,6 @@
 # Web Worktree / No-Code AI Development Operations
 
-このドキュメントは、ClawBoardを「ターミナルを開かないAI開発管制」として運用するための詳細ルールです。従来のPRレビュー補助ではなく、自然言語やGitHub IssueをWebワークツリーに変換し、AIエージェントの作業、プレビュー、PR、レビュー判断をPMがブラウザで扱うことを前提にします。
+このドキュメントは、clapboardを「ターミナルを開かないAI開発管制」として運用するための詳細ルールです。従来のPRレビュー補助ではなく、自然言語やGitHub IssueをWebワークツリーに変換し、AIエージェントの作業、プレビュー、PR、レビュー判断をPMがブラウザで扱うことを前提にします。
 
 ## 目的
 
@@ -27,7 +27,7 @@
 | Webワークツリー | 依頼に対応する作業ブランチ、状態、プレビュー、PR下書き、次アクションを追跡する。 |
 | Codex runner | ChatGPT/OAuthログイン済みのCodex CLIで実装・レビュー・検証を実行する。 |
 | PMゲート | プレビュー、Codexレビュー、CI結果、残リスクを見て承認、追加指示、保留を判断する。 |
-| GitHub同期 | Issue、Branch、PR、Reviewを外部データとして取り込み、ClawBoardに表示する。 |
+| GitHub同期 | Issue、Branch、PR、Reviewを外部データとして取り込み、clapboardに表示する。 |
 
 ## ブランチ / ワークツリールール
 

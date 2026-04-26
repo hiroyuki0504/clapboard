@@ -20,7 +20,7 @@ const toneClass: Record<BadgeTone, string> = {
 const shapeClass: Record<BadgeShape, string> = {
   default: "px-2.5 py-1 text-xs leading-none",
   vertical:
-    "w-11 justify-center text-center px-1.5 py-2.5 text-[12px] leading-[1.3]",
+    "min-w-14 justify-center text-center px-3 py-2.5 text-[12px] leading-none",
 };
 
 export function Badge({
