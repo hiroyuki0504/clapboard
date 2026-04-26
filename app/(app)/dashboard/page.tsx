@@ -58,7 +58,6 @@ export default async function DashboardPage() {
         <CommandHeader
           dateLabel={dateLabel}
           blockerCount={blockerTasks.length}
-          connected={projectsResult.connected}
         />
         <StatPills
           activeCount={activeWorkstreams.length}

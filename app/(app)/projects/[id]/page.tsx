@@ -139,7 +139,7 @@ export default async function ProjectDetailPage({
             </li>
             <li className="flex gap-2">
               <span aria-hidden>•</span>
-              <span>進捗データは {projectResult.connected ? "Backend API" : "Local API"} 経由で取得しています。</span>
+              <span>進捗データをこの画面に表示しています。</span>
             </li>
           </ul>
         </Card>

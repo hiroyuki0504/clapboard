@@ -1,15 +1,12 @@
 import { ArrowRight, GitPullRequest } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 
 export function CommandHeader({
   dateLabel,
   blockerCount,
-  connected,
 }: {
   dateLabel: string;
   blockerCount: number;
-  connected: boolean;
 }) {
   return (
     <div className="rounded-lg border border-[#423c33]/55 bg-[#fffefa] p-5">
@@ -26,9 +23,6 @@ export function CommandHeader({
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Badge tone={connected ? "green" : "amber"}>
-            {connected ? "Backend API" : "Local API"}
-          </Badge>
           <ButtonLink href="/code-review">
             レビュー管制
             <GitPullRequest className="h-4 w-4" aria-hidden />
