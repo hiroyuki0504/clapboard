@@ -93,7 +93,11 @@ export type NoCodeDevRequest = {
   source: string;
   targetRepository: string;
   status: NoCodeRequestStatus;
+  scope: string;
   expectedOutcome: string;
+  excludedScope: string;
+  recommendedBranch: string;
+  verificationCommands: string[];
   agentPrompt: string;
 };
 

@@ -250,7 +250,12 @@ function isNoCodeDevRequestShape(value: unknown): value is NoCodeDevRequest {
     typeof c.targetRepository === "string" &&
     typeof c.status === "string" &&
     NO_CODE_REQUEST_STATUSES.has(c.status) &&
+    typeof c.scope === "string" &&
     typeof c.expectedOutcome === "string" &&
+    typeof c.excludedScope === "string" &&
+    typeof c.recommendedBranch === "string" &&
+    Array.isArray(c.verificationCommands) &&
+    c.verificationCommands.every((command) => typeof command === "string") &&
     typeof c.agentPrompt === "string"
   );
 }
