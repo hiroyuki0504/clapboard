@@ -21,10 +21,6 @@ export const priorityMeta: Record<
   low: { label: "低", tone: "blue" },
 };
 
-function splitEveryTwoChars(label: string): string[] {
-  return Array.from(label.match(/.{1,2}/gu) ?? [label]);
-}
-
 export function ProjectStatusBadge({
   status,
   shape = "default",
@@ -33,18 +29,6 @@ export function ProjectStatusBadge({
   shape?: BadgeShape;
 }) {
   const meta = statusMeta[status];
-  if (shape === "vertical") {
-    return (
-      <Badge tone={meta.tone} shape="vertical">
-        <span className="sr-only">{meta.label}</span>
-        {splitEveryTwoChars(meta.label).map((line, index) => (
-          <span key={index} className="block" aria-hidden>
-            {line}
-          </span>
-        ))}
-      </Badge>
-    );
-  }
   return (
     <Badge tone={meta.tone} shape={shape}>
       {meta.label}
