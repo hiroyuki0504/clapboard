@@ -15,12 +15,14 @@ const execFileAsync = promisify(execFile);
 const FIELD = "\u001f";
 const RECORD = "\u001e";
 const COMMIT_FORMAT = `%H%x1f%h%x1f%P%x1f%ad%x1f%s%x1e`;
-const REF_FORMAT = `%(refname:short)%1f%(objectname)%1f%(objectname:short)%1f%(committerdate:iso8601-strict)%1f%(contents:subject)%1e`;
+const REF_FORMAT = `%(refname)%1f%(refname:short)%1f%(objectname)%1f%(objectname:short)%1f%(committerdate:iso8601-strict)%1f%(contents:subject)%1e`;
 const MAX_MAIN_COMMITS = 14;
 const MAX_BRANCH_COMMITS = 6;
 
-type LocalBranch = {
+type BranchRef = {
   name: string;
+  refName: string;
+  shortRefName: string;
   head: string;
   shortHead: string;
   date: string | null;
@@ -61,26 +63,93 @@ function parseCommits(output: string): GitTreeCommit[] {
     .filter((commit): commit is GitTreeCommit => commit !== null);
 }
 
-function parseLocalBranches(output: string): LocalBranch[] {
+function makeBranchName(refName: string, shortRefName: string) {
+  if (refName.startsWith("refs/heads/")) return shortRefName;
+  if (!refName.startsWith("refs/remotes/")) return shortRefName;
+
+  const segments = refName.split("/");
+  const remoteName = segments[2];
+  const branchName = segments.slice(3).join("/");
+  if (!remoteName || !branchName || branchName === "HEAD") return null;
+  return remoteName === "origin" ? branchName : `${remoteName}/${branchName}`;
+}
+
+function parseBranchRefs(output: string): BranchRef[] {
   return splitRecords(output)
     .map((record) => {
-      const [name, head, shortHead, date, subject] = record.split(FIELD);
-      if (!name || !head || !shortHead) return null;
+      const [refName, shortRefName, head, shortHead, date, subject] =
+        record.split(FIELD);
+      if (!refName || !shortRefName || !head || !shortHead) return null;
+      if (refName.endsWith("/HEAD")) return null;
+      const name = makeBranchName(refName, shortRefName);
+      if (!name) return null;
       return {
         name,
+        refName,
+        shortRefName,
         head,
         shortHead,
         date: date || null,
         subject: subject || "(no subject)",
       };
     })
-    .filter((branch): branch is LocalBranch => branch !== null);
+    .filter((branch): branch is BranchRef => branch !== null);
 }
 
-function pickMainBranch(branches: LocalBranch[], currentBranch: string) {
+function pickMainBranch(branches: BranchRef[], currentBranch: string) {
   if (branches.some((branch) => branch.name === "main")) return "main";
   if (branches.some((branch) => branch.name === "master")) return "master";
   return currentBranch || branches[0]?.name || "main";
+}
+
+function pickBranchRef(
+  branches: BranchRef[],
+  mainBranch: string,
+  currentBranch: string,
+  headHash: string,
+) {
+  return branches.sort((a, b) => {
+    const priority = (branch: BranchRef) => {
+      if (branch.head === headHash) return -1;
+      if (branch.name === mainBranch) {
+        if (branch.shortRefName === `origin/${mainBranch}`) return 0;
+        if (branch.refName === `refs/heads/${mainBranch}`) return 1;
+      }
+      if (
+        branch.name === currentBranch &&
+        branch.refName.startsWith("refs/heads/")
+      ) {
+        return 0;
+      }
+      if (branch.shortRefName === `origin/${branch.name}`) return 1;
+      if (branch.refName.startsWith("refs/heads/")) return 2;
+      return 3;
+    };
+    return priority(a) - priority(b);
+  })[0];
+}
+
+function dedupeBranchRefs({
+  branchRefs,
+  currentBranch,
+  headHash,
+  mainBranch,
+}: {
+  branchRefs: BranchRef[];
+  currentBranch: string;
+  headHash: string;
+  mainBranch: string;
+}) {
+  const byName = new Map<string, BranchRef[]>();
+  for (const branch of branchRefs) {
+    byName.set(branch.name, [...(byName.get(branch.name) ?? []), branch]);
+  }
+
+  return Array.from(byName.values())
+    .map((branches) =>
+      pickBranchRef(branches, mainBranch, currentBranch, headHash),
+    )
+    .filter((branch): branch is BranchRef => branch !== undefined);
 }
 
 function makeShortBranchName(name: string) {
@@ -91,7 +160,7 @@ function makeShortBranchName(name: string) {
 
 function attachRefsToMainCommits(
   mainCommits: GitTreeCommit[],
-  branches: LocalBranch[],
+  branches: BranchRef[],
 ) {
   const refsByHead = new Map<string, string[]>();
   for (const branch of branches) {
@@ -108,15 +177,15 @@ function attachRefsToMainCommits(
 
 async function readAheadBehind({
   repoRoot,
-  mainBranch,
-  branchName,
+  mainRef,
+  branchRef,
 }: {
   repoRoot: string;
-  mainBranch: string;
-  branchName: string;
+  mainRef: string;
+  branchRef: string;
 }) {
   const output = await git(
-    ["rev-list", "--left-right", "--count", `${mainBranch}...${branchName}`],
+    ["rev-list", "--left-right", "--count", `${mainRef}...${branchRef}`],
     repoRoot,
   );
   const [behindRaw, aheadRaw] = output.split(/\s+/);
@@ -129,15 +198,17 @@ async function readAheadBehind({
 async function readBranchDetails({
   branch,
   currentBranch,
-  mainBranch,
+  headHash,
+  mainRef,
   repoRoot,
 }: {
-  branch: LocalBranch;
+  branch: BranchRef;
   currentBranch: string;
-  mainBranch: string;
+  headHash: string;
+  mainRef: string;
   repoRoot: string;
 }): Promise<GitTreeBranch> {
-  const base = await git(["merge-base", mainBranch, branch.name], repoRoot).catch(
+  const base = await git(["merge-base", mainRef, branch.refName], repoRoot).catch(
     () => "",
   );
   const baseShort = base
@@ -145,11 +216,11 @@ async function readBranchDetails({
     : "";
   const { ahead, behind } = await readAheadBehind({
     repoRoot,
-    mainBranch,
-    branchName: branch.name,
+    mainRef,
+    branchRef: branch.refName,
   }).catch(() => ({ ahead: 0, behind: 0 }));
   const commits =
-    branch.name === mainBranch || !base || ahead === 0
+    branch.refName === mainRef || !base || ahead === 0
       ? []
       : await git(
           [
@@ -158,7 +229,7 @@ async function readBranchDetails({
             "--date=iso-strict",
             `--pretty=format:${COMMIT_FORMAT}`,
             `--max-count=${MAX_BRANCH_COMMITS}`,
-            `${base}..${branch.name}`,
+            `${base}..${branch.refName}`,
           ],
           repoRoot,
         )
@@ -172,7 +243,7 @@ async function readBranchDetails({
     shortHead: branch.shortHead,
     date: branch.date,
     subject: branch.subject,
-    current: branch.name === currentBranch,
+    current: branch.name === currentBranch || branch.head === headHash,
     base: base || null,
     baseShort: baseShort || null,
     ahead,
@@ -185,12 +256,26 @@ export async function GET() {
   try {
     const repoRoot = await git(["rev-parse", "--show-toplevel"]);
     const currentBranch = await git(["branch", "--show-current"], repoRoot);
+    const headHash = await git(["rev-parse", "HEAD"], repoRoot);
     const branchOutput = await git(
-      ["for-each-ref", `--format=${REF_FORMAT}`, "refs/heads"],
+      ["for-each-ref", `--format=${REF_FORMAT}`, "refs/heads", "refs/remotes"],
       repoRoot,
     );
-    const localBranches = parseLocalBranches(branchOutput);
-    const mainBranch = pickMainBranch(localBranches, currentBranch);
+    const branchRefs = parseBranchRefs(branchOutput);
+    const mainBranch = pickMainBranch(branchRefs, currentBranch);
+    const branchesForTree = dedupeBranchRefs({
+      branchRefs,
+      currentBranch,
+      headHash,
+      mainBranch,
+    });
+    const mainRef =
+      branchesForTree.find((branch) => branch.name === mainBranch)?.refName ??
+      mainBranch;
+    const currentDisplayBranch =
+      currentBranch ||
+      branchesForTree.find((branch) => branch.head === headHash)?.name ||
+      "";
     const mainOutput = await git(
       [
         "log",
@@ -198,32 +283,33 @@ export async function GET() {
         "--date=iso-strict",
         `--pretty=format:${COMMIT_FORMAT}`,
         `--max-count=${MAX_MAIN_COMMITS}`,
-        mainBranch,
+        mainRef,
       ],
       repoRoot,
     );
     const mainCommits = attachRefsToMainCommits(
       parseCommits(mainOutput),
-      localBranches,
+      branchesForTree,
     );
     const branches = await Promise.all(
-      localBranches.map((branch) =>
+      branchesForTree.map((branch) =>
         readBranchDetails({
           branch,
-          currentBranch,
-          mainBranch,
+          currentBranch: currentDisplayBranch,
+          headHash,
+          mainRef,
           repoRoot,
         }),
       ),
     );
     const commitHeads = new Set([
       ...mainCommits.map((commit) => commit.hash),
-      ...localBranches.map((branch) => branch.head),
+      ...branchesForTree.map((branch) => branch.head),
     ]);
     const response: GitTreeResponse = {
       repositoryName: path.basename(repoRoot),
       mainBranch,
-      currentBranch,
+      currentBranch: currentDisplayBranch,
       generatedAt: new Date().toISOString(),
       mainCommits,
       branches: branches.sort((a, b) => {
@@ -234,7 +320,7 @@ export async function GET() {
         return b.ahead - a.ahead || a.name.localeCompare(b.name);
       }),
       stats: {
-        branchCount: localBranches.length,
+        branchCount: branchesForTree.length,
         commitCount: commitHeads.size,
       },
     };

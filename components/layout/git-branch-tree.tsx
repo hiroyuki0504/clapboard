@@ -18,6 +18,7 @@ const GRAPH_TOP = 30;
 const MAIN_STEP = 84;
 const BRANCH_STEP = 58;
 const BOTTOM_SPACE = 92;
+const MAX_DRAWN_BRANCHES = 9;
 const COLORS = ["#c7663b", "#77884b", "#4f7f96", "#a45b7a", "#8b6f36"];
 
 type GitTreeSummary = {
@@ -281,7 +282,11 @@ function buildLayouts({
   let rightCount = 0;
   const branchCandidates = filteredBranches
     .filter((branch) => branch.name !== data.mainBranch)
-    .filter((branch) => branch.ahead > 0 && branch.commits.length > 0);
+    .filter(
+      (branch) =>
+        branch.ahead > 0 || branch.behind > 0 || branch.commits.length > 0,
+    )
+    .slice(0, MAX_DRAWN_BRANCHES);
 
   return branchCandidates.map((branch, index): BranchLayout => {
     let side: "left" | "right";
@@ -306,9 +311,12 @@ function buildLayouts({
       laneX,
       baseY,
       labelShift: (sideIndex % 3) * 13,
-      commitYs: branch.commits.map((_, commitIndex) => {
-        return baseY - (commitIndex + 1) * BRANCH_STEP;
-      }),
+      commitYs:
+        branch.commits.length > 0
+          ? branch.commits.map((_, commitIndex) => {
+              return baseY - (commitIndex + 1) * BRANCH_STEP;
+            })
+          : [baseY - BRANCH_STEP],
     };
   });
 }
@@ -355,9 +363,13 @@ export function GitBranchTree({
     const filteredMainCommits = data.mainCommits.filter((commit) =>
       matchesCommit(commit, normalizedFilter),
     );
-    const drawableBranches = filteredBranches.filter(
-      (branch) => branch.name !== data.mainBranch && branch.ahead > 0,
-    );
+    const drawableBranches = filteredBranches
+      .filter((branch) => branch.name !== data.mainBranch)
+      .filter(
+        (branch) =>
+          branch.ahead > 0 || branch.behind > 0 || branch.commits.length > 0,
+      )
+      .slice(0, MAX_DRAWN_BRANCHES);
     const maxBranchLead = Math.max(
       0,
       ...drawableBranches.map(
