@@ -51,6 +51,7 @@ export default async function CodeReviewPage() {
       <CodeReviewHeader
         reviewModel={reviewSystem.reviewModel}
         pmOwner={reviewSystem.pmOwner}
+        connected={reviewSystemResult.connected}
         mainBranch={reviewSystem.mainBranch}
         activeBranches={activeBranches}
         activeAgentWorktrees={activeAgentWorktrees}

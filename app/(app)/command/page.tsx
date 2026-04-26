@@ -106,6 +106,9 @@ export default async function CommandPage() {
               <MessageSquare className="h-4 w-4" aria-hidden />
               <CardTitle>指示スレッド</CardTitle>
             </div>
+            <Badge tone={projectsResult.connected ? "green" : "amber"}>
+              {projectsResult.connected ? "Backend API" : "Local API"}
+            </Badge>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="flex flex-wrap gap-2">

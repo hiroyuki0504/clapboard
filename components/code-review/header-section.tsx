@@ -5,11 +5,13 @@ import {
   MousePointerClick,
   ShieldCheck,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { MetricTile } from "./metric-tile";
 
 export function CodeReviewHeader({
   reviewModel,
   pmOwner,
+  connected,
   mainBranch,
   activeBranches,
   activeAgentWorktrees,
@@ -17,6 +19,7 @@ export function CodeReviewHeader({
 }: {
   reviewModel: string;
   pmOwner: string;
+  connected: boolean;
   mainBranch: string;
   activeBranches: number;
   activeAgentWorktrees: number;
@@ -43,6 +46,9 @@ export function CodeReviewHeader({
               <ShieldCheck className="h-4 w-4" aria-hidden />
               {pmOwner}
             </div>
+            <Badge tone={connected ? "green" : "amber"}>
+              {connected ? "Backend API" : "Local API"}
+            </Badge>
           </div>
         </div>
       </div>
