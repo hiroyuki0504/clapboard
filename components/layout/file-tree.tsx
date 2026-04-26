@@ -113,7 +113,7 @@ function DirNode({
   }, [entry.isDir, open, loadChildren]);
 
   const toggle = useCallback(async () => {
-    setOpenMap((m) => ({ ...m, [entry.path]: !m[entry.path] }));
+    setOpenMap((m) => ({ ...m, [entry.path]: !open }));
     if (!open) {
       loadChildren();
     }
