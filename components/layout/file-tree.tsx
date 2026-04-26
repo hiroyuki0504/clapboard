@@ -16,6 +16,8 @@ type DirState = {
   items: FileTreeEntry[] | null;
 };
 
+const REPOSITORY_AUTO_OPEN_DEPTH = 2;
+
 type DirNodeProps = {
   entry: FileTreeEntry;
   source: FileTreeSource;
@@ -59,7 +61,15 @@ function DirNode({
   cache,
   setCache,
 }: DirNodeProps) {
-  const open = forceOpen || !!openMap[entry.path];
+  const hasExplicitOpenState = Object.prototype.hasOwnProperty.call(
+    openMap,
+    entry.path,
+  );
+  const autoOpen =
+    source === "repository" &&
+    depth < REPOSITORY_AUTO_OPEN_DEPTH &&
+    !hasExplicitOpenState;
+  const open = forceOpen || autoOpen || !!openMap[entry.path];
   const dirState = cache[entry.path];
   const mountedRef = useRef(true);
   const childrenId = buildFileTreeNodeId(entry.path, source);
@@ -219,15 +229,6 @@ export function FileTree({
       .then((items) => {
         if (!active) return;
         setRoot(items);
-        if (source === "repository") {
-          setOpenMap(
-            Object.fromEntries(
-              items
-                .filter((entry) => entry.isDir)
-                .map((entry) => [entry.path, true]),
-            ),
-          );
-        }
         if (onRootSummary) {
           onRootSummary({
             count: items.length,
