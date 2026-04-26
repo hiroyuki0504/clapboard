@@ -73,10 +73,10 @@ export function Topbar() {
               <span suppressHydrationWarning>{dateLabel ?? ""}</span>
             </div>
             <div className="flex items-baseline gap-2">
-              <h1 className="truncate text-xl font-black tracking-normal text-[#2f2b25]">
+              <h1 className="truncate text-lg font-black tracking-normal text-[#2f2b25] sm:text-xl">
                 {title.label}
               </h1>
-              <span className="hidden text-sm text-[#81786d] sm:inline">
+              <span className="hidden text-sm text-[#81786d] md:inline">
                 {title.caption}
               </span>
             </div>

@@ -120,7 +120,7 @@ export function ProjectBoardClient({
             />
           </label>
         </div>
-        <div className="mt-3 flex flex-col gap-3 border-t border-dashed border-[#d8d1c4] pt-3 sm:flex-row sm:items-center sm:justify-end">
+        <div className="mt-3 flex flex-col gap-3 border-t border-dashed border-[#d8d1c4] pt-3 md:flex-row md:flex-wrap md:items-center md:justify-end">
           <label className="sr-only" htmlFor="project-sort-key">
             並び替え
           </label>

@@ -29,7 +29,7 @@ export function FinanceSection({ projects }: { projects: Project[] }) {
         <span className="text-xs text-[#81786d]">{projects.length}件</span>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <FinancePill label="売上合計" value={formatCurrency(totals.revenue)} />
           <FinancePill label="支出合計" value={formatCurrency(totals.cost)} />
           <FinancePill
@@ -52,7 +52,7 @@ export function FinanceSection({ projects }: { projects: Project[] }) {
                 <li key={project.id}>
                   <Link
                     href={projectDetailHref(project.id, "finance")}
-                    className="grid grid-cols-[1fr_auto] items-center gap-3 border-b border-dashed border-[#d8d1c4] py-2.5 text-sm transition last:border-b-0 hover:bg-[#fbfaf5]"
+                    className="grid grid-cols-1 gap-1 border-b border-dashed border-[#d8d1c4] py-2.5 text-sm transition last:border-b-0 hover:bg-[#fbfaf5] sm:grid-cols-[1fr_auto] sm:items-center sm:gap-3"
                   >
                     <span className="truncate text-[#312d27]">
                       {project.name}
