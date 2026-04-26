@@ -81,14 +81,14 @@ export const railItems: NavItem[] = [
     label: "今日のタスク",
     shortLabel: "今日",
     description: "未処理タスク",
-    href: "/dashboard#todo",
+    href: "/tasks",
     icon: Check,
   },
   {
     label: "今月の収支",
     shortLabel: "収支",
     description: "売上と支出",
-    href: "/dashboard#finance",
+    href: "/finance",
     icon: JapaneseYen,
   },
   {
