@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import type { FileTreeSource } from "@/lib/file-tree-api";
 import { cn } from "@/lib/utils";
 import { FilePanel } from "./file-panel";
 import { isNavItemActive, type NavItem, railItems } from "./nav-items";
@@ -11,12 +12,30 @@ type SidebarContentProps = {
   onNavigate?: () => void;
 };
 
+type RootSummary = {
+  count: number;
+  sizeBytes: number;
+};
+
 export function SidebarContent({
   onNavigate,
 }: SidebarContentProps) {
   const pathname = usePathname();
+  const [fileTreeSource, setFileTreeSource] =
+    useState<FileTreeSource>("repository");
   const [filter, setFilter] = useState("");
   const [currentHash, setCurrentHash] = useState("");
+  const [rootSummaries, setRootSummaries] = useState<
+    Record<FileTreeSource, RootSummary | null>
+  >({ desktop: null, repository: null });
+  const handleSummary = useCallback(
+    (summary: RootSummary) =>
+      setRootSummaries((current) => ({
+        ...current,
+        [fileTreeSource]: summary,
+      })),
+    [fileTreeSource],
+  );
 
   useEffect(() => {
     const syncHash = () => setCurrentHash(window.location.hash);
@@ -112,8 +131,12 @@ export function SidebarContent({
       </div>
 
       <FilePanel
+        source={fileTreeSource}
+        onSourceChange={setFileTreeSource}
         filter={filter}
         onFilterChange={setFilter}
+        onRootSummary={handleSummary}
+        rootSummary={rootSummaries[fileTreeSource]}
         className="min-w-0 flex-1 overflow-y-auto border-r border-[#d2c8b8] bg-[#f1eee5]/94 px-3 py-4"
       />
     </div>

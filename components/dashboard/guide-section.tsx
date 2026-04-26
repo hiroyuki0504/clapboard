@@ -47,7 +47,7 @@ export function GuideSection() {
           <GuideStep
             num={3}
             title="左サイドバーでファイルを確認"
-            body="案件、ナレッジ、収支などの作業ファイルを名前で絞り込みながら確認します。"
+            body="Desktop と今回のリポジトリを切り替え、案件、ナレッジ、収支などの作業ファイルを確認します。"
           />
         </ol>
       </CardContent>
