@@ -3,8 +3,8 @@ import {
   ACCESS_COOKIE_MAX_AGE_SECONDS,
   ACCESS_COOKIE_NAME,
   hasAnyConfiguredCredential,
-  isProductionRuntime,
   resolveRoleFromSecret,
+  shouldUseSecureAccessCookie,
 } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     value: secret,
     httpOnly: true,
     sameSite: "lax",
-    secure: isProductionRuntime(),
+    secure: shouldUseSecureAccessCookie(request),
     path: "/",
     maxAge: ACCESS_COOKIE_MAX_AGE_SECONDS,
   });

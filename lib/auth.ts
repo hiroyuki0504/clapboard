@@ -16,6 +16,32 @@ export function isProductionRuntime() {
   return process.env.NODE_ENV === "production";
 }
 
+export function shouldUseSecureAccessCookie(request: Request) {
+  const forwardedProto = request.headers
+    .get("x-forwarded-proto")
+    ?.split(",")[0]
+    ?.trim()
+    .toLowerCase();
+  if (forwardedProto) {
+    return forwardedProto === "https";
+  }
+
+  const forwarded = request.headers.get("forwarded");
+  const forwardedHeaderProto = forwarded
+    ?.split(",")[0]
+    ?.split(";")
+    .map((part) => part.trim())
+    .find((part) => part.toLowerCase().startsWith("proto="))
+    ?.slice("proto=".length)
+    .replace(/^"|"$/g, "")
+    .toLowerCase();
+  if (forwardedHeaderProto) {
+    return forwardedHeaderProto === "https";
+  }
+
+  return new URL(request.url).protocol === "https:";
+}
+
 export function isDevAuthBypassEnabled() {
   return process.env.CLAPBOARD_DEV_AUTH_BYPASS === "1" && !isProductionRuntime();
 }

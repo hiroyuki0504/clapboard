@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { ACCESS_COOKIE_NAME, isProductionRuntime } from "@/lib/auth";
+import { ACCESS_COOKIE_NAME, shouldUseSecureAccessCookie } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+export async function POST(request: Request) {
   const response = NextResponse.json(
     { ok: true },
     { status: 200, headers: { "cache-control": "no-store" } },
@@ -13,7 +13,7 @@ export async function POST() {
     value: "",
     httpOnly: true,
     sameSite: "lax",
-    secure: isProductionRuntime(),
+    secure: shouldUseSecureAccessCookie(request),
     path: "/",
     maxAge: 0,
   });
