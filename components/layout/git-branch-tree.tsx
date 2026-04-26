@@ -35,6 +35,13 @@ type BranchLayout = {
   commitYs: number[];
 };
 
+function getBranchTone(branch: GitTreeBranch, mainBranch: string) {
+  if (branch.current) return "current";
+  if (branch.name === mainBranch) return "main";
+  if (branch.ahead > 0) return `${branch.ahead} ahead`;
+  return "merged";
+}
+
 function truncateLabel(value: string, max = 22) {
   if (value.length <= max) return value;
   if (max <= 4) return value.slice(0, max);
@@ -168,6 +175,61 @@ function BranchPath({ layout }: { layout: BranchLayout }) {
   );
 }
 
+function getQuickBranches(branches: GitTreeBranch[], mainBranch: string) {
+  const result: GitTreeBranch[] = [];
+  const seen = new Set<string>();
+  const add = (branch: GitTreeBranch | undefined) => {
+    if (!branch || seen.has(branch.name)) return;
+    seen.add(branch.name);
+    result.push(branch);
+  };
+
+  add(branches.find((branch) => branch.current));
+  add(branches.find((branch) => branch.name === mainBranch));
+  branches
+    .filter((branch) => branch.name !== mainBranch && !branch.current)
+    .filter((branch) => branch.ahead > 0 || branch.behind > 0)
+    .slice(0, 4)
+    .forEach(add);
+
+  return result;
+}
+
+function BranchSwitchButton({
+  branch,
+  active,
+  mainBranch,
+  onSelect,
+}: {
+  branch: GitTreeBranch;
+  active: boolean;
+  mainBranch: string;
+  onSelect: (branchName: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(branch.name)}
+      aria-pressed={active}
+      title={branch.name}
+      className={cn(
+        "grid min-h-10 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-0.5 rounded border px-2 py-1 text-left transition",
+        active
+          ? "border-[#c7663b] bg-[#f3d2c7] text-[#8f3c27]"
+          : "border-[#d8d1c4] bg-[#fffefa] text-[#6c6359] hover:border-[#c8a18e] hover:bg-[#fbf2eb]",
+      )}
+    >
+      <GitBranch className="row-span-2 h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span className="min-w-0 truncate text-[11px] font-black">
+        {branch.name === mainBranch ? mainBranch : branch.shortName}
+      </span>
+      <span className="min-w-0 truncate text-[10px] text-current/70">
+        {getBranchTone(branch, mainBranch)}
+      </span>
+    </button>
+  );
+}
+
 function buildLayouts({
   data,
   filteredBranches,
@@ -224,6 +286,9 @@ export function GitBranchTree({
 }) {
   const [data, setData] = useState<GitTreeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedBranchName, setSelectedBranchName] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     let active = true;
@@ -324,6 +389,15 @@ export function GitBranchTree({
       </p>
     );
   }
+
+  const quickBranches = getQuickBranches(
+    graph.filteredBranches,
+    data.mainBranch,
+  );
+  const selectedBranch =
+    data.branches.find((branch) => branch.name === selectedBranchName) ??
+    data.branches.find((branch) => branch.current) ??
+    null;
 
   return (
     <div className="text-sm text-[#5f574d]">
@@ -427,6 +501,39 @@ export function GitBranchTree({
         )}
       </div>
 
+      {quickBranches.length > 0 && (
+        <div
+          className="mt-3 rounded-md border border-[#d8d1c4] bg-[#f6f1e7] p-2"
+          aria-label="ブランチ切り替え"
+        >
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-[11px] font-black text-[#312d27]">
+              ブランチ切替
+            </span>
+            {selectedBranch && (
+              <span className="min-w-0 truncate text-[10px] font-bold text-[#81786d]">
+                {selectedBranch.shortHead}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {quickBranches.map((branch) => (
+              <BranchSwitchButton
+                key={branch.name}
+                branch={branch}
+                active={
+                  selectedBranchName
+                    ? branch.name === selectedBranchName
+                    : branch.current
+                }
+                mainBranch={data.mainBranch}
+                onSelect={setSelectedBranchName}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-3 space-y-1" aria-label="ブランチ一覧">
         {graph.filteredBranches
           .filter((branch) => branch.name !== data.mainBranch)
@@ -436,7 +543,10 @@ export function GitBranchTree({
               <div
                 key={branch.name}
                 className={cn(
-                  "flex min-h-8 items-center gap-2 rounded px-2 py-1 text-[11px]",
+                  "flex min-h-8 items-center gap-2 rounded border px-2 py-1 text-[11px]",
+                  selectedBranchName === branch.name &&
+                    "border-[#c7663b] bg-[#fbf2eb]",
+                  selectedBranchName !== branch.name && "border-transparent",
                   branch.current
                     ? "bg-[#f3d2c7] font-bold text-[#9f452c]"
                     : "text-[#6c6359]",
