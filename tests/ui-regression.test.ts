@@ -151,3 +151,16 @@ test("TimelineGrid exposes delete controls for calendar events", () => {
   assert.match(markup, /レビュー打ち合わせ/);
   assert.match(markup, /aria-label="予定「レビュー打ち合わせ」を削除"/);
 });
+
+test("TodoSection exposes selectable task actions", () => {
+  const todoSectionSource = readFileSync(
+    path.join(process.cwd(), "components/dashboard/todo-section.tsx"),
+    "utf8",
+  );
+
+  assert.match(todoSectionSource, /type="checkbox"/);
+  assert.match(todoSectionSource, /selected \{selectedCount\}/);
+  assert.match(todoSectionSource, /処理済み/);
+  assert.match(todoSectionSource, /今日から外す/);
+  assert.match(todoSectionSource, /clapboard:hidden-today-tasks:/);
+});
