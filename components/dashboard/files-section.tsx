@@ -25,7 +25,7 @@ export function FilesSection({ files }: { files: ProjectFile[] }) {
         {files.slice(0, 5).map((file) => {
           const safeUrl = safeFileUrl(file.url);
           const className =
-            "grid grid-cols-[1fr_auto] gap-3 border-b border-dashed border-[#d8d1c4] py-2.5 text-sm transition last:border-b-0 hover:bg-[#fbfaf5]";
+            "grid grid-cols-1 gap-1 border-b border-dashed border-[#d8d1c4] py-2.5 text-sm transition last:border-b-0 hover:bg-[#fbfaf5] sm:grid-cols-[1fr_auto] sm:gap-3";
           const content = (
             <>
               <span className="truncate text-[#312d27]">{file.name}</span>

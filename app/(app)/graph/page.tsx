@@ -60,7 +60,7 @@ export default async function GraphPage() {
                 停滞タスク、進捗メモ、関連ファイルを同じ面に置いて、次に確認すべき依存関係を追います。
               </p>
             </div>
-            <div className="flex shrink-0 overflow-hidden rounded-md border border-[#423c33]/55 text-sm font-bold">
+            <div className="thin-scrollbar flex w-full overflow-x-auto rounded-md border border-[#423c33]/55 text-sm font-bold sm:w-auto sm:shrink-0">
               <span className="inline-flex items-center gap-2 bg-[#312d27] px-3 py-2 text-white">
                 <Network className="h-4 w-4" aria-hidden />
                 グラフ

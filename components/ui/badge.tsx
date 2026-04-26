@@ -32,7 +32,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex rounded-full border font-semibold",
+        "inline-flex whitespace-nowrap rounded-full border font-semibold",
         shape === "default" ? "items-center" : "flex-col items-center",
         toneClass[tone],
         shapeClass[shape],
