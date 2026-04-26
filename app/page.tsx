@@ -13,7 +13,7 @@ import {
   JapaneseYen,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ProjectStatusBadge } from "@/components/project-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -566,6 +566,38 @@ type FinanceSummary = {
   bars: number[];
 };
 
+type GraphNodeTone = "project" | "minute" | "file";
+
+type GraphNode = {
+  id: string;
+  label: string;
+  detail?: string;
+  tone: GraphNodeTone;
+  initialX: number;
+  initialY: number;
+  width: number;
+  height: number;
+};
+
+type GraphPosition = {
+  x: number;
+  y: number;
+};
+
+type GraphPositions = Record<string, GraphPosition>;
+
+type GraphEdge = {
+  id: string;
+  from: string;
+  to: string;
+};
+
+type GraphDragState = {
+  nodeId: string;
+  offsetX: number;
+  offsetY: number;
+};
+
 const priorityRank: Record<string, number> = {
   high: 0,
   medium: 1,
@@ -860,12 +892,129 @@ function GraphCard({
   project?: DashboardProject;
   files: Array<{ name: string }>;
 }) {
+  const canvasRef = useRef<HTMLDivElement>(null);
   const sourceMinute = project?.minutes[0];
   const graphFiles = project?.files ?? files;
-  const relationCount =
-    (project?.minutes.length ?? 0) +
-    (project?.imports.length ?? 0) +
-    graphFiles.length;
+  const graphNodes: GraphNode[] = [
+    {
+      id: "project",
+      label: project?.name ?? "案件",
+      detail:
+        project != null ? `${project.progress}% / ${project.client}` : undefined,
+      tone: "project",
+      initialX: 5,
+      initialY: 15,
+      width: 40,
+      height: 18,
+    },
+    {
+      id: "minute",
+      label: sourceMinute?.title ?? "議事録",
+      detail: "議事録",
+      tone: "minute",
+      initialX: 30,
+      initialY: 57,
+      width: 38,
+      height: 18,
+    },
+    {
+      id: "file-primary",
+      label: graphFiles[0]?.name ?? "関連ファイル",
+      detail: graphFiles[0] != null ? "file" : undefined,
+      tone: "file",
+      initialX: 58,
+      initialY: 34,
+      width: 37,
+      height: 18,
+    },
+    {
+      id: "file-secondary",
+      label: graphFiles[1]?.name ?? "共有資料",
+      detail: graphFiles[1] != null ? "file" : undefined,
+      tone: "file",
+      initialX: 43,
+      initialY: 9,
+      width: 37,
+      height: 18,
+    },
+  ];
+  const graphEdges: GraphEdge[] = [
+    { id: "project-minute", from: "project", to: "minute" },
+    { id: "project-file-secondary", from: "project", to: "file-secondary" },
+    { id: "minute-file-primary", from: "minute", to: "file-primary" },
+    { id: "file-secondary-file-primary", from: "file-secondary", to: "file-primary" },
+  ];
+  const graphLayoutKey = graphNodes
+    .map((node) => `${node.id}:${node.label}:${node.detail ?? ""}`)
+    .join("|");
+  const [nodePositions, setNodePositions] = useState<GraphPositions>(() =>
+    getInitialGraphPositions(graphNodes),
+  );
+  const [dragState, setDragState] = useState<GraphDragState | null>(null);
+
+  useEffect(() => {
+    setNodePositions(getInitialGraphPositions(graphNodes));
+  }, [graphLayoutKey]);
+
+  function handleNodePointerDown(
+    event: React.PointerEvent<HTMLButtonElement>,
+    node: GraphNode,
+  ) {
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
+
+    if (canvasRect == null || canvasRect.width === 0 || canvasRect.height === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    const position = getGraphPosition(node, nodePositions);
+    const pointerX = ((event.clientX - canvasRect.left) / canvasRect.width) * 100;
+    const pointerY = ((event.clientY - canvasRect.top) / canvasRect.height) * 100;
+
+    setDragState({
+      nodeId: node.id,
+      offsetX: pointerX - position.x,
+      offsetY: pointerY - position.y,
+    });
+  }
+
+  function handleCanvasPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragState == null) {
+      return;
+    }
+
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
+    const activeNode = graphNodes.find((node) => node.id === dragState.nodeId);
+
+    if (
+      canvasRect == null ||
+      canvasRect.width === 0 ||
+      canvasRect.height === 0 ||
+      activeNode == null
+    ) {
+      return;
+    }
+
+    const nextPosition = clampGraphPosition(activeNode, {
+      x:
+        ((event.clientX - canvasRect.left) / canvasRect.width) * 100 -
+        dragState.offsetX,
+      y:
+        ((event.clientY - canvasRect.top) / canvasRect.height) * 100 -
+        dragState.offsetY,
+    });
+
+    setNodePositions((current) => ({
+      ...current,
+      [activeNode.id]: nextPosition,
+    }));
+  }
+
+  function handleCanvasPointerEnd() {
+    setDragState(null);
+  }
 
   return (
     <Card>
@@ -875,33 +1024,135 @@ function GraphCard({
           <CardTitle>ファイル関係グラフ</CardTitle>
         </div>
         <span className="text-xs text-[#81786d]">
-          関連 {relationCount}件
+          {graphNodes.length} nodes / {graphEdges.length} edges
         </span>
       </CardHeader>
       <CardContent>
-        <div className="dotted-canvas relative h-52 overflow-hidden rounded-md border border-[#d8d1c4] bg-[#fffefa]">
-          <div className="absolute left-6 top-9 z-10 rounded-full border border-[#d66b43] bg-[#fffefa] px-3 py-1 text-xs font-bold text-[#9a4a31]">
-            {project?.name ?? "案件"}
-          </div>
-          <div className="absolute left-32 top-28 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            {sourceMinute?.title ?? "議事録"}
-          </div>
-          <div className="absolute right-8 top-20 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            {graphFiles[0]?.name ?? "関連ファイル"}
-          </div>
-          <div className="absolute left-48 top-14 z-10 rounded-full border border-[#423c33] bg-[#fffefa] px-3 py-1 text-xs font-semibold">
-            {graphFiles[1]?.name ?? "共有資料"}
-          </div>
-          <span className="absolute left-[82px] top-[78px] h-px w-24 rotate-45 bg-[#c8c0b4]" />
-          <span className="absolute left-[178px] top-[94px] h-px w-20 -rotate-45 bg-[#c8c0b4]" />
-          <span className="absolute right-[82px] top-[82px] h-px w-24 rotate-[20deg] bg-[#c8c0b4]" />
-          <div className="absolute bottom-5 left-7 rotate-[-2deg] rounded-sm border border-[#d2a528] bg-[#ffe783] px-3 py-2 text-xs font-bold leading-5 text-[#6f5415] shadow-sm">
+        <div
+          ref={canvasRef}
+          className="dotted-canvas relative h-64 overflow-hidden rounded-md border border-[#d8d1c4] bg-[#fffefa]"
+          onPointerMove={handleCanvasPointerMove}
+          onPointerUp={handleCanvasPointerEnd}
+          onPointerCancel={handleCanvasPointerEnd}
+          onLostPointerCapture={handleCanvasPointerEnd}
+        >
+          <svg
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            aria-hidden
+          >
+            {graphEdges.map((edge) => {
+              const line = getGraphLine(edge, graphNodes, nodePositions);
+
+              if (line == null) {
+                return null;
+              }
+
+              return (
+                <line
+                  key={edge.id}
+                  x1={`${line.x1}%`}
+                  y1={`${line.y1}%`}
+                  x2={`${line.x2}%`}
+                  y2={`${line.y2}%`}
+                  stroke="#c8c0b4"
+                  strokeLinecap="round"
+                  strokeWidth="2"
+                />
+              );
+            })}
+          </svg>
+          {graphNodes.map((node) => {
+            const position = getGraphPosition(node, nodePositions);
+
+            return (
+              <button
+                key={node.id}
+                type="button"
+                className={[
+                  "absolute z-10 flex cursor-grab select-none flex-col justify-center overflow-hidden rounded-full border bg-[#fffefa] px-3 text-left shadow-sm transition active:cursor-grabbing",
+                  "touch-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+                  graphNodeToneClass(node.tone),
+                  dragState?.nodeId === node.id ? "z-20 ring-2 ring-[#d5a33f]" : "",
+                ].join(" ")}
+                style={{
+                  left: `${position.x}%`,
+                  top: `${position.y}%`,
+                  width: `${node.width}%`,
+                  height: `${node.height}%`,
+                }}
+                aria-label={`${node.label} ノード`}
+                onPointerDown={(event) => handleNodePointerDown(event, node)}
+              >
+                <span className="truncate text-sm font-black tracking-normal">
+                  {node.label}
+                </span>
+                {node.detail != null ? (
+                  <span className="mt-1 truncate text-xs font-semibold text-[#70675b]">
+                    {node.detail}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+          <div className="pointer-events-none absolute bottom-5 left-7 rotate-[-2deg] rounded-sm border border-[#d2a528] bg-[#ffe783] px-3 py-2 text-xs font-bold leading-5 text-[#6f5415] shadow-sm">
             ノード = 案件・議事録・ファイル
           </div>
         </div>
       </CardContent>
     </Card>
   );
+}
+
+function getInitialGraphPositions(nodes: GraphNode[]): GraphPositions {
+  return Object.fromEntries(
+    nodes.map((node) => [node.id, { x: node.initialX, y: node.initialY }]),
+  );
+}
+
+function getGraphPosition(node: GraphNode, positions: GraphPositions) {
+  return positions[node.id] ?? { x: node.initialX, y: node.initialY };
+}
+
+function clampGraphPosition(node: GraphNode, position: GraphPosition) {
+  return {
+    x: Math.min(Math.max(position.x, 0), 100 - node.width),
+    y: Math.min(Math.max(position.y, 0), 100 - node.height),
+  };
+}
+
+function getGraphLine(
+  edge: GraphEdge,
+  nodes: GraphNode[],
+  positions: GraphPositions,
+) {
+  const source = nodes.find((node) => node.id === edge.from);
+  const target = nodes.find((node) => node.id === edge.to);
+
+  if (source == null || target == null) {
+    return null;
+  }
+
+  const sourcePosition = getGraphPosition(source, positions);
+  const targetPosition = getGraphPosition(target, positions);
+
+  return {
+    x1: sourcePosition.x + source.width / 2,
+    y1: sourcePosition.y + source.height / 2,
+    x2: targetPosition.x + target.width / 2,
+    y2: targetPosition.y + target.height / 2,
+  };
+}
+
+function graphNodeToneClass(tone: GraphNodeTone) {
+  const toneClasses: Record<GraphNodeTone, string> = {
+    project:
+      "border-[#d66b43] text-[#9a4a31] focus-visible:outline-[#d66b43]",
+    minute:
+      "border-[#423c33] text-[#312d27] focus-visible:outline-[#423c33]",
+    file: "border-[#8aa0c0] text-[#315676] focus-visible:outline-[#8aa0c0]",
+  };
+
+  return toneClasses[tone];
 }
 
 function FinanceCard({ summary }: { summary: FinanceSummary }) {
