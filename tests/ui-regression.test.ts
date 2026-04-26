@@ -124,3 +124,30 @@ test("ProjectDetailTabs keeps URL query tab synchronization", () => {
   assert.match(tabButtonSource, /tabIndex=\{active \? 0 : -1\}/);
   assert.match(tabButtonSource, /whitespace-nowrap/);
 });
+
+test("TimelineGrid exposes delete controls for calendar events", () => {
+  const { TimelineGrid } = requireFromOutput(
+    "../components/timeline/timeline-grid",
+  ) as typeof import("../components/timeline/timeline-grid");
+
+  const markup = renderToStaticMarkup(
+    React.createElement(TimelineGrid, {
+      dateKeys: ["2026-04-26"],
+      todayKey: "2026-04-26",
+      events: [
+        {
+          id: "event-1",
+          lane: "agent",
+          dateKey: "2026-04-26",
+          title: "レビュー打ち合わせ",
+          sub: "ユーザー追加",
+          tone: "slate",
+        },
+      ],
+      onDeleteEvent: () => {},
+    }),
+  );
+
+  assert.match(markup, /レビュー打ち合わせ/);
+  assert.match(markup, /aria-label="予定「レビュー打ち合わせ」を削除"/);
+});
