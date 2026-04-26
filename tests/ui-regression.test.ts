@@ -185,4 +185,22 @@ test("TodoSection exposes selectable task actions", () => {
   assert.match(todoSectionSource, /処理済み/);
   assert.match(todoSectionSource, /今日から外す/);
   assert.match(todoSectionSource, /clapboard:hidden-today-tasks:/);
+  assert.doesNotMatch(todoSectionSource, /status:\s*"rejected"/);
+  assert.doesNotMatch(todoSectionSource, /extractionStatus/);
+});
+
+test("AppShell constrains scrolling to the workspace content pane", () => {
+  const appShellSource = readFileSync(
+    path.join(process.cwd(), "components/layout/app-shell.tsx"),
+    "utf8",
+  );
+  const sidebarSource = readFileSync(
+    path.join(process.cwd(), "components/layout/sidebar.tsx"),
+    "utf8",
+  );
+
+  assert.match(appShellSource, /flex h-dvh flex-col overflow-hidden/);
+  assert.match(appShellSource, /flex min-h-0 flex-1 overflow-hidden/);
+  assert.match(appShellSource, /flex min-h-0 min-w-0 flex-1 flex-col/);
+  assert.match(sidebarSource, /hidden h-full w-\[372px\] shrink-0 self-stretch/);
 });
