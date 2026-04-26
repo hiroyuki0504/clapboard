@@ -5,6 +5,7 @@ import type {
   BranchWorkstreamStatus,
   MergeGate,
   NoCodeRequestStatus,
+  PullRequestReview,
   ReviewCommentStatus,
   ReviewPriority,
   ReviewState,
@@ -93,6 +94,82 @@ export const commentStatusMeta: Record<
 
 export function isAuthorRequiredPriority(priority: ReviewPriority) {
   return priority === "crucial" || priority === "high";
+}
+
+export function getAuthorRequiredOpenComments(
+  pullRequest: Pick<PullRequestReview, "comments">,
+) {
+  return pullRequest.comments.filter(
+    (comment) =>
+      comment.status === "open" && isAuthorRequiredPriority(comment.priority),
+  );
+}
+
+export function getPmDecisionComments(
+  pullRequest: Pick<PullRequestReview, "comments">,
+) {
+  return pullRequest.comments.filter(
+    (comment) =>
+      !isAuthorRequiredPriority(comment.priority) ||
+      comment.status === "accepted-risk",
+  );
+}
+
+export function getPullRequestMergeGateSummary(
+  pullRequest: Pick<
+    PullRequestReview,
+    "comments" | "gate" | "reviewState"
+  >,
+) {
+  const authorRequiredOpenComments =
+    getAuthorRequiredOpenComments(pullRequest);
+
+  if (pullRequest.gate === "blocked" || authorRequiredOpenComments.length > 0) {
+    return {
+      label: "マージ不可",
+      reasonLabel: "block理由",
+      reason:
+        authorRequiredOpenComments.length > 0
+          ? `${authorRequiredOpenComments.length}件のCrucial/Highが未対応。PR作成者の修正完了までPM承認しない。`
+          : "レビュー状態が修正必要。PR作成者の対応完了までPM承認しない。",
+      tone: "red" as const,
+    };
+  }
+
+  if (pullRequest.gate === "ready") {
+    return {
+      label: "マージ可",
+      reasonLabel: "ready理由",
+      reason:
+        pullRequest.reviewState === "passed"
+          ? "レビュー通過済みでCrucial/Highの未対応なし。残リスクをPMが許容できればマージ可。"
+          : "Crucial/Highの未対応なし。PMが最終確認する。",
+      tone: "green" as const,
+    };
+  }
+
+  return {
+    label: "PM確認中",
+    reasonLabel: "確認理由",
+    reason: "レビュー投入またはPM承認待ち。Crucial/Highが出たらマージ不可。",
+    tone: "blue" as const,
+  };
+}
+
+export function getResidualRiskSummary(
+  pullRequest: Pick<PullRequestReview, "comments" | "riskAreas">,
+) {
+  const pmDecisionComments = getPmDecisionComments(pullRequest);
+
+  if (pmDecisionComments.length > 0) {
+    return pmDecisionComments.map((comment) => comment.title).join(" / ");
+  }
+
+  if (pullRequest.riskAreas.length > 0) {
+    return `確認済み領域: ${pullRequest.riskAreas.join(" / ")}。追加保留なし。`;
+  }
+
+  return "PM判断で持ち越すコメントはありません。";
 }
 
 export function isActiveAgentWorktreeStatus(status: AgentWorktreeStatus) {
